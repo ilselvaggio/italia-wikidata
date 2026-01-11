@@ -10,25 +10,25 @@ import datetime
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 
-# Liste von Klassen (Q-Nummern), die ORANGE (Status: broad) werden sollen
-# Q46831 = Gebirge, Q82794 = Geografische Region, Q123705 = Nachbarschaft/Viertel, Q205466 = Verkehrsweg
-BROAD_CLASSES = ['Q46831', 'Q82794', 'Q123705', 'Q205466', 'Q15312'] 
+# Klassen für ORANGE Markierung (Status: broad)
+# Q46831=Gebirge, Q205466=Verkehrsweg.
+# Entfernt: Q82794 (Region), da dies zu viele Treffer in Abruzzo gab.
+BROAD_CLASSES = ['Q46831', 'Q205466', 'Q15312'] 
 
 def get_wikidata_auto(qid, region_name):
-    """
-    Lädt Wikidata LIVE herunter.
-    Filtert historische Objekte (Enddatum < Heute) aus.
-    """
-    # SPARQL Query mit Filtern für P582 (Endzeit) und P576 (Auflösung)
+    # NEU: MINUS-Filter entfernt Objekte, deren P131-Verbindung (Ort) ein Enddatum hat.
+    # Das repariert den Bauernhof, der jetzt in Österreich steht.
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?class WHERE {{ 
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc . 
        
-       # Hole die Klasse (P31) für die Orange-Markierung
        OPTIONAL {{ ?item wdt:P31 ?classItem . BIND(STRAFTER(STR(?classItem), '/entity/') as ?class) }}
 
-       # FILTER: Alles weg, was ein Enddatum in der Vergangenheit hat
+       # 1. Das Objekt selbst darf nicht historisch sein
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
+
+       # 2. Die VERBINDUNG zur Region (P131) darf nicht abgelaufen sein (Fix für Bauernhof)
+       MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
 
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
        BIND(geof:latitude(?loc) as ?lat) 
@@ -64,25 +64,22 @@ def main():
     for key, config in regions.items():
         file_osm = f"osm_{key}.json"
         
-        # Auf GitHub liegen die Dateien im Root, wir prüfen einfach ob sie da sind
         if not os.path.exists(file_osm):
             print(f"[Info] Keine OSM-Datei für {key}, überspringe.")
             continue
 
         print(f"\n--- Verarbeite {config['name']} ---")
 
-        # 1. OSM Datei lesen
+        # 1. OSM
         osm_ids = {}
         try:
             with open(file_osm, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 elements = data.get('elements', [])
-                
                 for element in elements:
                     tags = element.get('tags', {})
                     el_type = element.get('type')
                     el_id = element.get('id')
-                    
                     if 'wikidata' in tags:
                         raw = tags['wikidata'].split(';')[0].strip().upper()
                         if raw.startswith('Q'):
@@ -91,21 +88,19 @@ def main():
             print(f"   FEHLER OSM: {e}")
             continue
 
-        # 2. Wikidata Live holen
+        # 2. Wikidata
         csv_text = get_wikidata_auto(config['qid'], config['name'])
         if not csv_text: continue
 
         # 3. Abgleich
         features = []
-        processed_qids = set() # Um Duplikate zu vermeiden
-        
+        processed_qids = set()
         reader = csv.DictReader(csv_text.splitlines())
         
         for row in reader:
             qid = row.get('qid') or row.get('?qid')
             if not qid: continue
             qid = qid.split('/')[-1].upper()
-            
             if qid in processed_qids: continue
             
             try:
@@ -117,15 +112,10 @@ def main():
                 continue
 
             osm_ref = osm_ids.get(qid)
-            
-            # Status Logik
             status = "missing"
-            if osm_ref:
-                status = "done"
+            if osm_ref: status = "done"
             
-            # Überschreibe Status mit "broad" (Orange), wenn es z.B. ein Gebirge ist
-            # Aber nur, wenn es noch nicht "done" ist (oder willst du auch erledigte Gebirge orange haben?)
-            # Hier: Gebirge werden IMMER orange, damit man sieht, dass es keine normalen Punkte sind.
+            # Orange Logic: Nur bestimmte Klassen (Gebirge etc.)
             if item_class in BROAD_CLASSES:
                 status = "broad"
 
@@ -144,20 +134,26 @@ def main():
             })
             processed_qids.add(qid)
 
-        # 4. Speichern
         outfile = f"data_{key}.geojson"
         with open(outfile, 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
         
         print(f"   -> Gespeichert: {outfile} ({len(features)} Items)")
         processed_count += 1
-        time.sleep(1) # Kurze Pause für Wikidata API
+        time.sleep(1)
 
-    # Metadata schreiben
+    # Metadata schreiben (Automatisch aktuelles Datum + UTC Hinweis)
     if processed_count > 0:
-        now_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        now = datetime.datetime.now(datetime.timezone.utc)
+        # Format: 11/01/2026 23:00 (UTC)
+        time_str = now.strftime("%d/%m/%Y %H:%M (UTC)")
+        
         with open("metadata.json", "w") as f:
-            json.dump({"last_updated": now_str, "regions_count": len(regions)}, f)
+            json.dump({
+                "last_updated": time_str, 
+                "regions_count": len(regions),
+                "info_osm": "OSM: Manual Upload"
+            }, f)
 
     print(f"\nFERTIG. {processed_count} Regionen aktualisiert.")
 

@@ -6,12 +6,14 @@ import requests
 import sys
 import os
 
-# --- KONFIGURATION ---
+# --- CONFIGURAZIONE ---
 REGIONS_FILE = "regions.json"
-MAX_RETRIES = 3
-RETRY_DELAY = 60 # Sekunden warten vor Neustart bei Fehler
+MAX_RETRIES = 5             # Aumentato a 5 tentativi
+RETRY_DELAY = 30            # Secondi tra i tentativi
+OVERPASS_TIMEOUT = 1800     # 30 minuti di timeout per query pesanti
 
 def get_wikidata(qid):
+    # Query SPARQL stretta sulla regione (P131)
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{ 
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc . 
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
@@ -21,51 +23,62 @@ def get_wikidata(qid):
     }}"""
     
     url = "https://query.wikidata.org/sparql"
-    print(f"  -> Lade Wikidata für {qid}...")
-    r = requests.get(url, params={'query': query}, headers={'Accept': 'text/csv'})
-    r.raise_for_status()
-    return r.text
-
-def get_overpass(area_id):
-    # Query ohne Turbo-Shortcuts
-    query = f'[out:json][timeout:900]; area(id:{area_id})->.searchArea; nwr[~".*wikidata$"~"."](area.searchArea); out tags;'
-    url = "https://overpass-api.de/api/interpreter"
+    print(f"  -> Scarico Wikidata per {qid}...")
     
-    print(f"  -> Lade Overpass für Area {area_id}...")
-    # Versuche den Download mit Retry-Logik
     for attempt in range(MAX_RETRIES):
         try:
+            r = requests.get(url, params={'query': query}, headers={'Accept': 'text/csv'})
+            r.raise_for_status()
+            return r.text
+        except Exception as e:
+            print(f"     Errore Wikidata (Tentativo {attempt+1}): {e}")
+            time.sleep(5)
+    raise Exception("Impossibile scaricare da Wikidata dopo vari tentativi")
+
+def get_overpass(area_id):
+    # Query Overpass ottimizzata con timeout alto e maxsize
+    query = f'[out:json][timeout:{OVERPASS_TIMEOUT}][maxsize:2073741824]; area(id:{area_id})->.searchArea; nwr[~".*wikidata$"~"."](area.searchArea); out tags;'
+    url = "https://overpass-api.de/api/interpreter"
+    
+    print(f"  -> Scarico Overpass per Area {area_id}...")
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            # Usiamo POST per evitare problemi di lunghezza URL
             r = requests.post(url, data={'data': query})
             r.raise_for_status()
             
-            # Prüfen ob valides JSON
             data = r.json()
+            # Controllo integrità
             if 'elements' in data:
                 return data
             else:
-                raise ValueError("JSON ohne 'elements' Key")
+                if 'remark' in data:
+                    print(f"     Overpass Remark: {data['remark']}")
+                raise ValueError("JSON valido ma senza chiave 'elements'")
                 
         except Exception as e:
-            print(f"     FEHLER (Versuch {attempt+1}/{MAX_RETRIES}): {e}")
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_DELAY)
-            else:
-                raise e # Beim letzten Versuch aufgeben
+            print(f"     Errore Overpass (Tentativo {attempt+1}): {e}")
+            time.sleep(RETRY_DELAY * (attempt + 1)) # Backoff incrementale
+            
+    raise Exception("Impossibile scaricare da Overpass")
 
 def process_region(key, config):
-    print(f"\n--- Starte {config['name']} ---")
+    print(f"\n--- Elaborazione: {config['name']} ---")
     
-    # 1. Daten holen
     try:
         csv_text = get_wikidata(config['qid'])
         osm_json = get_overpass(config['osm'])
     except Exception as e:
-        print(f"!!! ABBRUCH für {config['name']}: {e}")
-        return False
+        print(f"!!! SALTO REGIONE {config['name']}: {e}")
+        return None
 
-    # 2. OSM IDs sammeln
+    # Mappa OSM IDs
     osm_ids = {}
-    for element in osm_json.get('elements', []):
+    elements = osm_json.get('elements', [])
+    print(f"    Elementi OSM trovati: {len(elements)}")
+    
+    for element in elements:
         tags = element.get('tags', {})
         el_type = element.get('type')
         el_id = element.get('id')
@@ -73,18 +86,16 @@ def process_region(key, config):
         
         for k, v in tags.items():
             if k.endswith("wikidata"):
-                # Extrahiere alle Q-Nummern
                 import re
                 found = re.findall(r'Q\d+', v, re.IGNORECASE)
                 for qid in found:
                     osm_ids[qid.upper()] = osm_link_id
 
-    # 3. Wikidata abgleichen & GeoJSON bauen
+    # Processa Wikidata
     features = []
     missing_count = 0
     done_count = 0
     
-    # CSV parsen
     lines = csv_text.splitlines()
     reader = csv.DictReader(lines)
     
@@ -100,7 +111,6 @@ def process_region(key, config):
         except:
             continue
             
-        # Status prüfen
         osm_ref = osm_ids.get(qid)
         status = "done" if osm_ref else "missing"
         
@@ -121,33 +131,46 @@ def process_region(key, config):
             }
         })
         
-    # 4. Speichern
+    # Salva file regionale
     outfile = f"data_{key}.geojson"
     with open(outfile, 'w', encoding='utf-8') as f:
         json.dump({"type": "FeatureCollection", "features": features}, f)
         
-    print(f"  -> Gespeichert: {outfile} (Missing: {missing_count}, Done: {done_count})")
-    return True
+    print(f"  -> Salvato {outfile}: {missing_count} mancanti, {done_count} completati.")
+    return features
 
 def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
         
-    # Metadata update
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    # Data e Ora UTC+1
+    utc_now = datetime.datetime.utcnow()
+    cet_now = utc_now + datetime.timedelta(hours=1)
+    timestamp_str = cet_now.strftime("%d/%m/%Y %H:%M (UTC+1)")
     
+    all_italy_features = []
     success_count = 0
+    
     for key, config in regions.items():
-        if process_region(key, config):
+        region_features = process_region(key, config)
+        if region_features is not None:
             success_count += 1
-        # Höflichkeitspause zwischen Regionen
+            all_italy_features.extend(region_features)
+        
+        # Pausa di cortesia per Overpass
         time.sleep(5)
-            
-    # Metadata schreiben
-    with open("metadata.json", "w") as f:
-        json.dump({"last_updated": now, "regions_count": len(regions)}, f)
 
-    print(f"\n--- UPDATE KOMPLETT ({success_count}/{len(regions)} erfolgreich) ---")
+    # Genera file "Tutta Italia"
+    if all_italy_features:
+        print(f"\n--- Generazione file Italia completa ({len(all_italy_features)} oggetti) ---")
+        with open("data_italia.geojson", "w", encoding='utf-8') as f:
+            json.dump({"type": "FeatureCollection", "features": all_italy_features}, f)
+            
+    # Metadata
+    with open("metadata.json", "w") as f:
+        json.dump({"last_updated": timestamp_str, "regions_count": len(regions)}, f)
+
+    print(f"\n--- AGGIORNAMENTO COMPLETATO ({success_count}/{len(regions)} regioni) ---")
 
 if __name__ == "__main__":
     main()

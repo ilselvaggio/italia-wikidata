@@ -38,7 +38,7 @@ def get_wikidata(qid):
 def get_overpass(area_id):
     # Query Overpass ottimizzata con timeout alto e maxsize
     query = f'[out:json][timeout:{OVERPASS_TIMEOUT}][maxsize:2073741824]; area(id:{area_id})->.searchArea; nwr["wikidata"](area.searchArea); out tags;'
-    url = "url = "https://overpass-api.de/api/interpreter/interpreter"
+    url = "https://overpass-api.de/api/interpreter"
     
     print(f"  -> Scarico Overpass per Area {area_id}...")
     

@@ -1,0 +1,38 @@
+name: Generate Map Data
+
+on:
+  push:
+    paths:
+      - 'osm_*.json'
+      - 'update.py'
+      - 'regions.json'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Update Script
+        run: python -u update.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data_*.geojson metadata.json
+          git commit -m "Auto-update map data" || echo "Keine Änderungen"
+          git push

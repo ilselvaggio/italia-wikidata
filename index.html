@@ -10,7 +10,6 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
-        /* HEADER */
         #header {
             height: 50px;
             background-color: #333;
@@ -27,7 +26,6 @@
         #left-col { display: flex; align-items: center; gap: 15px; }
         #title { font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
 
-        /* Dropdown Style */
         #regionSelect {
             background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer;
         }
@@ -42,10 +40,9 @@
         
         #meta-info { font-size: 11px; color: #aaa; margin-left: 10px; border-left: 1px solid #555; padding-left: 10px; }
 
-        /* MAP */
         #map { height: calc(100% - 50px); width: 100%; background: #f0f0f0; }
 
-        /* POPUP */
+        /* Popup */
         .leaflet-popup-content-wrapper { border-radius: 6px; }
         .popup-content { font-size: 14px; min-width: 180px; }
         .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
@@ -79,7 +76,7 @@
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
             Mapped <span id="count-done">(0)</span>
         </div>
-        <div id="meta-info">Updated: <span id="last-updated">-</span></div>
+        <div id="meta-info">Aggiornato: <span id="last-updated">-</span></div>
     </div>
 </header>
 
@@ -95,31 +92,40 @@
     var layers = { missing: L.layerGroup(), done: L.layerGroup() };
     var currentRegion = null;
 
-    // 1. Initialisierung: Regionen und Metadaten laden
     Promise.all([
         fetch('regions.json').then(r => r.json()),
-        fetch('metadata.json').then(r => r.json()).catch(() => ({})) // Fehler ignorieren
+        fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
-        // Update Time
         if(metadata.last_updated) {
             document.getElementById('last-updated').innerText = metadata.last_updated;
         }
 
-        // Populate Dropdown
         var select = document.getElementById('regionSelect');
         select.innerHTML = "";
         
-        var firstRegion = null;
-        for (const [key, config] of Object.entries(regions)) {
+        // Ordina regioni alfabeticamente per nome
+        var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
+        var firstRegion = sortedKeys[0];
+
+        // Aggiungi opzione "Tutta Italia" in cima
+        var optAll = document.createElement('option');
+        optAll.value = "italia";
+        optAll.innerText = "🇮🇹 TUTTA ITALIA (Pesante)";
+        optAll.style.fontWeight = "bold";
+        select.appendChild(optAll);
+
+        sortedKeys.forEach(key => {
             var opt = document.createElement('option');
             opt.value = key;
-            opt.innerText = config.name;
+            opt.innerText = regions[key].name;
             select.appendChild(opt);
-            if (!firstRegion) firstRegion = key;
-        }
+        });
 
-        // Erste Region laden
-        if (firstRegion) changeRegion(firstRegion);
+        // Seleziona la prima regione (o l'ultima usata se implementassimo i cookie)
+        if (firstRegion) {
+            select.value = firstRegion;
+            changeRegion(firstRegion);
+        }
     });
 
     function changeRegion(key) {
@@ -133,7 +139,7 @@
 
         fetch(`data_${key}.geojson`)
             .then(res => {
-                if (!res.ok) throw new Error("Keine Daten gefunden");
+                if (!res.ok) throw new Error("Dati non disponibili o non ancora generati.");
                 return res.json();
             })
             .then(data => {
@@ -167,23 +173,22 @@
                     }
                 });
 
-                // UI Updates
                 document.getElementById('count-missing').innerText = `(${countMissing})`;
                 document.getElementById('count-done').innerText = `(${countDone})`;
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('stat-missing').style.display = 'flex';
                 document.getElementById('stat-done').style.display = 'flex';
 
-                // Layer Logic
                 if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
                 if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
 
-                // Auto-Zoom
                 if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
             })
             .catch(err => {
                 console.error(err);
-                document.getElementById('loading').innerText = "Errore caricamento dati / Keine Daten.";
+                document.getElementById('loading').innerText = "Errore / Dati mancanti.";
+                // Rimuovi messaggio dopo 3 sec
+                setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 3000);
             });
     }
 

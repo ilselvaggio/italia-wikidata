@@ -5,15 +5,13 @@ import datetime
 import requests
 import sys
 
-# --- CONFIGURAZIONE ---
+# --- KONFIGURATION ---
 REGIONS_FILE = "regions.json"
-MAX_RETRIES = 3
-RETRY_DELAY = 10
-# URL trovato nello screenshot (ex Kumi Systems)
-OVERPASS_URL = "https://overpass.private.coffee/api/interpreter"
+MAX_RETRIES = 5             # Hartnäckig bleiben
+RETRY_DELAY = 10 
+OVERPASS_TIMEOUT = 1200     # 20 Minuten Timeout
 
 def get_wikidata(qid):
-    # Query SPARQL standard
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{ 
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc . 
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
@@ -23,7 +21,7 @@ def get_wikidata(qid):
     }}"""
     
     url = "https://query.wikidata.org/sparql"
-    print(f"  -> Lade Wikidata per {qid}...")
+    print(f"  -> Lade Wikidata für {qid}...")
     
     for attempt in range(MAX_RETRIES):
         try:
@@ -36,9 +34,11 @@ def get_wikidata(qid):
     return ""
 
 def get_overpass(area_id):
-    # QUERY VELOCE: Cerca solo il tag esatto "wikidata" (No Regex!)
+    # --- PERFORMANCE QUERY ---
+    # Wir nutzen api.openstreetmap.fr (OAPI).
+    # Wir suchen NUR nach dem exakten Tag "wikidata".
     query = f"""
-        [out:json][timeout:900];
+        [out:json][timeout:{OVERPASS_TIMEOUT}];
         area(id:{area_id})->.searchArea;
         (
           node["wikidata"](area.searchArea);
@@ -48,37 +48,29 @@ def get_overpass(area_id):
         out tags;
     """
     
-    print(f"  -> Lade Overpass (Private.coffee) per Area {area_id}...")
+    # Der französische Server ist oft der stabilste für Massendaten
+    url = "https://api.openstreetmap.fr/oapi/interpreter"
     
-    headers = {
-        'User-Agent': 'ItaliaWikidataCheck/1.0',
-        'Referer': 'https://github.com/ilselvaggio/italia-wikidata'
-    }
-
+    print(f"  -> Lade Overpass (France OAPI) per Area {area_id}...")
+    
     for attempt in range(MAX_RETRIES):
         try:
-            r = requests.post(OVERPASS_URL, data={'data': query}, headers=headers)
+            # Post request ist sicherer bei langen Queries
+            r = requests.post(url, data={'data': query})
             r.raise_for_status()
             
             data = r.json()
             if 'elements' in data:
                 return data
             else:
-                raise ValueError("JSON valido ma senza 'elements'")
+                # Manchmal sendet Overpass HTML Fehler als 200 OK
+                raise ValueError("Antwort ist kein gültiges JSON mit Elements")
                 
         except Exception as e:
             print(f"     Fehler Overpass (Versuch {attempt+1}): {e}")
-            time.sleep(RETRY_DELAY)
+            time.sleep(RETRY_DELAY * (attempt + 1)) # Wartezeit erhöhen
             
-    # Fallback se Private.coffee fallisce
-    print("     ! Backup: provo server Francese...")
-    try:
-        r = requests.post("https://api.openstreetmap.fr/oapi/interpreter", data={'data': query})
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        print(f"     ! Backup fallito: {e}")
-        return None
+    return None
 
 def process_region(key, config):
     print(f"\n--- Region: {config['name']} ---")
@@ -88,13 +80,18 @@ def process_region(key, config):
 
     osm_json = get_overpass(config['osm'])
     if not osm_json: 
-        print(f"!!! Nessun dato OSM per {config['name']}")
+        print(f"!!! Keine OSM Daten für {config['name']} - ÜBERSPRINGE")
         return None
 
-    # Mappatura IDs
+    # OSM IDs mappen
     osm_ids = {}
     elements = osm_json.get('elements', [])
-    print(f"    OSM oggetti trovati: {len(elements)}")
+    print(f"    OSM Objekte gefunden: {len(elements)}")
+    
+    # Sicherheitscheck: Wenn Trentino/Veneto/Lombardei < 100 Objekte hat, ist der Download kaputt
+    if len(elements) < 100 and key in ['trentino_alto_adige', 'veneto', 'lombardia']:
+        print("!!! WARNUNG: Verdächtig wenige Daten. Wahrscheinlich Server-Fehler. Überspringe Speichern.")
+        return None
     
     for element in elements:
         tags = element.get('tags', {})
@@ -102,9 +99,7 @@ def process_region(key, config):
         el_id = element.get('id')
         osm_link_id = f"{el_type}/{el_id}"
         
-        # Tag esatto
         if 'wikidata' in tags:
-            # QID clean (Q123;Q456 -> primo)
             raw_val = tags['wikidata']
             qid = raw_val.split(';')[0].strip().upper()
             if qid.startswith('Q'):
@@ -112,8 +107,8 @@ def process_region(key, config):
 
     # Abgleich
     features = []
-    reader = csv.DictReader(csv_text.splitlines())
     
+    reader = csv.DictReader(csv_text.splitlines())
     for row in reader:
         qid = row.get('qid') or row.get('?qid')
         if not qid: continue
@@ -147,7 +142,7 @@ def process_region(key, config):
     with open(outfile, 'w', encoding='utf-8') as f:
         json.dump({"type": "FeatureCollection", "features": features}, f)
         
-    return features
+    return True
 
 def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
@@ -156,27 +151,21 @@ def main():
     now = datetime.datetime.now(datetime.timezone.utc)
     cet_now = now + datetime.timedelta(hours=1)
     
-    all_features = []
-    
+    # Schleife durch alle Regionen
     for key, config in regions.items():
-        res = process_region(key, config)
-        if res:
-            all_features.extend(res)
-        time.sleep(1)
+        process_region(key, config)
+        # Kurze Pause für den Server
+        time.sleep(2) 
 
-    if all_features:
-        print(f"\n--- Salvataggio data_italia.geojson ({len(all_features)} oggetti) ---")
-        with open("data_italia.geojson", "w", encoding='utf-8') as f:
-            json.dump({"type": "FeatureCollection", "features": all_features}, f)
-
+    # Metadata schreiben
     with open("metadata.json", "w") as f:
         json.dump({
             "last_updated": cet_now.strftime("%d/%m/%Y %H:%M (UTC+1)"), 
             "regions_count": len(regions),
-            "method": "Live Overpass (private.coffee)"
+            "method": "Live Overpass (France)"
         }, f)
 
-    print("\n--- FINITO ---")
+    print("\n--- FERTIG ---")
 
 if __name__ == "__main__":
     main()

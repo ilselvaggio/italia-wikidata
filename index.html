@@ -10,39 +10,66 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
+        /* HEADER BASE */
         #header {
-            height: 50px;
             background-color: #333;
             color: #fff;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 10px 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             z-index: 1000;
             position: relative;
+            height: 50px; /* Altezza Desktop fissa */
+            box-sizing: border-box;
         }
         
         #left-col { display: flex; align-items: center; gap: 15px; }
-        #title { font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
+        #title { font-weight: 700; font-size: 18px; white-space: nowrap; }
 
         #regionSelect {
-            background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer;
+            background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer; max-width: 150px;
         }
-        #regionSelect:hover { background: #666; }
 
-        #controls { display: flex; gap: 20px; align-items: center; font-size: 13px; }
+        #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; }
 
-        .stat-item { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
+        .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; flex-shrink: 0; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        #meta-info { font-size: 11px; color: #aaa; margin-left: 10px; border-left: 1px solid #555; padding-left: 10px; }
+        #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; white-space: nowrap; }
 
+        /* MOBILE FIX (Sotto i 600px di larghezza) */
+        @media (max-width: 600px) {
+            #header {
+                height: auto; /* Altezza flessibile */
+                flex-direction: column; /* Impila gli elementi */
+                align-items: stretch; /* Allarga a tutto schermo */
+                gap: 10px;
+                padding: 10px;
+            }
+            #left-col {
+                justify-content: space-between; /* Titolo a sx, Menu a dx */
+            }
+            #controls {
+                justify-content: space-between; /* Distribuisce checkbox uniformemente */
+                background: rgba(255,255,255,0.1); /* Leggero sfondo per separare */
+                padding: 5px;
+                border-radius: 4px;
+            }
+            #regionSelect { max-width: none; } /* Allarga il menu su mobile */
+            #meta-info { display: none; } /* Nasconde la data su mobile per risparmiare spazio (opzionale) */
+            
+            /* Aggiusta altezza mappa per header più alto */
+            #map { height: calc(100% - 95px) !important; } 
+        }
+
+        /* MAPPA */
         #map { height: calc(100% - 50px); width: 100%; background: #f0f0f0; }
 
-        /* Popup */
+        /* POPUP */
         .leaflet-popup-content-wrapper { border-radius: 6px; }
         .popup-content { font-size: 14px; min-width: 180px; }
         .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
@@ -50,7 +77,6 @@
         .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
         .btn-wiki { background-color: #333; }
         .btn-osm { background-color: #2ecc71; }
-        .btn:hover { opacity: 0.9; }
 
     </style>
 </head>
@@ -65,18 +91,21 @@
     </div>
 
     <div id="controls">
-        <div id="loading" style="display:none; color: #f1c40f;">Caricamento Mappa...</div>
+        <div id="loading" style="display:none; color: #f1c40f;">Caricamento...</div>
+        
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            Missing <span id="count-missing">(0)</span>
+            Missing <span id="count-missing"></span>
         </div>
+        
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
             <span class="dot dot-green"></span>
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            Mapped <span id="count-done">(0)</span>
+            Mapped <span id="count-done"></span>
         </div>
-        <div id="meta-info">Aggiornato: <span id="last-updated">-</span></div>
+        
+        <div id="meta-info">Agg: <span id="last-updated">-</span></div>
     </div>
 </header>
 
@@ -86,7 +115,7 @@
 
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
-    L.control.zoom({ position: 'topleft' }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map); // Zoom in basso a destra su mobile è più comodo
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup() };
@@ -97,20 +126,18 @@
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
         if(metadata.last_updated) {
-            document.getElementById('last-updated').innerText = metadata.last_updated;
+            document.getElementById('last-updated').innerText = metadata.last_updated.split(' ')[0]; // Mostra solo la data per spazio
         }
 
         var select = document.getElementById('regionSelect');
         select.innerHTML = "";
         
-        // Ordina regioni alfabeticamente per nome
         var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
-        var firstRegion = sortedKeys[0];
-
-        // Aggiungi opzione "Tutta Italia" in cima
+        
+        // Tutta Italia opzione
         var optAll = document.createElement('option');
         optAll.value = "italia";
-        optAll.innerText = "Italia";
+        optAll.innerText = "🇮🇹 TUTTA ITALIA";
         optAll.style.fontWeight = "bold";
         select.appendChild(optAll);
 
@@ -121,10 +148,10 @@
             select.appendChild(opt);
         });
 
-        // Seleziona la prima regione (o l'ultima usata se implementassimo i cookie)
-        if (firstRegion) {
-            select.value = firstRegion;
-            changeRegion(firstRegion);
+        // Auto-select prima regione
+        if (sortedKeys.length > 0) {
+            select.value = sortedKeys[0];
+            changeRegion(sortedKeys[0]);
         }
     });
 
@@ -139,7 +166,7 @@
 
         fetch(`data_${key}.geojson`)
             .then(res => {
-                if (!res.ok) throw new Error("Dati non disponibili o non ancora generati.");
+                if (!res.ok) throw new Error("Dati mancanti");
                 return res.json();
             })
             .then(data => {
@@ -173,8 +200,8 @@
                     }
                 });
 
-                document.getElementById('count-missing').innerText = `(${countMissing})`;
-                document.getElementById('count-done').innerText = `(${countDone})`;
+                document.getElementById('count-missing').innerText = countMissing;
+                document.getElementById('count-done').innerText = countDone;
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('stat-missing').style.display = 'flex';
                 document.getElementById('stat-done').style.display = 'flex';
@@ -182,13 +209,11 @@
                 if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
                 if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
 
-                if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
+                if (bounds.isValid()) map.fitBounds(bounds, {padding: [20, 20]});
             })
             .catch(err => {
-                console.error(err);
-                document.getElementById('loading').innerText = "Errore / Dati mancanti.";
-                // Rimuovi messaggio dopo 3 sec
-                setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 3000);
+                document.getElementById('loading').innerText = "Nessun dato";
+                setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 2000);
             });
     }
 

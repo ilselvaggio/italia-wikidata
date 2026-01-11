@@ -10,25 +10,34 @@ import datetime
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 
-# Klassen für ORANGE Markierung (Status: broad)
-# Q46831=Gebirge, Q205466=Verkehrsweg.
-# Entfernt: Q82794 (Region), da dies zu viele Treffer in Abruzzo gab.
-BROAD_CLASSES = ['Q46831', 'Q205466', 'Q15312'] 
-
-def get_wikidata_auto(qid, region_name):
-    # NEU: MINUS-Filter entfernt Objekte, deren P131-Verbindung (Ort) ein Enddatum hat.
-    # Das repariert den Bauernhof, der jetzt in Österreich steht.
-    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?class WHERE {{ 
-       ?item wdt:P131* wd:{qid}; wdt:P625 ?loc . 
+def get_wikidata_smart(qid, region_name):
+    # Diese Query macht zwei Dinge:
+    # 1. Hauptsuche nach Objekten in der Region
+    # 2. Zählen der P131-Werte (Verwaltungseinheiten), um "Orange" zu bestimmen
+    
+    query = f"""SELECT ?qid ?lat ?lon ?label ?p131count WHERE {{
+       # 1. Finde Items in der Region
+       ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
-       OPTIONAL {{ ?item wdt:P31 ?classItem . BIND(STRAFTER(STR(?classItem), '/entity/') as ?class) }}
-
-       # 1. Das Objekt selbst darf nicht historisch sein
+       # 2. Ausschlusskriterien (Historisches)
+       # Objekt selbst darf nicht beendet sein
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
+       
+       # WICHTIG: Die Verbindung zum Ort (P131) darf nicht abgelaufen sein!
+       # Das entfernt den Bauernhof, der nach Österreich "umgezogen" ist.
+       FILTER NOT EXISTS {{ 
+           ?item p:P131 ?stmt . 
+           ?stmt pq:P582 ?linkEnd . 
+           FILTER(?linkEnd < NOW()) 
+       }}
 
-       # 2. Die VERBINDUNG zur Region (P131) darf nicht abgelaufen sein (Fix für Bauernhof)
-       MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
+       # 3. Zähle die GÜLTIGEN P131 Verbindungen (für Orange-Status)
+       {{
+           SELECT ?item (COUNT(?parent) AS ?p131count) WHERE {{
+               ?item wdt:P131 ?parent .
+           }} GROUP BY ?item
+       }}
 
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
        BIND(geof:latitude(?loc) as ?lat) 
@@ -49,6 +58,11 @@ def get_wikidata_auto(qid, region_name):
         print(f"FEHLER: {e}")
         return None
 
+def get_file_date(filepath):
+    """Holt das Änderungsdatum der OSM-Datei vom PC"""
+    timestamp = os.path.getmtime(filepath)
+    return datetime.datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y %H:%M")
+
 def main():
     if not os.path.exists(REGIONS_FILE):
         print(f"FEHLER: {REGIONS_FILE} fehlt.")
@@ -57,16 +71,20 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starte Update für {len(regions)} Regionen ---")
+    print(f"--- Starte Smart Update ---")
     
     processed_count = 0
+    osm_date_str = "Unknown"
 
     for key, config in regions.items():
         file_osm = f"osm_{key}.json"
         
         if not os.path.exists(file_osm):
-            print(f"[Info] Keine OSM-Datei für {key}, überspringe.")
             continue
+
+        # Datum der ersten gefundenen OSM Datei als Referenz nehmen
+        if osm_date_str == "Unknown":
+            osm_date_str = get_file_date(file_osm)
 
         print(f"\n--- Verarbeite {config['name']} ---")
 
@@ -89,25 +107,24 @@ def main():
             continue
 
         # 2. Wikidata
-        csv_text = get_wikidata_auto(config['qid'], config['name'])
+        csv_text = get_wikidata_smart(config['qid'], config['name'])
         if not csv_text: continue
 
         # 3. Abgleich
         features = []
-        processed_qids = set()
         reader = csv.DictReader(csv_text.splitlines())
         
         for row in reader:
             qid = row.get('qid') or row.get('?qid')
             if not qid: continue
             qid = qid.split('/')[-1].upper()
-            if qid in processed_qids: continue
             
             try:
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))
                 label = row.get('label') or row.get('?label') or qid
-                item_class = row.get('class') or row.get('?class')
+                # Anzahl der P131 Verbindungen
+                p131_count = int(row.get('p131count') or row.get('?p131count') or 1)
             except:
                 continue
 
@@ -115,8 +132,8 @@ def main():
             status = "missing"
             if osm_ref: status = "done"
             
-            # Orange Logic: Nur bestimmte Klassen (Gebirge etc.)
-            if item_class in BROAD_CLASSES:
+            # ORANGE LOGIK: Wenn mehr als 1 P131 (Verwaltungseinheit), dann Orange
+            if p131_count > 1:
                 status = "broad"
 
             features.append({
@@ -132,7 +149,6 @@ def main():
                     "coordinates": [lon, lat]
                 }
             })
-            processed_qids.add(qid)
 
         outfile = f"data_{key}.geojson"
         with open(outfile, 'w', encoding='utf-8') as f:
@@ -142,20 +158,21 @@ def main():
         processed_count += 1
         time.sleep(1)
 
-    # Metadata schreiben (Automatisch aktuelles Datum + UTC Hinweis)
+    # Metadata schreiben
     if processed_count > 0:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        # Format: 11/01/2026 23:00 (UTC)
-        time_str = now.strftime("%d/%m/%Y %H:%M (UTC)")
+        # Wikidata Zeit ist JETZT
+        now = datetime.datetime.now()
+        # +1 Stunde für UTC+1 Simulation (oder echte Zeitzone nutzen)
+        wiki_date = now.strftime("%d/%m/%Y %H:%M")
         
         with open("metadata.json", "w") as f:
             json.dump({
-                "last_updated": time_str, 
-                "regions_count": len(regions),
-                "info_osm": "OSM: Manual Upload"
+                "osm_date": osm_date_str,
+                "wiki_date": wiki_date,
+                "regions_count": len(regions)
             }, f)
 
-    print(f"\nFERTIG. {processed_count} Regionen aktualisiert.")
+    print(f"\nFERTIG.")
 
 if __name__ == "__main__":
     main()

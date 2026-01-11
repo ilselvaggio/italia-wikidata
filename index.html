@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wikidata Italia Check</title>
+    <title>Wikidata Italia Overview</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
@@ -23,17 +23,16 @@
         .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; flex-shrink: 0; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
-        /* Orange Punkte für Broad/Gebirge (werden angezeigt, aber ohne Checkbox im UI) */
         .dot-orange { background: #f39c12; } 
 
-        #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; white-space: nowrap; }
+        #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; white-space: nowrap; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 
         @media (max-width: 600px) {
             #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 8px; }
             #left-col { justify-content: space-between; width: 100%; }
             #controls { justify-content: space-between; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
             #regionSelect { max-width: 60%; }
-            #meta-info { display: block; border-left: none; padding-left: 0; margin-left: 0; margin-top: 5px; width: 100%; text-align: right; font-size: 10px; color: #ccc; }
+            #meta-info { display: block; border-left: none; padding-left: 0; margin-left: 0; margin-top: 5px; width: 100%; text-align: center; font-size: 10px; color: #ccc; }
             #map { height: calc(100% - 110px) !important; } 
         }
 
@@ -42,19 +41,19 @@
         .leaflet-popup-content-wrapper { border-radius: 6px; }
         .popup-content { font-size: 14px; min-width: 180px; }
         .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
-        .popup-meta { color: #666; margin-bottom: 10px; font-family: monospace; font-size: 12px; }
         .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
         .btn-wiki { background-color: #333; }
         .btn-osm { background-color: #2ecc71; }
+        .btn-load { background-color: #3498db; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <header id="header">
     <div id="left-col">
-        <div id="title">Wikidata Italia</div>
+        <div id="title">Wikidata Italia Overview</div>
         <select id="regionSelect" onchange="changeRegion(this.value)">
-            <option value="" disabled selected>Caricamento...</option>
+            <option value="" disabled selected>Seleziona Regione...</option>
         </select>
     </div>
 
@@ -64,16 +63,19 @@
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            Missing <span id="count-missing"></span>
+            <span id="count-missing"></span>
         </div>
         
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
             <span class="dot dot-green"></span>
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            Mapped <span id="count-done"></span>
+            <span id="count-done"></span>
         </div>
         
-        <div id="meta-info">Agg: <span id="last-updated">-</span></div>
+        <div id="meta-info">
+            <span id="last-updated">Wait...</span>
+            <span style="font-size: 9px; opacity: 0.7;">(Wikidata Live / OSM Cached)</span>
+        </div>
     </div>
 </header>
 
@@ -86,24 +88,27 @@
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
-    // Layer Gruppen
-    var layers = { 
-        missing: L.layerGroup(), 
-        done: L.layerGroup(),
-        broad: L.layerGroup() // Extra Gruppe für Orange
-    };
+    var layers = { missing: L.layerGroup(), done: L.layerGroup(), broad: L.layerGroup(), labels: L.layerGroup() };
+    var regionData = {}; // Cache für Regions-Infos
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
+        regionData = regions;
+        
+        // Datum Update
         if(metadata.last_updated) {
-            document.getElementById('last-updated').innerText = metadata.last_updated;
+            document.getElementById('last-updated').innerText = "Agg: " + metadata.last_updated;
         }
 
         var select = document.getElementById('regionSelect');
-        select.innerHTML = "";
-        
+        // Option "Übersicht" hinzufügen
+        var optReset = document.createElement('option');
+        optReset.value = "RESET";
+        optReset.innerText = "-- Mappa Italia --";
+        select.appendChild(optReset);
+
         var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
         
         sortedKeys.forEach(key => {
@@ -111,15 +116,31 @@
             opt.value = key;
             opt.innerText = regions[key].name;
             select.appendChild(opt);
+
+            // Marker auf Karte setzen (Startansicht)
+            if (regions[key].lat && regions[key].lon) {
+                var marker = L.marker([regions[key].lat, regions[key].lon])
+                    .bindPopup(`<b>${regions[key].name}</b><br><button onclick="changeRegion('${key}')" class="btn btn-load">Carica Dati</button>`);
+                layers.labels.addLayer(marker);
+            }
         });
 
-        if (sortedKeys.length > 0) {
-            select.value = sortedKeys[0];
-            changeRegion(sortedKeys[0]);
-        }
+        // Start mit Label-Layer
+        map.addLayer(layers.labels);
     });
 
     function changeRegion(key) {
+        if (key === "RESET") {
+            location.reload(); // Einfachste Methode um zurück zur Übersicht zu kommen
+            return;
+        }
+
+        // Dropdown aktualisieren falls via Karte geklickt
+        document.getElementById('regionSelect').value = key;
+
+        // Label Layer entfernen, wir laden jetzt Details
+        map.removeLayer(layers.labels);
+
         document.getElementById('loading').style.display = 'block';
         document.getElementById('stat-missing').style.display = 'none';
         document.getElementById('stat-done').style.display = 'none';
@@ -145,26 +166,21 @@
 
                     var popupHtml = `<div class="popup-content">
                         <div class="popup-header">${p.name}</div>
-                        <div class="popup-meta">${p.wikidata}</div>
+                        <small>QID: ${p.wikidata}</small><br>
                         <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
-                    if (p.osm_id) {
-                        popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
-                    }
+                    if (p.osm_id) popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
                     popupHtml += `</div>`;
 
-                    var color = "#e74c3c"; // Default Red
+                    var color = "#e74c3c"; 
                     var targetLayer = layers.missing;
 
                     if (p.status === 'done') {
-                        color = "#2ecc71"; // Green
+                        color = "#2ecc71";
                         targetLayer = layers.done;
                         countDone++;
                     } else if (p.status === 'broad') {
-                        color = "#f39c12"; // Orange
+                        color = "#f39c12";
                         targetLayer = layers.broad;
-                        // Broad zählt hier weder zu Missing noch zu Done in der Statistik, 
-                        // oder wir zählen es zu Missing, aber zeigen es orange? 
-                        // Aktuell: separat.
                     } else {
                         countMissing++;
                     }
@@ -179,17 +195,14 @@
                 document.getElementById('stat-missing').style.display = 'flex';
                 document.getElementById('stat-done').style.display = 'flex';
 
-                // Checkbox Logik
                 if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
                 if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
-                
-                // Broad Layer wird IMMER hinzugefügt (da keine Checkbox existiert)
                 map.addLayer(layers.broad);
 
                 if (bounds.isValid()) map.fitBounds(bounds, {padding: [20, 20]});
             })
             .catch(err => {
-                document.getElementById('loading').innerText = "In attesa di dati...";
+                document.getElementById('loading').innerText = "Dati non trovati";
             });
     }
 

@@ -1,0 +1,34 @@
+name: Manual Update Italy
+
+on:
+  workflow_dispatch: # Nur manueller Start per Button
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Update Script
+        run: python update.py
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data_*.geojson metadata.json
+          git commit -m "Update region data [skip ci]" || exit 0
+          git pull --rebase -Xtheirs origin main
+          git push

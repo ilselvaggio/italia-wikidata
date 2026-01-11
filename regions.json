@@ -1,0 +1,23 @@
+{
+    "suedtirol": { "name": "Südtirol / Alto Adige", "qid": "Q15124", "osm": "3600047046" },
+    "trentino": { "name": "Trentino", "qid": "Q1237", "osm": "3600045863" },
+    "veneto": { "name": "Veneto", "qid": "Q1243", "osm": "3600044529" },
+    "lombardia": { "name": "Lombardia", "qid": "Q1210", "osm": "3600044879" },
+    "piemonte": { "name": "Piemonte", "qid": "Q1216", "osm": "3600044874" },
+    "emilia_romagna": { "name": "Emilia-Romagna", "qid": "Q1263", "osm": "3600042611" },
+    "friuli_venezia_giulia": { "name": "Friuli-Venezia Giulia", "qid": "Q1250", "osm": "3600179417" },
+    "liguria": { "name": "Liguria", "qid": "Q1256", "osm": "3600043813" },
+    "valle_aosta": { "name": "Valle d'Aosta / Vallée d'Aoste", "qid": "Q1222", "osm": "3600044876" },
+    "toscana": { "name": "Toscana", "qid": "Q1273", "osm": "3600041977" },
+    "umbria": { "name": "Umbria", "qid": "Q1280", "osm": "3600041978" },
+    "marche": { "name": "Marche", "qid": "Q1279", "osm": "3600042004" },
+    "lazio": { "name": "Lazio", "qid": "Q1282", "osm": "3600040169" },
+    "abruzzo": { "name": "Abruzzo", "qid": "Q1284", "osm": "3600040783" },
+    "molise": { "name": "Molise", "qid": "Q1289", "osm": "3600040382" },
+    "campania": { "name": "Campania", "qid": "Q1438", "osm": "3600040263" },
+    "puglia": { "name": "Puglia", "qid": "Q1447", "osm": "3600040049" },
+    "basilicata": { "name": "Basilicata", "qid": "Q1452", "osm": "3600040134" },
+    "calabria": { "name": "Calabria", "qid": "Q1458", "osm": "3600039688" },
+    "sicilia": { "name": "Sicilia", "qid": "Q1460", "osm": "3600039152" },
+    "sardegna": { "name": "Sardegna", "qid": "Q1462", "osm": "3600040266" }
+}

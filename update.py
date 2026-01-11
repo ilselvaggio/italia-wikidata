@@ -10,24 +10,23 @@ import datetime
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 
-# Liste von Klassen (Q-Nummern), die als "Zu groß/Breit" markiert werden sollen (Orange)
-# Q46831 = Gebirge, Q82794 = Geografische Region, Q123705 = Nachbarschaft/Viertel
+# Liste von Klassen (Q-Nummern), die ORANGE (Status: broad) werden sollen
+# Q46831 = Gebirge, Q82794 = Geografische Region, Q123705 = Nachbarschaft/Viertel, Q205466 = Verkehrsweg
 BROAD_CLASSES = ['Q46831', 'Q82794', 'Q123705', 'Q205466', 'Q15312'] 
 
 def get_wikidata_auto(qid, region_name):
     """
     Lädt Wikidata LIVE herunter.
-    NEU: Filtert historische Objekte und lädt den Typ (P31) mit.
+    Filtert historische Objekte (Enddatum < Heute) aus.
     """
-    # 1. ?class für den Typ (Gebirge etc.)
-    # 2. FILTER NOT EXISTS für Enddatum (P582) und Auflösung (P576) -> Entfernt Historisches
+    # SPARQL Query mit Filtern für P582 (Endzeit) und P576 (Auflösung)
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?class WHERE {{ 
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc . 
        
-       # Hole die "Ist ein(e)" Klasse (P31) um Gebirge zu erkennen
+       # Hole die Klasse (P31) für die Orange-Markierung
        OPTIONAL {{ ?item wdt:P31 ?classItem . BIND(STRAFTER(STR(?classItem), '/entity/') as ?class) }}
 
-       # FILTER: Schließe Dinge aus, die nicht mehr existieren (Endzeitpunkt oder Aufgelöst)
+       # FILTER: Alles weg, was ein Enddatum in der Vergangenheit hat
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
 
@@ -58,23 +57,26 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starte Smart Update für {len(regions)} Regionen ---")
+    print(f"--- Starte Update für {len(regions)} Regionen ---")
     
     processed_count = 0
 
     for key, config in regions.items():
         file_osm = f"osm_{key}.json"
-        if not os.path.exists(file_osm): continue
+        
+        # Auf GitHub liegen die Dateien im Root, wir prüfen einfach ob sie da sind
+        if not os.path.exists(file_osm):
+            print(f"[Info] Keine OSM-Datei für {key}, überspringe.")
+            continue
 
         print(f"\n--- Verarbeite {config['name']} ---")
 
-        # 1. OSM Lokal laden
+        # 1. OSM Datei lesen
         osm_ids = {}
         try:
             with open(file_osm, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 elements = data.get('elements', [])
-                if not elements: continue
                 
                 for element in elements:
                     tags = element.get('tags', {})
@@ -89,14 +91,13 @@ def main():
             print(f"   FEHLER OSM: {e}")
             continue
 
-        # 2. Wikidata Online laden
+        # 2. Wikidata Live holen
         csv_text = get_wikidata_auto(config['qid'], config['name'])
         if not csv_text: continue
 
         # 3. Abgleich
         features = []
-        # Wir nutzen ein Set für QIDs, um Duplikate zu vermeiden (falls ein Objekt mehrere Klassen hat)
-        processed_qids = set()
+        processed_qids = set() # Um Duplikate zu vermeiden
         
         reader = csv.DictReader(csv_text.splitlines())
         
@@ -105,27 +106,28 @@ def main():
             if not qid: continue
             qid = qid.split('/')[-1].upper()
             
-            # Duplikate überspringen (passiert durch OPTIONAL P31)
             if qid in processed_qids: continue
             
             try:
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))
                 label = row.get('label') or row.get('?label') or qid
-                item_class = row.get('class') or row.get('?class') # Die Klasse (z.B. Q46831)
+                item_class = row.get('class') or row.get('?class')
             except:
                 continue
 
             osm_ref = osm_ids.get(qid)
             
-            # STATUS LOGIK
+            # Status Logik
             status = "missing"
             if osm_ref:
                 status = "done"
             
-            # Prüfen ob es ein "Riese" ist (Gebirge etc.)
+            # Überschreibe Status mit "broad" (Orange), wenn es z.B. ein Gebirge ist
+            # Aber nur, wenn es noch nicht "done" ist (oder willst du auch erledigte Gebirge orange haben?)
+            # Hier: Gebirge werden IMMER orange, damit man sieht, dass es keine normalen Punkte sind.
             if item_class in BROAD_CLASSES:
-                status = "broad" # Neuer Status für Orange
+                status = "broad"
 
             features.append({
                 "type": "Feature",
@@ -133,8 +135,7 @@ def main():
                     "wikidata": qid,
                     "name": label,
                     "status": status,
-                    "osm_id": osm_ref,
-                    "class": item_class
+                    "osm_id": osm_ref
                 },
                 "geometry": {
                     "type": "Point",
@@ -150,9 +151,9 @@ def main():
         
         print(f"   -> Gespeichert: {outfile} ({len(features)} Items)")
         processed_count += 1
-        time.sleep(1)
+        time.sleep(1) # Kurze Pause für Wikidata API
 
-    # Metadata
+    # Metadata schreiben
     if processed_count > 0:
         now_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
         with open("metadata.json", "w") as f:

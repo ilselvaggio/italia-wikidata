@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikidata Italia Check</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+        
+        /* HEADER */
+        #header {
+            height: 50px;
+            background-color: #333;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            position: relative;
+        }
+        
+        #left-col { display: flex; align-items: center; gap: 15px; }
+        #title { font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
+
+        /* Dropdown Style */
+        #regionSelect {
+            background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer;
+        }
+        #regionSelect:hover { background: #666; }
+
+        #controls { display: flex; gap: 20px; align-items: center; font-size: 13px; }
+
+        .stat-item { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
+        .dot-red { background: #e74c3c; }
+        .dot-green { background: #2ecc71; }
+        
+        #meta-info { font-size: 11px; color: #aaa; margin-left: 10px; border-left: 1px solid #555; padding-left: 10px; }
+
+        /* MAP */
+        #map { height: calc(100% - 50px); width: 100%; background: #f0f0f0; }
+
+        /* POPUP */
+        .leaflet-popup-content-wrapper { border-radius: 6px; }
+        .popup-content { font-size: 14px; min-width: 180px; }
+        .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+        .popup-meta { color: #666; margin-bottom: 10px; font-family: monospace; font-size: 12px; }
+        .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
+        .btn-wiki { background-color: #333; }
+        .btn-osm { background-color: #2ecc71; }
+        .btn:hover { opacity: 0.9; }
+
+    </style>
+</head>
+<body>
+
+<header id="header">
+    <div id="left-col">
+        <div id="title">Wikidata Italia</div>
+        <select id="regionSelect" onchange="changeRegion(this.value)">
+            <option value="" disabled selected>Caricamento...</option>
+        </select>
+    </div>
+
+    <div id="controls">
+        <div id="loading" style="display:none; color: #f1c40f;">Caricamento Mappa...</div>
+        <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
+            <span class="dot dot-red"></span>
+            <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
+            Missing <span id="count-missing">(0)</span>
+        </div>
+        <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
+            <span class="dot dot-green"></span>
+            <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
+            Mapped <span id="count-done">(0)</span>
+        </div>
+        <div id="meta-info">Updated: <span id="last-updated">-</span></div>
+    </div>
+</header>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
+    var layers = { missing: L.layerGroup(), done: L.layerGroup() };
+    var currentRegion = null;
+
+    // 1. Initialisierung: Regionen und Metadaten laden
+    Promise.all([
+        fetch('regions.json').then(r => r.json()),
+        fetch('metadata.json').then(r => r.json()).catch(() => ({})) // Fehler ignorieren
+    ]).then(([regions, metadata]) => {
+        // Update Time
+        if(metadata.last_updated) {
+            document.getElementById('last-updated').innerText = metadata.last_updated;
+        }
+
+        // Populate Dropdown
+        var select = document.getElementById('regionSelect');
+        select.innerHTML = "";
+        
+        var firstRegion = null;
+        for (const [key, config] of Object.entries(regions)) {
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.innerText = config.name;
+            select.appendChild(opt);
+            if (!firstRegion) firstRegion = key;
+        }
+
+        // Erste Region laden
+        if (firstRegion) changeRegion(firstRegion);
+    });
+
+    function changeRegion(key) {
+        currentRegion = key;
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('stat-missing').style.display = 'none';
+        document.getElementById('stat-done').style.display = 'none';
+        
+        layers.missing.clearLayers();
+        layers.done.clearLayers();
+
+        fetch(`data_${key}.geojson`)
+            .then(res => {
+                if (!res.ok) throw new Error("Keine Daten gefunden");
+                return res.json();
+            })
+            .then(data => {
+                var countMissing = 0;
+                var countDone = 0;
+                var bounds = L.latLngBounds([]);
+
+                data.features.forEach(feature => {
+                    var p = feature.properties;
+                    var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
+                    bounds.extend(latlng);
+
+                    var popupHtml = `<div class="popup-content">
+                        <div class="popup-header">${p.name}</div>
+                        <div class="popup-meta">${p.wikidata}</div>
+                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
+                    if (p.status === 'done' && p.osm_id) {
+                        popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
+                    }
+                    popupHtml += `</div>`;
+
+                    var color = (p.status === 'missing') ? "#e74c3c" : "#2ecc71";
+                    var marker = L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(popupHtml);
+
+                    if (p.status === 'missing') {
+                        layers.missing.addLayer(marker);
+                        countMissing++;
+                    } else {
+                        layers.done.addLayer(marker);
+                        countDone++;
+                    }
+                });
+
+                // UI Updates
+                document.getElementById('count-missing').innerText = `(${countMissing})`;
+                document.getElementById('count-done').innerText = `(${countDone})`;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('stat-missing').style.display = 'flex';
+                document.getElementById('stat-done').style.display = 'flex';
+
+                // Layer Logic
+                if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+                if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
+
+                // Auto-Zoom
+                if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('loading').innerText = "Errore caricamento dati / Keine Daten.";
+            });
+    }
+
+    function toggleLayer(type, checked) {
+        if (checked) map.addLayer(layers[type]);
+        else map.removeLayer(layers[type]);
+    }
+    
+    window.toggleCheckbox = function(id) {
+        var chk = document.getElementById(id);
+        if (event.target !== chk) {
+            chk.checked = !chk.checked;
+            chk.dispatchEvent(new Event('change'));
+        }
+    };
+</script>
+</body>
+</html>

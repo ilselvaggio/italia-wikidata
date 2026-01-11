@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wikidata Italia Check</title>
+    <title>Wikidata Italia Overview</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
+        /* HEADER STYLE */
         #header {
             background-color: #333;
             color: #fff;
@@ -38,10 +39,9 @@
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        /* Datum Design */
         #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; white-space: nowrap; }
 
-        /* MOBILE OPTIMIERUNG */
+        /* HANDY-ANSICHT (Responsive) */
         @media (max-width: 600px) {
             #header {
                 height: auto; 
@@ -53,16 +53,16 @@
             #left-col { justify-content: space-between; width: 100%; }
             #controls {
                 justify-content: space-between;
-                flex-wrap: wrap; /* Erlaubt Umbruch */
+                flex-wrap: wrap;
                 background: rgba(255,255,255,0.05);
                 padding: 8px;
                 border-radius: 4px;
                 width: 100%;
                 box-sizing: border-box;
             }
-            #regionSelect { max-width: 50%; }
+            #regionSelect { max-width: 60%; }
             
-            /* Datum auf Handy sichtbar machen */
+            /* Datum auf Handy sichtbar und ordentlich platziert */
             #meta-info { 
                 display: block; 
                 border-left: none; 
@@ -72,6 +72,7 @@
                 width: 100%; 
                 text-align: right; 
                 font-size: 10px;
+                color: #ccc;
             }
             
             #map { height: calc(100% - 110px) !important; } 
@@ -79,6 +80,7 @@
 
         #map { height: calc(100% - 50px); width: 100%; background: #f0f0f0; }
 
+        /* POPUP STYLE */
         .leaflet-popup-content-wrapper { border-radius: 6px; }
         .popup-content { font-size: 14px; min-width: 180px; }
         .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
@@ -86,6 +88,7 @@
         .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
         .btn-wiki { background-color: #333; }
         .btn-osm { background-color: #2ecc71; }
+
     </style>
 </head>
 <body>
@@ -113,7 +116,7 @@
             Mapped <span id="count-done"></span>
         </div>
         
-        <div id="meta-info">Agg: <span id="last-updated">-</span></div>
+        <div id="meta-info">Aggiornato: <span id="last-updated">-</span></div>
     </div>
 </header>
 
@@ -127,15 +130,18 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup() };
-
+    
+    // 1. Laden der Konfiguration und Metadaten
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
+        // Datum setzen
         if(metadata.last_updated) {
             document.getElementById('last-updated').innerText = metadata.last_updated;
         }
 
+        // Menü befüllen
         var select = document.getElementById('regionSelect');
         select.innerHTML = "";
         
@@ -148,6 +154,7 @@
             select.appendChild(opt);
         });
 
+        // Erste Region automatisch laden
         if (sortedKeys.length > 0) {
             select.value = sortedKeys[0];
             changeRegion(sortedKeys[0]);
@@ -162,6 +169,7 @@
         layers.missing.clearLayers();
         layers.done.clearLayers();
 
+        // 2. Laden der GeoJSON Datei
         fetch(`data_${key}.geojson`)
             .then(res => {
                 if (!res.ok) throw new Error("Dati mancanti");
@@ -198,8 +206,8 @@
                     }
                 });
 
-                document.getElementById('count-missing').innerText = countMissing;
-                document.getElementById('count-done').innerText = countDone;
+                document.getElementById('count-missing').innerText = `(${countMissing})`;
+                document.getElementById('count-done').innerText = `(${countDone})`;
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('stat-missing').style.display = 'flex';
                 document.getElementById('stat-done').style.display = 'flex';
@@ -210,8 +218,8 @@
                 if (bounds.isValid()) map.fitBounds(bounds, {padding: [20, 20]});
             })
             .catch(err => {
-                document.getElementById('loading').innerText = "Nessun dato";
-                setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 2000);
+                document.getElementById('loading').innerText = "Dati non trovati (Upload?)";
+                // Fehler bleibt stehen als Hinweis
             });
     }
 

@@ -8,9 +8,9 @@ import os
 
 # --- CONFIGURAZIONE ---
 REGIONS_FILE = "regions.json"
-MAX_RETRIES = 5             # Aumentato a 5 tentativi
-RETRY_DELAY = 30            # Secondi tra i tentativi
-OVERPASS_TIMEOUT = 1800     # 30 minuti di timeout per query pesanti
+MAX_RETRIES = 3
+RETRY_DELAY = 10
+OVERPASS_TIMEOUT = 900
 
 def get_wikidata(qid):
     # Query SPARQL stretta sulla regione (P131)

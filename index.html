@@ -41,32 +41,27 @@
         
         #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; white-space: nowrap; }
 
-        /* MOBILE FIX (Sotto i 600px di larghezza) */
+        /* MOBILE FIX */
         @media (max-width: 600px) {
             #header {
-                height: auto; /* Altezza flessibile */
-                flex-direction: column; /* Impila gli elementi */
-                align-items: stretch; /* Allarga a tutto schermo */
+                height: auto; 
+                flex-direction: column; 
+                align-items: stretch;
                 gap: 10px;
                 padding: 10px;
             }
-            #left-col {
-                justify-content: space-between; /* Titolo a sx, Menu a dx */
-            }
+            #left-col { justify-content: space-between; }
             #controls {
-                justify-content: space-between; /* Distribuisce checkbox uniformemente */
-                background: rgba(255,255,255,0.1); /* Leggero sfondo per separare */
+                justify-content: space-between;
+                background: rgba(255,255,255,0.1);
                 padding: 5px;
                 border-radius: 4px;
             }
-            #regionSelect { max-width: none; } /* Allarga il menu su mobile */
-            #meta-info { display: none; } /* Nasconde la data su mobile per risparmiare spazio (opzionale) */
-            
-            /* Aggiusta altezza mappa per header più alto */
+            #regionSelect { max-width: none; }
+            #meta-info { display: none; }
             #map { height: calc(100% - 95px) !important; } 
         }
 
-        /* MAPPA */
         #map { height: calc(100% - 50px); width: 100%; background: #f0f0f0; }
 
         /* POPUP */
@@ -115,7 +110,7 @@
 
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
-    L.control.zoom({ position: 'bottomright' }).addTo(map); // Zoom in basso a destra su mobile è più comodo
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup() };
@@ -126,7 +121,7 @@
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
         if(metadata.last_updated) {
-            document.getElementById('last-updated').innerText = metadata.last_updated.split(' ')[0]; // Mostra solo la data per spazio
+            document.getElementById('last-updated').innerText = metadata.last_updated.split(' ')[0];
         }
 
         var select = document.getElementById('regionSelect');
@@ -134,13 +129,8 @@
         
         var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
         
-        // Tutta Italia opzione
-        var optAll = document.createElement('option');
-        optAll.value = "italia";
-        optAll.innerText = "🇮🇹 TUTTA ITALIA";
-        optAll.style.fontWeight = "bold";
-        select.appendChild(optAll);
-
+        // KEIN "Tutta Italia" mehr
+        
         sortedKeys.forEach(key => {
             var opt = document.createElement('option');
             opt.value = key;
@@ -148,7 +138,7 @@
             select.appendChild(opt);
         });
 
-        // Auto-select prima regione
+        // Auto-select erste Region
         if (sortedKeys.length > 0) {
             select.value = sortedKeys[0];
             changeRegion(sortedKeys[0]);

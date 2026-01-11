@@ -7,28 +7,42 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
-        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; height: 50px; box-sizing: border-box; }
+        
+        #header {
+            background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 15px; height: 50px; box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
+        }
+        
         #left-col { display: flex; align-items: center; gap: 15px; }
         #title { font-weight: 700; font-size: 18px; white-space: nowrap; }
-        #regionSelect { background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; }
+        #regionSelect { background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer; max-width: 150px; }
+
         #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; }
         
         .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; flex-shrink: 0; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
-        .dot-orange { background: #f39c12; } /* Neue Farbe */
+        /* Orange Punkte für Broad/Gebirge (werden angezeigt, aber ohne Checkbox im UI) */
+        .dot-orange { background: #f39c12; } 
 
-        #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; }
+        #meta-info { font-size: 11px; color: #aaa; margin-left: 5px; border-left: 1px solid #555; padding-left: 10px; white-space: nowrap; }
 
         @media (max-width: 600px) {
-            #header { height: auto; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; }
-            #controls { justify-content: space-between; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; }
-            #meta-info { display: block; border: none; padding: 0; margin: 5px 0 0 0; width: 100%; text-align: right; }
+            #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 8px; }
+            #left-col { justify-content: space-between; width: 100%; }
+            #controls { justify-content: space-between; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+            #regionSelect { max-width: 60%; }
+            #meta-info { display: block; border-left: none; padding-left: 0; margin-left: 0; margin-top: 5px; width: 100%; text-align: right; font-size: 10px; color: #ccc; }
             #map { height: calc(100% - 110px) !important; } 
         }
+
         #map { height: calc(100% - 50px); width: 100%; background: #f0f0f0; }
-        
+
+        .leaflet-popup-content-wrapper { border-radius: 6px; }
+        .popup-content { font-size: 14px; min-width: 180px; }
+        .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+        .popup-meta { color: #666; margin-bottom: 10px; font-family: monospace; font-size: 12px; }
         .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
         .btn-wiki { background-color: #333; }
         .btn-osm { background-color: #2ecc71; }
@@ -39,28 +53,24 @@
 <header id="header">
     <div id="left-col">
         <div id="title">Wikidata Italia</div>
-        <select id="regionSelect" onchange="changeRegion(this.value)"></select>
+        <select id="regionSelect" onchange="changeRegion(this.value)">
+            <option value="" disabled selected>Caricamento...</option>
+        </select>
     </div>
 
     <div id="controls">
         <div id="loading" style="display:none; color: #f1c40f;">Caricamento...</div>
         
-        <div class="stat-item" onclick="toggleCheckbox('chkMissing')">
+        <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            <span id="count-missing"></span>
+            Missing <span id="count-missing"></span>
         </div>
         
-        <div class="stat-item" onclick="toggleCheckbox('chkDone')">
+        <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
             <span class="dot dot-green"></span>
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            <span id="count-done"></span>
-        </div>
-
-        <div class="stat-item" onclick="toggleCheckbox('chkBroad')">
-            <span class="dot dot-orange"></span>
-            <input type="checkbox" id="chkBroad" checked onchange="toggleLayer('broad', this.checked)">
-            <span id="count-broad"></span>
+            Mapped <span id="count-done"></span>
         </div>
         
         <div id="meta-info">Agg: <span id="last-updated">-</span></div>
@@ -68,79 +78,132 @@
 </header>
 
 <div id="map"></div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
-    var layers = { missing: L.layerGroup(), done: L.layerGroup(), broad: L.layerGroup() };
+    // Layer Gruppen
+    var layers = { 
+        missing: L.layerGroup(), 
+        done: L.layerGroup(),
+        broad: L.layerGroup() // Extra Gruppe für Orange
+    };
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
-        if(metadata.last_updated) document.getElementById('last-updated').innerText = metadata.last_updated;
+        if(metadata.last_updated) {
+            document.getElementById('last-updated').innerText = metadata.last_updated;
+        }
+
         var select = document.getElementById('regionSelect');
+        select.innerHTML = "";
+        
         var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
+        
         sortedKeys.forEach(key => {
             var opt = document.createElement('option');
-            opt.value = key; opt.innerText = regions[key].name; select.appendChild(opt);
+            opt.value = key;
+            opt.innerText = regions[key].name;
+            select.appendChild(opt);
         });
-        if (sortedKeys.length > 0) changeRegion(sortedKeys[0]);
+
+        if (sortedKeys.length > 0) {
+            select.value = sortedKeys[0];
+            changeRegion(sortedKeys[0]);
+        }
     });
 
     function changeRegion(key) {
         document.getElementById('loading').style.display = 'block';
-        layers.missing.clearLayers(); layers.done.clearLayers(); layers.broad.clearLayers();
+        document.getElementById('stat-missing').style.display = 'none';
+        document.getElementById('stat-done').style.display = 'none';
+        
+        layers.missing.clearLayers();
+        layers.done.clearLayers();
+        layers.broad.clearLayers();
 
-        fetch(`data_${key}.geojson`).then(res => res.json()).then(data => {
-            var counts = { missing: 0, done: 0, broad: 0 };
-            var bounds = L.latLngBounds([]);
+        fetch(`data_${key}.geojson`)
+            .then(res => {
+                if (!res.ok) throw new Error("Dati mancanti");
+                return res.json();
+            })
+            .then(data => {
+                var countMissing = 0;
+                var countDone = 0;
+                var bounds = L.latLngBounds([]);
 
-            data.features.forEach(feature => {
-                var p = feature.properties;
-                var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
-                bounds.extend(latlng);
+                data.features.forEach(feature => {
+                    var p = feature.properties;
+                    var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
+                    bounds.extend(latlng);
 
-                var color = "#e74c3c"; // Standard Rot
-                var group = layers.missing;
+                    var popupHtml = `<div class="popup-content">
+                        <div class="popup-header">${p.name}</div>
+                        <div class="popup-meta">${p.wikidata}</div>
+                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
+                    if (p.osm_id) {
+                        popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
+                    }
+                    popupHtml += `</div>`;
+
+                    var color = "#e74c3c"; // Default Red
+                    var targetLayer = layers.missing;
+
+                    if (p.status === 'done') {
+                        color = "#2ecc71"; // Green
+                        targetLayer = layers.done;
+                        countDone++;
+                    } else if (p.status === 'broad') {
+                        color = "#f39c12"; // Orange
+                        targetLayer = layers.broad;
+                        // Broad zählt hier weder zu Missing noch zu Done in der Statistik, 
+                        // oder wir zählen es zu Missing, aber zeigen es orange? 
+                        // Aktuell: separat.
+                    } else {
+                        countMissing++;
+                    }
+
+                    var marker = L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(popupHtml);
+                    targetLayer.addLayer(marker);
+                });
+
+                document.getElementById('count-missing').innerText = `(${countMissing})`;
+                document.getElementById('count-done').innerText = `(${countDone})`;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('stat-missing').style.display = 'flex';
+                document.getElementById('stat-done').style.display = 'flex';
+
+                // Checkbox Logik
+                if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+                if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
                 
-                if (p.status === 'done') { color = "#2ecc71"; group = layers.done; }
-                else if (p.status === 'broad') { color = "#f39c12"; group = layers.broad; } // Orange
+                // Broad Layer wird IMMER hinzugefügt (da keine Checkbox existiert)
+                map.addLayer(layers.broad);
 
-                counts[p.status]++;
-
-                var popup = `<b>${p.name}</b><br><small>${p.wikidata}</small><br>
-                             <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
-                if(p.osm_id) popup += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OSM</a>`;
-                
-                var marker = L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(popup);
-                group.addLayer(marker);
+                if (bounds.isValid()) map.fitBounds(bounds, {padding: [20, 20]});
+            })
+            .catch(err => {
+                document.getElementById('loading').innerText = "In attesa di dati...";
             });
-
-            document.getElementById('count-missing').innerText = counts.missing;
-            document.getElementById('count-done').innerText = counts.done;
-            document.getElementById('count-broad').innerText = counts.broad; // Anzeige Orange
-            
-            document.getElementById('loading').style.display = 'none';
-
-            if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
-            if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
-            if(document.getElementById('chkBroad').checked) map.addLayer(layers.broad);
-
-            if (bounds.isValid()) map.fitBounds(bounds, {padding: [20, 20]});
-        });
     }
 
     function toggleLayer(type, checked) {
-        if (checked) map.addLayer(layers[type]); else map.removeLayer(layers[type]);
+        if (checked) map.addLayer(layers[type]);
+        else map.removeLayer(layers[type]);
     }
     
     window.toggleCheckbox = function(id) {
         var chk = document.getElementById(id);
-        if (event.target !== chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); }
+        if (event.target !== chk) {
+            chk.checked = !chk.checked;
+            chk.dispatchEvent(new Event('change'));
+        }
     };
 </script>
 </body>

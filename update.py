@@ -143,10 +143,9 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
         
-    # Data e Ora UTC+1
-    utc_now = datetime.datetime.utcnow()
+    # Data e Ora UTC+1 (Corretto per evitare warning)
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
     cet_now = utc_now + datetime.timedelta(hours=1)
-    timestamp_str = cet_now.strftime("%d/%m/%Y %H:%M (UTC+1)")
     
     all_italy_features = []
     success_count = 0

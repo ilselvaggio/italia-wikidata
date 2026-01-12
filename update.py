@@ -12,26 +12,21 @@ WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OSM_DIR = "osm"   
 DATA_DIR = "data" 
 
-# NUR DIESE TYPEN WERDEN ORANGE (Broad/Geografisch)
-# Q46831 (Gebirge), Q205466 (Verkehrsweg), Q15312 (Pass), Q165 (Meer), Q4022 (Fluss)
-BROAD_CLASSES = ['Q46831', 'Q205466', 'Q15312', 'Q165', 'Q4022', 'Q355304'] 
-
-def get_wikidata_optimized(qid, region_name):
-    # Optimierte Query mit MINUS statt komplexen Filtern
-    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?class WHERE {{
+def get_wikidata_clean(qid, region_name):
+    # Query: Holt alle Items, filtert Historisches + Bauernhof-Fix
+    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
+       # 1. Basis-Suche in der Region
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
-       
-       # Klasse holen (für Orange-Logik)
-       OPTIONAL {{ ?item wdt:P31 ?classItem . BIND(STRAFTER(STR(?classItem), '/entity/') as ?class) }}
 
-       # FILTER: Keine historischen Objekte
+       # 2. Historische Objekte ausschließen (Endzeitpunkt oder Aufgelöst)
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
        
-       # FILTER: Der Bauernhof-Fix (Verbindung zur Region abgelaufen)
+       # 3. DEIN BAUERNHOF-FIX (Exakt wie gewünscht)
+       # Entfernt Items, deren Verknüpfung zu DIESER Region abgelaufen ist
        MINUS {{ 
            ?item p:P131 ?stmt . 
-           ?stmt ps:P131 wd:{qid} .
+           ?stmt ps:P131 wd:{qid} . 
            ?stmt pq:P582 ?linkEnd . 
            FILTER(?linkEnd < NOW()) 
        }}
@@ -44,7 +39,7 @@ def get_wikidata_optimized(qid, region_name):
        OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='it') }}
     }}"""
     
-    print(f"   -> Downloading optimized for {region_name} ({qid})...", end=" ", flush=True)
+    print(f"   -> Downloading for {region_name} ({qid})...", end=" ", flush=True)
     try:
         headers = {'User-Agent': 'ItaliaWikidataCheck/1.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
@@ -62,7 +57,7 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starting Update ---")
+    print(f"--- Starting Update (No Orange, Farm Fix Active) ---")
     processed = 0
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
 
@@ -70,6 +65,8 @@ def main():
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         if not os.path.exists(file_osm): continue
         
+        print(f"\n--- Processing {config['name']} ---")
+
         # 1. OSM Laden
         osm_ids = {}
         try:
@@ -82,10 +79,10 @@ def main():
         except: continue
 
         # 2. Wikidata Laden
-        csv_text = get_wikidata_optimized(config['qid'], config['name'])
+        csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
-        # 3. Verarbeiten
+        # 3. Abgleich (Nur noch missing oder done)
         features = []
         seen = set()
         reader = csv.DictReader(csv_text.splitlines())
@@ -100,17 +97,14 @@ def main():
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))
                 label = row.get('label') or row.get('?label') or qid
-                cls = row.get('class') or row.get('?class')
             except: continue
 
             osm_ref = osm_ids.get(qid)
+            
+            # Status Logik: Entweder rot (missing) oder grün (done)
+            # Orange gibt es nicht mehr.
             status = "missing"
             if osm_ref: status = "done"
-            
-            # ORANGE LOGIK: Nur noch strikt nach Klasse.
-            # "Doppelte P131" werden ignoriert (bleiben rot/grün), um Fehler zu vermeiden.
-            if cls in BROAD_CLASSES:
-                status = "broad"
 
             features.append({
                 "type": "Feature",
@@ -130,6 +124,8 @@ def main():
     if processed > 0:
         with open("metadata.json", "w") as f:
             json.dump({ "osm_date": now_str, "wiki_date": now_str, "regions_count": len(regions) }, f)
+
+    print(f"\nDONE.")
 
 if __name__ == "__main__":
     main()

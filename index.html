@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,223 +8,76 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
+        /* HEADER */
         #header {
-            background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 15px; height: 60px; box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
+            background-color: #333; color: #fff; 
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; height: 60px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); 
+            z-index: 1000; position: relative;
         }
         
-        #left-col { display: flex; align-items: center; gap: 15px; }
-        /* Titel klickbar machen */
-        #title { font-weight: 700; font-size: 18px; white-space: nowrap; cursor: pointer; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+        #left-col { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+        
+        /* Title: No underline, clickable */
+        #title { 
+            font-weight: 700; font-size: 18px; white-space: nowrap; 
+            cursor: pointer; text-decoration: none; color: #fff;
+        }
         #title:hover { color: #3498db; }
 
-        #regionSelect { background: #555; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer; max-width: 150px; }
+        /* Dropdown: Auto width */
+        #regionSelect { 
+            background: #555; border: 1px solid #666; color: white; 
+            padding: 6px 12px; border-radius: 4px; font-size: 14px; 
+            cursor: pointer; min-width: 150px; width: auto;
+        }
 
-        #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; }
+        #controls { display: flex; gap: 20px; align-items: center; font-size: 13px; margin-left: auto; }
         
-        .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+        /* Checkboxes aligned properly */
+        .stat-item { 
+            display: flex; align-items: center; gap: 6px; 
+            cursor: pointer; white-space: nowrap; user-select: none;
+        }
+        .stat-item input { cursor: pointer; margin: 0; }
+        
         .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; flex-shrink: 0; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         .dot-orange { background: #f39c12; } 
 
-        /* Datum Design verbessert */
-        #meta-info { font-size: 11px; color: #ccc; margin-left: 10px; padding-left: 10px; border-left: 1px solid #555; text-align: right; line-height: 1.3; }
-        .date-label { font-weight: bold; color: #aaa; }
+        /* Date Info */
+        #meta-info { 
+            font-size: 11px; color: #ccc; 
+            border-left: 1px solid #555; padding-left: 15px; 
+            text-align: right; line-height: 1.3; min-width: 120px;
+        }
+        .date-label { font-weight: bold; color: #888; margin-right: 4px; }
 
-        @media (max-width: 600px) {
+        /* MOBILE OPTIMIZATION */
+        @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
-            #left-col { justify-content: space-between; width: 100%; }
-            #controls { justify-content: space-between; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; width: 100%; }
-            #regionSelect { max-width: 60%; }
-            #meta-info { display: block; border-left: none; padding-left: 0; margin-left: 0; margin-top: 5px; width: 100%; text-align: center; font-size: 10px; }
-            #map { height: calc(100% - 130px) !important; } 
+            #left-col { justify-content: space-between; width: 100%; gap: 10px; }
+            #title { font-size: 16px; }
+            #regionSelect { flex-grow: 1; max-width: none; }
+            
+            #controls { 
+                width: 100%; justify-content: space-between; 
+                flex-wrap: wrap; margin: 0; 
+                background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; 
+            }
+            #meta-info { 
+                border-left: none; padding-left: 0; margin-top: 8px; 
+                width: 100%; text-align: center; display: flex; justify-content: center; gap: 15px;
+            }
+            #map { height: calc(100% - 140px) !important; } 
         }
 
         #map { height: calc(100% - 60px); width: 100%; background: #f0f0f0; }
 
+        /* POPUP */
         .leaflet-popup-content-wrapper { border-radius: 6px; }
         .popup-content { font-size: 14px; min-width: 180px; }
-        .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
-        .btn-wiki { background-color: #333; }
-        .btn-osm { background-color: #2ecc71; }
-    </style>
-</head>
-<body>
-
-<header id="header">
-    <div id="left-col">
-        <div id="title" onclick="location.reload()">Wikidata Italia Overview</div>
-        <select id="regionSelect" onchange="changeRegion(this.value)">
-            <option value="" disabled selected>Seleziona Regione...</option>
-        </select>
-    </div>
-
-    <div id="controls">
-        <div id="loading" style="display:none; color: #f1c40f;">Caricamento...</div>
-        
-        <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
-            <span class="dot dot-red"></span> Missing
-            <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            <span id="count-missing" style="margin-left:3px"></span>
-        </div>
-        
-        <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
-            <span class="dot dot-green"></span> Mapped
-            <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            <span id="count-done" style="margin-left:3px"></span>
-        </div>
-        
-        <div id="meta-info">
-            <div><span class="date-label">OSM:</span> <span id="date-osm">-</span></div>
-            <div><span class="date-label">Wikidata:</span> <span id="date-wiki">-</span></div>
-        </div>
-    </div>
-</header>
-
-<div id="map"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script>
-    var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-
-    var layers = { missing: L.layerGroup(), done: L.layerGroup(), broad: L.layerGroup(), regions: L.layerGroup() };
-    var regionConfig = {};
-
-    // Externe GeoJSON für italienische Regionen (vereinfacht)
-    var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
-
-    Promise.all([
-        fetch('regions.json').then(r => r.json()),
-        fetch('metadata.json').then(r => r.json()).catch(() => ({}))
-    ]).then(([regions, metadata]) => {
-        regionConfig = regions;
-        
-        // Datum setzen
-        if(metadata.osm_date) document.getElementById('date-osm').innerText = metadata.osm_date;
-        if(metadata.wiki_date) document.getElementById('date-wiki').innerText = metadata.wiki_date;
-
-        var select = document.getElementById('regionSelect');
-        var optReset = document.createElement('option');
-        optReset.value = "RESET";
-        optReset.innerText = "-- Mappa Italia --";
-        select.appendChild(optReset);
-
-        var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
-        sortedKeys.forEach(key => {
-            var opt = document.createElement('option');
-            opt.value = key;
-            opt.innerText = regions[key].name;
-            select.appendChild(opt);
-        });
-
-        // Regionen-Flächen laden (Startansicht)
-        loadRegionsShape();
-    });
-
-    function loadRegionsShape() {
-        fetch(REGIONS_GEOJSON_URL)
-            .then(r => r.json())
-            .then(geojson => {
-                var layer = L.geoJSON(geojson, {
-                    style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
-                    onEachFeature: function(feature, layer) {
-                        var regName = feature.properties.reg_name;
-                        // Versuche den Key aus regions.json zu finden
-                        var foundKey = Object.keys(regionConfig).find(k => regionConfig[k].name.toLowerCase().includes(regName.toLowerCase()) || regName.toLowerCase().includes(regionConfig[k].name.toLowerCase()));
-                        
-                        if (foundKey) {
-                            layer.on('click', function() {
-                                changeRegion(foundKey);
-                            });
-                            layer.bindTooltip(regName, {permanent: false, direction: "center"});
-                            layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${foundKey}')" class="btn btn-load">Carica Dati</button>`);
-                        }
-                    }
-                });
-                layers.regions.addLayer(layer);
-                map.addLayer(layers.regions);
-            })
-            .catch(e => console.log("Fehler beim Laden der Regionen-Shapes", e));
-    }
-
-    function changeRegion(key) {
-        if (key === "RESET") { location.reload(); return; }
-
-        document.getElementById('regionSelect').value = key;
-        map.removeLayer(layers.regions); // Regionen ausblenden
-
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('stat-missing').style.display = 'none';
-        document.getElementById('stat-done').style.display = 'none';
-        
-        layers.missing.clearLayers();
-        layers.done.clearLayers();
-        layers.broad.clearLayers();
-
-        fetch(`data_${key}.geojson`)
-            .then(res => {
-                if (!res.ok) throw new Error("Dati mancanti");
-                return res.json();
-            })
-            .then(data => {
-                var countMissing = 0; var countDone = 0;
-                var bounds = L.latLngBounds([]);
-
-                data.features.forEach(feature => {
-                    var p = feature.properties;
-                    var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
-                    bounds.extend(latlng);
-
-                    var popupHtml = `<div class="popup-content">
-                        <div class="popup-header">${p.name}</div>
-                        <small>${p.wikidata}</small><br>
-                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
-                    if (p.osm_id) popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
-                    popupHtml += `</div>`;
-
-                    var color = "#e74c3c"; 
-                    var targetLayer = layers.missing;
-
-                    if (p.status === 'done') {
-                        color = "#2ecc71"; targetLayer = layers.done; countDone++;
-                    } else if (p.status === 'broad') {
-                        color = "#f39c12"; targetLayer = layers.broad;
-                        // Broad zählt nicht zu Statistik
-                    } else {
-                        countMissing++;
-                    }
-
-                    var marker = L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(popupHtml);
-                    targetLayer.addLayer(marker);
-                });
-
-                document.getElementById('count-missing').innerText = `(${countMissing})`;
-                document.getElementById('count-done').innerText = `(${countDone})`;
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('stat-missing').style.display = 'flex';
-                document.getElementById('stat-done').style.display = 'flex';
-
-                if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
-                if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
-                map.addLayer(layers.broad);
-
-                if (bounds.isValid()) map.fitBounds(bounds, {padding: [20, 20]});
-            })
-            .catch(err => document.getElementById('loading').innerText = "Dati non trovati");
-    }
-
-    function toggleLayer(type, checked) {
-        if (checked) map.addLayer(layers[type]); else map.removeLayer(layers[type]);
-    }
-    
-    window.toggleCheckbox = function(id) {
-        var chk = document.getElementById(id);
-        if (event.target !== chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); }
-    };
-</script>
-</body>
-</html>
+        .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+        .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px

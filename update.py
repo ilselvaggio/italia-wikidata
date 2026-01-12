@@ -13,20 +13,18 @@ OSM_DIR = "osm"
 DATA_DIR = "data" 
 
 def get_wikidata_clean(qid, region_name):
-    # Query: Holt alle Items, filtert Historisches + Bauernhof-Fix
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
-       # 1. Basis-Suche in der Region
+       # 1. Basis-Suche
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
 
-       # 2. Historische Objekte ausschließen (Endzeitpunkt oder Aufgelöst)
+       # 2. Historische Objekte ausschließen
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
        
-       # 3. DEIN BAUERNHOF-FIX (Exakt wie gewünscht)
-       # Entfernt Items, deren Verknüpfung zu DIESER Region abgelaufen ist
+       # 3. FIX: Entfernt Items mit JEDER abgelaufenen Ortsverknüpfung.
+       # Das verhindert, dass alte Standorte (wdt:P131* ignoriert Enddaten) gefunden werden.
        MINUS {{ 
            ?item p:P131 ?stmt . 
-           ?stmt ps:P131 wd:{qid} . 
            ?stmt pq:P582 ?linkEnd . 
            FILTER(?linkEnd < NOW()) 
        }}
@@ -57,7 +55,7 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starting Update (No Orange, Farm Fix Active) ---")
+    print(f"--- Starting Update ---")
     processed = 0
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
 
@@ -67,7 +65,7 @@ def main():
         
         print(f"\n--- Processing {config['name']} ---")
 
-        # 1. OSM Laden
+        # OSM
         osm_ids = {}
         try:
             with open(file_osm, 'r', encoding='utf-8') as f:
@@ -78,11 +76,11 @@ def main():
                         if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
         except: continue
 
-        # 2. Wikidata Laden
+        # Wikidata
         csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
-        # 3. Abgleich (Nur noch missing oder done)
+        # Match
         features = []
         seen = set()
         reader = csv.DictReader(csv_text.splitlines())
@@ -100,9 +98,6 @@ def main():
             except: continue
 
             osm_ref = osm_ids.get(qid)
-            
-            # Status Logik: Entweder rot (missing) oder grün (done)
-            # Orange gibt es nicht mehr.
             status = "missing"
             if osm_ref: status = "done"
 

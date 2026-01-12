@@ -9,31 +9,29 @@ import datetime
 # --- CONFIGURATION ---
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
-OSM_DIR = "osm"   
-DATA_DIR = "data" 
+OSM_DIR = "osm"   # Input Folder
+DATA_DIR = "data" # Output Folder
 
-# Classes that are considered "Broad" (Orange status)
-# Q46831 (Mountain range), Q205466 (Traffic route), Q15312 (Mountain pass)
-# Added: Q355304 (Watercourse), Q165 (Sea/Ocean)
-BROAD_CLASSES = ['Q46831', 'Q205466', 'Q15312', 'Q355304', 'Q165'] 
+# Classes considered "Broad" (Orange) regardless of location
+# Mountains (Q46831), Traffic routes (Q205466), Passes (Q15312), Bodies of water (Q15324)
+BROAD_CLASSES = ['Q46831', 'Q205466', 'Q15312', 'Q15324', 'Q4022'] 
 
 def get_wikidata_smart(qid, region_name):
-    # Query logic:
-    # 1. Get items in region (P131)
-    # 2. Filter out historical items (End time P582 or Dissolved P576)
-    # 3. Filter out items where the LINK to the region is historical (P131 qualifier P582)
-    
-    query = f"""SELECT ?qid ?lat ?lon ?label ?class WHERE {{
+    query = f"""SELECT ?qid ?lat ?lon ?label ?class (COUNT(?parent) AS ?p131count) WHERE {{
+       # 1. Main Search
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
-       # Get Class (P31) for Orange logic
+       # 2. Get Class (for Orange logic)
        OPTIONAL {{ ?item wdt:P31 ?classItem . BIND(STRAFTER(STR(?classItem), '/entity/') as ?class) }}
 
-       # FILTER: Exclude historical objects (ended or dissolved)
+       # 3. COUNT direct P131 connections (to detect cross-border items)
+       OPTIONAL {{ ?item wdt:P131 ?parent }}
+
+       # 4. EXCLUDE Historical Items (Ended or Dissolved)
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
        
-       # FILTER: Exclude objects where the P131 connection itself is historical (e.g. farm moved border)
+       # 5. EXCLUDE Items where the link to the region is historical (The Farm Fix!)
        FILTER NOT EXISTS {{ 
            ?item p:P131 ?stmt . 
            ?stmt ps:P131 wd:{qid} .
@@ -47,10 +45,11 @@ def get_wikidata_smart(qid, region_name):
        
        OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='en') }} 
        OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='it') }}
-    }}"""
+    }}
+    GROUP BY ?qid ?lat ?lon ?label ?class
+    """
     
     print(f"   -> Downloading Wikidata for {region_name} ({qid})...", end=" ", flush=True)
-    
     try:
         headers = {'User-Agent': 'ItaliaWikidataCheck/1.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
@@ -61,68 +60,54 @@ def get_wikidata_smart(qid, region_name):
         print(f"ERROR: {e}")
         return None
 
-def get_file_date(filepath):
-    try:
-        timestamp = os.path.getmtime(filepath)
-        return datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
-    except:
-        return "Unknown"
-
 def main():
     if not os.path.exists(REGIONS_FILE):
         print(f"ERROR: {REGIONS_FILE} missing.")
         return
 
+    # Create output dir if missing
     if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
 
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starting Smart Update (OSM: {OSM_DIR} -> DATA: {DATA_DIR}) ---")
+    print(f"--- Starting Online Update (OSM: {OSM_DIR} -> DATA: {DATA_DIR}) ---")
     
     processed_count = 0
-    latest_osm_date = "2000-01-01 00:00"
+    # On GitHub Actions, file dates are reset, so we use current time for OSM date too
+    current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
 
     for key, config in regions.items():
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         
+        # Check if OSM file exists in the osm/ folder
         if not os.path.exists(file_osm):
-            # print(f"Skipping {key} (no OSM file found)")
             continue
-
-        # Track the latest OSM file date for metadata
-        f_date = get_file_date(file_osm)
-        if f_date > latest_osm_date:
-            latest_osm_date = f_date
 
         print(f"\n--- Processing {config['name']} ---")
 
-        # 1. Load OSM
+        # 1. Load OSM Data
         osm_ids = {}
         try:
             with open(file_osm, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                elements = data.get('elements', [])
-                for element in elements:
+                for element in data.get('elements', []):
                     tags = element.get('tags', {})
-                    el_type = element.get('type')
-                    el_id = element.get('id')
                     if 'wikidata' in tags:
                         raw = tags['wikidata'].split(';')[0].strip().upper()
                         if raw.startswith('Q'):
-                            osm_ids[raw] = f"{el_type}/{el_id}"
+                            osm_ids[raw] = f"{element['type']}/{element['id']}"
         except Exception as e:
-            print(f"   OSM READ ERROR: {e}")
+            print(f"   OSM Error: {e}")
             continue
 
-        # 2. Load Wikidata
+        # 2. Load Wikidata Live
         csv_text = get_wikidata_smart(config['qid'], config['name'])
         if not csv_text: continue
 
-        # 3. Match & Build Feature Collection
+        # 3. Process Features
         features = []
-        # Use set to avoid duplicate points if item has multiple classes
-        processed_qids = set() 
+        processed_qids = set()
         
         reader = csv.DictReader(csv_text.splitlines())
         
@@ -130,7 +115,6 @@ def main():
             qid = row.get('qid') or row.get('?qid')
             if not qid: continue
             qid = qid.split('/')[-1].upper()
-            
             if qid in processed_qids: continue
 
             try:
@@ -138,19 +122,17 @@ def main():
                 lon = float(row.get('lon') or row.get('?lon'))
                 label = row.get('label') or row.get('?label') or qid
                 item_class = row.get('class') or row.get('?class')
-            except:
-                continue
+                p131_count = int(row.get('p131count') or row.get('?p131count') or 1)
+            except: continue
 
             osm_ref = osm_ids.get(qid)
-            
-            # --- STATUS LOGIC ---
             status = "missing"
-            if osm_ref:
-                status = "done"
+            if osm_ref: status = "done"
             
-            # Orange Logic: Only for specific "broad" classes (Mountains, etc.)
-            # We ignore the P131 count to avoid false positives (e.g. 2 municipalities in same region)
-            if item_class in BROAD_CLASSES:
+            # ORANGE LOGIC:
+            # 1. Is it a "Broad Class" (Mountain, etc)? -> Orange
+            # 2. Does it have MORE THAN 1 administrative parent? -> Orange (likely border/cross-region)
+            if item_class in BROAD_CLASSES or p131_count > 1:
                 status = "broad"
 
             features.append({
@@ -165,26 +147,23 @@ def main():
             })
             processed_qids.add(qid)
 
-        # Save to DATA folder
+        # 4. Save to data/ folder
         outfile = os.path.join(DATA_DIR, f"data_{key}.geojson")
         with open(outfile, 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
         
-        print(f"   -> Saved: {outfile} ({len(features)} items)")
+        print(f"   -> Saved {len(features)} items to {outfile}")
         processed_count += 1
         time.sleep(1)
 
-    # Write Metadata
+    # Metadata
     if processed_count > 0:
-        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
-        meta_content = { 
-            "osm_date": latest_osm_date, 
-            "wiki_date": now_str, 
-            "regions_count": len(regions) 
-        }
         with open("metadata.json", "w") as f:
-            json.dump(meta_content, f)
-        print(f"\nMetadata updated: OSM {latest_osm_date} / Wiki {now_str}")
+            json.dump({ 
+                "osm_date": current_time_str, 
+                "wiki_date": current_time_str, 
+                "regions_count": len(regions) 
+            }, f)
 
     print(f"\nDONE.")
 

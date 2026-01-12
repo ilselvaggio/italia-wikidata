@@ -1,21 +1,24 @@
-name: Generate Map Data
+name: Update Map Data Online
 
 on:
+  # Startet, wenn du was in den osm-Ordner hochlädst oder update.py änderst
   push:
     paths:
-      - 'osm_*.json'
+      - 'osm/**'
       - 'update.py'
       - 'regions.json'
+      - '.github/workflows/update.yml'
+  # Manueller Start-Knopf
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # WICHTIG: Erlaubt dem Bot das Speichern!
       
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -23,16 +26,18 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install dependencies
+      - name: Install Libraries
         run: pip install requests
 
       - name: Run Update Script
+        # Das Skript liest osm/ und schreibt nach data/
         run: python -u update.py
 
-      - name: Commit and Push changes
+      - name: Save Data to GitHub
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add data_*.geojson metadata.json
-          git commit -m "Auto-update map data" || echo "Keine Änderungen"
+          # Wir fügen alles im data-Ordner und die Metadaten hinzu
+          git add data/*.geojson metadata.json
+          git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
           git push

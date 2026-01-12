@@ -80,4 +80,189 @@
         .leaflet-popup-content-wrapper { border-radius: 6px; }
         .popup-content { font-size: 14px; min-width: 180px; }
         .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
-        .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px
+        .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
+        .btn-wiki { background-color: #333; }
+        .btn-osm { background-color: #2ecc71; }
+        .btn-load { background-color: #3498db; margin-top: 10px; width: 100%; border: none; cursor: pointer; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<header id="header">
+    <div id="left-col">
+        <div id="title" onclick="location.reload()">Wikidata Italia Overview</div>
+        <select id="regionSelect" onchange="changeRegion(this.value)">
+            <option value="" disabled selected>Select Region...</option>
+        </select>
+    </div>
+
+    <div id="controls">
+        <div id="loading" style="display:none; color: #f1c40f; font-weight:bold;">Loading...</div>
+        
+        <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
+            <span class="dot dot-red"></span> 
+            <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
+            Missing <span id="count-missing" style="font-weight:bold; margin-left:2px"></span>
+        </div>
+        
+        <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
+            <span class="dot dot-green"></span> 
+            <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
+            Mapped <span id="count-done" style="font-weight:bold; margin-left:2px"></span>
+        </div>
+        
+        <div id="meta-info">
+            <div><span class="date-label">OSM:</span><span id="date-osm">--</span></div>
+            <div><span class="date-label">Wikidata:</span><span id="date-wiki">--</span></div>
+        </div>
+    </div>
+</header>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
+    var layers = { missing: L.layerGroup(), done: L.layerGroup(), broad: L.layerGroup(), regions: L.layerGroup() };
+    var regionConfig = {};
+    var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
+
+    // Initialize
+    Promise.all([
+        fetch('regions.json').then(r => r.json()),
+        fetch('metadata.json').then(r => r.json()).catch(() => ({}))
+    ]).then(([regions, metadata]) => {
+        regionConfig = regions;
+        
+        // Update Dates
+        if(metadata.osm_date) document.getElementById('date-osm').innerText = metadata.osm_date;
+        if(metadata.wiki_date) document.getElementById('date-wiki').innerText = metadata.wiki_date;
+
+        // Populate Dropdown
+        var select = document.getElementById('regionSelect');
+        var optReset = document.createElement('option');
+        optReset.value = "RESET";
+        optReset.innerText = "-- Overview --";
+        select.appendChild(optReset);
+
+        var sortedKeys = Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name));
+        sortedKeys.forEach(key => {
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.innerText = regions[key].name;
+            select.appendChild(opt);
+        });
+
+        loadRegionsShape();
+    });
+
+    function loadRegionsShape() {
+        fetch(REGIONS_GEOJSON_URL)
+            .then(r => r.json())
+            .then(geojson => {
+                var layer = L.geoJSON(geojson, {
+                    style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
+                    onEachFeature: function(feature, layer) {
+                        var regName = feature.properties.reg_name;
+                        var foundKey = Object.keys(regionConfig).find(k => 
+                            regionConfig[k].name.toLowerCase().includes(regName.toLowerCase()) || 
+                            regName.toLowerCase().includes(regionConfig[k].name.toLowerCase())
+                        );
+                        
+                        if (foundKey) {
+                            layer.on('click', function() { changeRegion(foundKey); });
+                            layer.bindTooltip(regName, {permanent: false, direction: "center"});
+                            layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${foundKey}')" class="btn btn-load">Load Data</button>`);
+                        }
+                    }
+                });
+                layers.regions.addLayer(layer);
+                map.addLayer(layers.regions);
+            })
+            .catch(e => console.log("Error loading shapes", e));
+    }
+
+    function changeRegion(key) {
+        if (key === "RESET") { location.reload(); return; }
+
+        document.getElementById('regionSelect').value = key;
+        map.removeLayer(layers.regions);
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('stat-missing').style.display = 'none';
+        document.getElementById('stat-done').style.display = 'none';
+        
+        layers.missing.clearLayers();
+        layers.done.clearLayers();
+        layers.broad.clearLayers();
+
+        // Path is now 'data/'
+        fetch(`data/data_${key}.geojson`)
+            .then(res => {
+                if (!res.ok) throw new Error("Data missing");
+                return res.json();
+            })
+            .then(data => {
+                var countMissing = 0; var countDone = 0;
+                var bounds = L.latLngBounds([]);
+
+                data.features.forEach(feature => {
+                    var p = feature.properties;
+                    var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
+                    bounds.extend(latlng);
+
+                    var popupHtml = `<div class="popup-content">
+                        <div class="popup-header">${p.name}</div>
+                        <small>QID: ${p.wikidata}</small><br>
+                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
+                    if (p.osm_id) popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
+                    popupHtml += `</div>`;
+
+                    var color = "#e74c3c"; 
+                    var targetLayer = layers.missing;
+
+                    if (p.status === 'done') {
+                        color = "#2ecc71"; targetLayer = layers.done; countDone++;
+                    } else if (p.status === 'broad') {
+                        color = "#f39c12"; targetLayer = layers.broad;
+                    } else {
+                        countMissing++;
+                    }
+
+                    var marker = L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(popupHtml);
+                    targetLayer.addLayer(marker);
+                });
+
+                document.getElementById('count-missing').innerText = `(${countMissing})`;
+                document.getElementById('count-done').innerText = `(${countDone})`;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('stat-missing').style.display = 'flex';
+                document.getElementById('stat-done').style.display = 'flex';
+
+                if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+                if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
+                map.addLayer(layers.broad);
+
+                if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
+            })
+            .catch(err => {
+                document.getElementById('loading').innerText = "No Data Found";
+                console.error(err);
+            });
+    }
+
+    function toggleLayer(type, checked) {
+        if (checked) map.addLayer(layers[type]); else map.removeLayer(layers[type]);
+    }
+    
+    window.toggleCheckbox = function(id) {
+        var chk = document.getElementById(id);
+        if (event.target !== chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); }
+    };
+</script>
+</body>
+</html>

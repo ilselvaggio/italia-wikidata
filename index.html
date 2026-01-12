@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wikidata Italia Overview</title>
+    <title>OSM-Wikidata Italia Overview</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
@@ -13,24 +13,20 @@
             padding: 0 15px; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
         }
         
-        /* LEFT SIDE */
         #left-col { display: flex; align-items: center; gap: 20px; }
         
         #title { 
             font-weight: 700; font-size: 18px; white-space: nowrap; 
-            cursor: pointer; text-decoration: none; /* Kein Unterstrich */
-            color: white;
+            cursor: pointer; text-decoration: none; color: white;
         }
         #title:hover { color: #3498db; }
 
-        /* Dropdown passt sich Breite an */
         #regionSelect { 
             background: #555; border: 1px solid #666; color: white; 
             padding: 5px 10px; border-radius: 4px; font-size: 14px; 
             cursor: pointer; min-width: 150px; width: auto;
         }
 
-        /* RIGHT SIDE (Controls) */
         #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; margin-left: auto; }
         
         .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
@@ -40,7 +36,6 @@
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        /* Date Block */
         #meta-info { 
             font-size: 10px; color: #ccc; text-align: right; 
             border-left: 1px solid #555; padding-left: 15px; 
@@ -48,7 +43,6 @@
         }
         .date-row { white-space: nowrap; }
 
-        /* MOBILE */
         @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
             #left-col { justify-content: space-between; width: 100%; }
@@ -69,7 +63,7 @@
 
 <header id="header">
     <div id="left-col">
-        <div id="title" onclick="location.reload()">Wikidata Italia Overview</div>
+        <div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div>
         <select id="regionSelect" onchange="changeRegion(this.value)">
             <option value="" disabled selected>Select Region...</option>
         </select>
@@ -81,13 +75,13 @@
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            Missing <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
+            Wikidata Only <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
             <span class="dot dot-green"></span>
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            Mapped <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
+            OSM+Wikidata <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div id="meta-info">
@@ -105,7 +99,7 @@
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-    var layers = { missing: L.layerGroup(), done: L.layerGroup(), broad: L.layerGroup(), regions: L.layerGroup() };
+    var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup() };
     var regionConfig = {};
     var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
@@ -161,9 +155,8 @@
         document.getElementById('stat-missing').style.display = 'none';
         document.getElementById('stat-done').style.display = 'none';
         
-        layers.missing.clearLayers(); layers.done.clearLayers(); layers.broad.clearLayers();
+        layers.missing.clearLayers(); layers.done.clearLayers();
 
-        // WICHTIG: Pfad zu data/data_...
         fetch(`data/data_${key}.geojson`).then(res => res.json()).then(data => {
             var cMiss = 0; var cDone = 0;
             var bounds = L.latLngBounds([]);
@@ -175,9 +168,15 @@
                 
                 var color = "#e74c3c"; 
                 var target = layers.missing;
-                if (p.status === 'done') { color = "#2ecc71"; target = layers.done; cDone++; }
-                else if (p.status === 'broad') { color = "#f39c12"; target = layers.broad; }
-                else { cMiss++; }
+                
+                // NUR NOCH ROT ODER GRÜN
+                if (p.status === 'done') { 
+                    color = "#2ecc71"; 
+                    target = layers.done; 
+                    cDone++; 
+                } else { 
+                    cMiss++; 
+                }
 
                 var pop = `<b>${p.name}</b><br><small>${p.wikidata}</small><br><a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
                 if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OSM</a>`;
@@ -193,7 +192,7 @@
 
             if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
             if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
-            map.addLayer(layers.broad); // Broad immer anzeigen
+            
             if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
         }).catch(e => { document.getElementById('loading').innerText = "No Data"; });
     }

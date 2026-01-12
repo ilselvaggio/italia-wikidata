@@ -8,82 +8,61 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
-        /* HEADER */
         #header {
-            background-color: #333; color: #fff; 
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 15px; height: 60px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); 
-            z-index: 1000; position: relative;
+            background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
         }
         
-        #left-col { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+        /* LEFT SIDE */
+        #left-col { display: flex; align-items: center; gap: 20px; }
         
-        /* Title: No underline, clickable */
         #title { 
             font-weight: 700; font-size: 18px; white-space: nowrap; 
-            cursor: pointer; text-decoration: none; color: #fff;
+            cursor: pointer; text-decoration: none; /* Kein Unterstrich */
+            color: white;
         }
         #title:hover { color: #3498db; }
 
-        /* Dropdown: Auto width */
+        /* Dropdown passt sich Breite an */
         #regionSelect { 
             background: #555; border: 1px solid #666; color: white; 
-            padding: 6px 12px; border-radius: 4px; font-size: 14px; 
+            padding: 5px 10px; border-radius: 4px; font-size: 14px; 
             cursor: pointer; min-width: 150px; width: auto;
         }
 
-        #controls { display: flex; gap: 20px; align-items: center; font-size: 13px; margin-left: auto; }
+        /* RIGHT SIDE (Controls) */
+        #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; margin-left: auto; }
         
-        /* Checkboxes aligned properly */
-        .stat-item { 
-            display: flex; align-items: center; gap: 6px; 
-            cursor: pointer; white-space: nowrap; user-select: none;
-        }
-        .stat-item input { cursor: pointer; margin: 0; }
+        .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+        .stat-item input { margin: 0; cursor: pointer; }
         
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; flex-shrink: 0; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
-        .dot-orange { background: #f39c12; } 
-
-        /* Date Info */
+        
+        /* Date Block */
         #meta-info { 
-            font-size: 11px; color: #ccc; 
+            font-size: 10px; color: #ccc; text-align: right; 
             border-left: 1px solid #555; padding-left: 15px; 
-            text-align: right; line-height: 1.3; min-width: 120px;
+            display: flex; flex-direction: column; justify-content: center;
         }
-        .date-label { font-weight: bold; color: #888; margin-right: 4px; }
+        .date-row { white-space: nowrap; }
 
-        /* MOBILE OPTIMIZATION */
+        /* MOBILE */
         @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
-            #left-col { justify-content: space-between; width: 100%; gap: 10px; }
-            #title { font-size: 16px; }
-            #regionSelect { flex-grow: 1; max-width: none; }
-            
-            #controls { 
-                width: 100%; justify-content: space-between; 
-                flex-wrap: wrap; margin: 0; 
-                background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; 
-            }
-            #meta-info { 
-                border-left: none; padding-left: 0; margin-top: 8px; 
-                width: 100%; text-align: center; display: flex; justify-content: center; gap: 15px;
-            }
-            #map { height: calc(100% - 140px) !important; } 
+            #left-col { justify-content: space-between; width: 100%; }
+            #controls { width: 100%; justify-content: space-between; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; }
+            #meta-info { border: none; padding: 0; margin-top: 5px; width: 100%; text-align: center; flex-direction: row; gap: 15px;}
+            #map { height: calc(100% - 130px) !important; } 
         }
 
         #map { height: calc(100% - 60px); width: 100%; background: #f0f0f0; }
-
-        /* POPUP */
-        .leaflet-popup-content-wrapper { border-radius: 6px; }
-        .popup-content { font-size: 14px; min-width: 180px; }
-        .popup-header { font-weight: bold; margin-bottom: 5px; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+        
         .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
         .btn-wiki { background-color: #333; }
         .btn-osm { background-color: #2ecc71; }
-        .btn-load { background-color: #3498db; margin-top: 10px; width: 100%; border: none; cursor: pointer; font-size: 14px; }
+        .btn-load { background-color: #3498db; width: 100%; border:none; cursor: pointer; margin-top: 5px;}
     </style>
 </head>
 <body>
@@ -97,52 +76,47 @@
     </div>
 
     <div id="controls">
-        <div id="loading" style="display:none; color: #f1c40f; font-weight:bold;">Loading...</div>
+        <div id="loading" style="display:none; color: #f1c40f; font-weight: bold;">Loading...</div>
         
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
-            <span class="dot dot-red"></span> 
+            <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            Missing <span id="count-missing" style="font-weight:bold; margin-left:2px"></span>
+            Missing <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
-            <span class="dot dot-green"></span> 
+            <span class="dot dot-green"></span>
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            Mapped <span id="count-done" style="font-weight:bold; margin-left:2px"></span>
+            Mapped <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div id="meta-info">
-            <div><span class="date-label">OSM:</span><span id="date-osm">--</span></div>
-            <div><span class="date-label">Wikidata:</span><span id="date-wiki">--</span></div>
+            <div class="date-row"><b>OSM:</b> <span id="date-osm">--</span></div>
+            <div class="date-row"><b>Wikidata:</b> <span id="date-wiki">--</span></div>
         </div>
     </div>
 </header>
 
 <div id="map"></div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), broad: L.layerGroup(), regions: L.layerGroup() };
     var regionConfig = {};
     var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
-    // Initialize
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
     ]).then(([regions, metadata]) => {
         regionConfig = regions;
-        
-        // Update Dates
         if(metadata.osm_date) document.getElementById('date-osm').innerText = metadata.osm_date;
         if(metadata.wiki_date) document.getElementById('date-wiki').innerText = metadata.wiki_date;
 
-        // Populate Dropdown
         var select = document.getElementById('regionSelect');
         var optReset = document.createElement('option');
         optReset.value = "RESET";
@@ -161,108 +135,71 @@
     });
 
     function loadRegionsShape() {
-        fetch(REGIONS_GEOJSON_URL)
-            .then(r => r.json())
-            .then(geojson => {
-                var layer = L.geoJSON(geojson, {
-                    style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
-                    onEachFeature: function(feature, layer) {
-                        var regName = feature.properties.reg_name;
-                        var foundKey = Object.keys(regionConfig).find(k => 
-                            regionConfig[k].name.toLowerCase().includes(regName.toLowerCase()) || 
-                            regName.toLowerCase().includes(regionConfig[k].name.toLowerCase())
-                        );
-                        
-                        if (foundKey) {
-                            layer.on('click', function() { changeRegion(foundKey); });
-                            layer.bindTooltip(regName, {permanent: false, direction: "center"});
-                            layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${foundKey}')" class="btn btn-load">Load Data</button>`);
-                        }
+        fetch(REGIONS_GEOJSON_URL).then(r => r.json()).then(geojson => {
+            var layer = L.geoJSON(geojson, {
+                style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
+                onEachFeature: function(feature, layer) {
+                    var regName = feature.properties.reg_name;
+                    var foundKey = Object.keys(regionConfig).find(k => regionConfig[k].name.toLowerCase().includes(regName.toLowerCase()) || regName.toLowerCase().includes(regionConfig[k].name.toLowerCase()));
+                    if (foundKey) {
+                        layer.on('click', function() { changeRegion(foundKey); });
+                        layer.bindTooltip(regName, {permanent: false, direction: "center"});
+                        layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${foundKey}')" class="btn btn-load">Load Data</button>`);
                     }
-                });
-                layers.regions.addLayer(layer);
-                map.addLayer(layers.regions);
-            })
-            .catch(e => console.log("Error loading shapes", e));
+                }
+            });
+            layers.regions.addLayer(layer);
+            map.addLayer(layers.regions);
+        });
     }
 
     function changeRegion(key) {
         if (key === "RESET") { location.reload(); return; }
-
         document.getElementById('regionSelect').value = key;
         map.removeLayer(layers.regions);
-
         document.getElementById('loading').style.display = 'block';
         document.getElementById('stat-missing').style.display = 'none';
         document.getElementById('stat-done').style.display = 'none';
         
-        layers.missing.clearLayers();
-        layers.done.clearLayers();
-        layers.broad.clearLayers();
+        layers.missing.clearLayers(); layers.done.clearLayers(); layers.broad.clearLayers();
 
-        // Path is now 'data/'
-        fetch(`data/data_${key}.geojson`)
-            .then(res => {
-                if (!res.ok) throw new Error("Data missing");
-                return res.json();
-            })
-            .then(data => {
-                var countMissing = 0; var countDone = 0;
-                var bounds = L.latLngBounds([]);
+        // WICHTIG: Pfad zu data/data_...
+        fetch(`data/data_${key}.geojson`).then(res => res.json()).then(data => {
+            var cMiss = 0; var cDone = 0;
+            var bounds = L.latLngBounds([]);
 
-                data.features.forEach(feature => {
-                    var p = feature.properties;
-                    var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
-                    bounds.extend(latlng);
+            data.features.forEach(feature => {
+                var p = feature.properties;
+                var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
+                bounds.extend(latlng);
+                
+                var color = "#e74c3c"; 
+                var target = layers.missing;
+                if (p.status === 'done') { color = "#2ecc71"; target = layers.done; cDone++; }
+                else if (p.status === 'broad') { color = "#f39c12"; target = layers.broad; }
+                else { cMiss++; }
 
-                    var popupHtml = `<div class="popup-content">
-                        <div class="popup-header">${p.name}</div>
-                        <small>QID: ${p.wikidata}</small><br>
-                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
-                    if (p.osm_id) popupHtml += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OpenStreetMap</a>`;
-                    popupHtml += `</div>`;
-
-                    var color = "#e74c3c"; 
-                    var targetLayer = layers.missing;
-
-                    if (p.status === 'done') {
-                        color = "#2ecc71"; targetLayer = layers.done; countDone++;
-                    } else if (p.status === 'broad') {
-                        color = "#f39c12"; targetLayer = layers.broad;
-                    } else {
-                        countMissing++;
-                    }
-
-                    var marker = L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(popupHtml);
-                    targetLayer.addLayer(marker);
-                });
-
-                document.getElementById('count-missing').innerText = `(${countMissing})`;
-                document.getElementById('count-done').innerText = `(${countDone})`;
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('stat-missing').style.display = 'flex';
-                document.getElementById('stat-done').style.display = 'flex';
-
-                if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
-                if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
-                map.addLayer(layers.broad);
-
-                if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
-            })
-            .catch(err => {
-                document.getElementById('loading').innerText = "No Data Found";
-                console.error(err);
+                var pop = `<b>${p.name}</b><br><small>${p.wikidata}</small><br><a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
+                if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OSM</a>`;
+                
+                target.addLayer(L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(pop));
             });
+
+            document.getElementById('count-missing').innerText = `(${cMiss})`;
+            document.getElementById('count-done').innerText = `(${cDone})`;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('stat-missing').style.display = 'flex';
+            document.getElementById('stat-done').style.display = 'flex';
+
+            if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+            if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
+            map.addLayer(layers.broad); // Broad immer anzeigen
+            if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
+        }).catch(e => { document.getElementById('loading').innerText = "No Data"; });
     }
 
-    function toggleLayer(type, checked) {
-        if (checked) map.addLayer(layers[type]); else map.removeLayer(layers[type]);
-    }
-    
-    window.toggleCheckbox = function(id) {
-        var chk = document.getElementById(id);
-        if (event.target !== chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); }
-    };
+    function toggleLayer(type, checked) { if(checked) map.addLayer(layers[type]); else map.removeLayer(layers[type]); }
+    window.toggleCheckbox = function(id) { var chk = document.getElementById(id); if(event.target !== chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event('change')); } };
 </script>
 </body>
 </html>

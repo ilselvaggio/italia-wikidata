@@ -75,13 +75,13 @@
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            Wikidata Only <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
+            Wikidata only <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
             <span class="dot dot-green"></span>
             <input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)">
-            OSM+Wikidata <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
+            Mapped <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div id="meta-info">
@@ -169,7 +169,6 @@
                 var color = "#e74c3c"; 
                 var target = layers.missing;
                 
-                // NUR NOCH ROT ODER GRÜN
                 if (p.status === 'done') { 
                     color = "#2ecc71"; 
                     target = layers.done; 

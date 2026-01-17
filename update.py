@@ -13,10 +13,9 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"             
 DATA_DIR = "data_overpass"  
 
-def fetch_osm_overpass(area_id):
-    # Timeout raised to 240s
+def fetch_osm_with_retry(area_id, retries=3):
     query = f"""
-    [out:json][timeout:240];
+    [out:json][timeout:600];
     area({area_id})->.searchArea;
     (
       node["wikidata"](area.searchArea);
@@ -25,13 +24,17 @@ def fetch_osm_overpass(area_id):
     );
     out tags qt;
     """
-    try:
-        response = requests.get(OVERPASS_URL, params={'data': query})
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"      [!] Overpass failed: {e}")
-        return None
+    for attempt in range(retries):
+        try:
+            # Versuch starten
+            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=605)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"      [!] Attempt {attempt+1}/{retries} failed: {e}")
+            time.sleep(10) # 10 Sekunden warten vor Neustart
+    
+    return None # Aufgeben nach 3 Versuchen
 
 def get_wikidata_clean(qid, region_name):
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
@@ -69,7 +72,7 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starting Update Process ---")
+    print(f"--- Starting Update Process (Max Robustness) ---")
     processed = 0
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
     
@@ -83,11 +86,11 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. Update OSM Data (Overpass)
+        # 1. Update OSM Data (Mit Retry)
         if "osm" in config:
             print(f"   -> Fetching OSM items...", end=" ")
             sys.stdout.flush()
-            new_data = fetch_osm_overpass(config['osm'])
+            new_data = fetch_osm_with_retry(config['osm']) # Neue Funktion
             if new_data:
                 print("Success.")
                 with open(file_osm, 'w', encoding='utf-8') as f:
@@ -95,12 +98,11 @@ def main():
                 osm_data = new_data
                 current_osm_date = now_str
             else:
-                print("Failed. Using cache.")
+                print("Failed (all retries). Using cache.")
         
-        # 2. Load Cache
+        # 2. Fallback Cache
         if not osm_data and os.path.exists(file_osm):
             try:
-                # Use file date if update failed
                 ts = os.path.getmtime(file_osm)
                 current_osm_date = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
                 with open(file_osm, 'r', encoding='utf-8') as f:
@@ -115,17 +117,15 @@ def main():
         region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
         all_osm_dates.add(current_osm_date)
 
-        # Build IDs
         osm_ids = {}
         for el in osm_data.get('elements', []):
             if 'wikidata' in el.get('tags', {}):
-                # Robust split by semicolon or comma
                 raw_tags = el['tags']['wikidata'].replace(',', ';')
                 for raw in raw_tags.split(';'):
                     raw = raw.strip().upper()
                     if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
 
-        # Wikidata
+        # 3. Wikidata
         csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
@@ -139,13 +139,9 @@ def main():
             qid = qid.split('/')[-1].upper()
             if qid in seen: continue
             
-            lat = row.get('lat') or row.get('?lat')
-            lon = row.get('lon') or row.get('?lon')
-            if not lat or not lon: continue
-
             try:
-                lat = float(lat)
-                lon = float(lon)
+                lat = float(row.get('lat') or row.get('?lat'))
+                lon = float(row.get('lon') or row.get('?lon'))
             except: continue
 
             label = row.get('label') or row.get('?label') or qid

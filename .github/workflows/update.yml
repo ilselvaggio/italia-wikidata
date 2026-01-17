@@ -34,19 +34,18 @@ jobs:
 
       - name: Update and Sync
         run: |
-          # 1. Config
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # 2. Pull first to get your manual uploads (prevents conflicts)
+          # Pull latest changes to avoid conflicts
           git pull origin main --no-rebase
           
-          # 3. Run Script (generates data)
+          # Run the update logic
           python -u update.py
           
-          # 4. Add generated files
+          # Add output files
           git add osm/*.json data_overpass/*.geojson metadata.json
           
-          # 5. Commit & Push
+          # Commit and Push
           git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
           git push origin main

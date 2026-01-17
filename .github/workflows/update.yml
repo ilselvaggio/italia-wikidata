@@ -22,7 +22,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Holt die ganze Historie, hilft bei Konflikten
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -34,19 +34,19 @@ jobs:
 
       - name: Update and Sync
         run: |
-          # 1. Git konfigurieren
+          # 1. Config
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # 2. Aktuellen Stand holen (verhindert add/add Konflikte)
+          # 2. Pull first to get your manual uploads (prevents conflicts)
           git pull origin main --no-rebase
           
-          # 3. Skript ausführen (generiert frische Daten)
+          # 3. Run Script (generates data)
           python -u update.py
           
-          # 4. Alles hinzufügen (Daten + Boundaries + Metadata)
-          git add osm/*.json data_overpass/*.geojson regions_boundaries.geojson metadata.json
+          # 4. Add generated files
+          git add osm/*.json data_overpass/*.geojson metadata.json
           
-          # 5. Commit und Push (nur wenn es Änderungen gibt)
+          # 5. Commit & Push
           git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
           git push origin main

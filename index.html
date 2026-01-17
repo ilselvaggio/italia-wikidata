@@ -8,19 +8,22 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
+        /* HEADER */
         #header {
             background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 15px; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
+            padding: 0 15px; height: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
         }
-        #title { font-weight: 700; font-size: 18px; white-space: nowrap; cursor: pointer; text-decoration: none; color: white; }
+        #title { font-weight: 700; font-size: 16px; white-space: nowrap; cursor: pointer; text-decoration: none; color: white; }
         #title:hover { color: #3498db; }
 
-        #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; margin-left: auto; }
+        #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
 
-        #main-container { display: flex; height: calc(100% - 60px); width: 100%; }
+        /* MAIN LAYOUT */
+        #main-container { display: flex; height: calc(100% - 50px); width: 100%; }
         
+        /* SIDEBAR (Desktop) */
         #sidebar {
-            width: 240px; background-color: #2c3e50; color: #ecf0f1;
+            width: 200px; background-color: #2c3e50; color: #ecf0f1;
             overflow-y: auto; display: flex; flex-direction: column;
             border-right: 1px solid #1a252f; flex-shrink: 0;
         }
@@ -28,63 +31,78 @@
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
 
         .region-item {
-            padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e;
-            transition: background 0.2s; font-size: 14px;
+            padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #34495e;
+            transition: background 0.2s; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .region-item:hover { background-color: #34495e; }
         .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
-        .region-item-reset { background-color: #c0392b; text-align: center; font-weight: bold; }
-        .region-item-reset:hover { background-color: #e74c3c; }
 
-        .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+        /* CONTROLS */
+        .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
         .stat-item input { margin: 0; cursor: pointer; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        .btn-download { background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: none; }
+        .btn-download { background-color: #e67e22; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
         .btn-download:hover { background-color: #d35400; }
 
-        #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 15px; display: flex; flex-direction: column; justify-content: center; min-width: 100px; }
+        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; display: flex; flex-direction: column; justify-content: center; min-width: 80px; }
         .date-row { white-space: nowrap; }
         
-        /* LOGO STYLE FIXED */
-        .logo-row { display: flex; gap: 15px; margin-top: 10px; justify-content: center; align-items: center; }
-        .logo-link { display: inline-block; width: 24px; height: 24px; text-decoration: none; border: none; }
-        .logo-link img { width: 100%; height: 100%; display: block; }
+        /* LOGOS */
+        .logo-row { display: flex; gap: 10px; margin-top: 5px; justify-content: center; align-items: center; }
+        .logo-link { display: inline-block; width: 24px; height: 24px; }
+        .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
         #loading { display:none; color: #f1c40f; font-weight: bold; }
         .btn-load { background-color: #3498db; width: 100%; border:none; cursor: pointer; margin-top: 5px; color: white; padding: 5px; border-radius: 4px; }
 
+        /* MOBILE OPTIMIZATION */
         @media (max-width: 700px) {
-            #header { height: auto; flex-direction: column; padding: 10px; }
-            #controls { width: 100%; justify-content: space-between; flex-wrap: wrap; }
-            #main-container { flex-direction: column; height: calc(100% - 100px); }
-            #sidebar { width: 100%; height: 120px; border-right: none; border-bottom: 1px solid #ccc; }
-            #meta-info { border: none; padding: 0; flex-direction: row; gap: 15px; width: 100%; text-align: center; }
+            #header { height: auto; flex-direction: column; padding: 5px; gap: 5px; align-items: stretch; }
+            #title { text-align: center; margin-bottom: 5px;}
+            #controls { width: 100%; justify-content: center; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px; }
+            #meta-info { border: none; padding: 0; flex-direction: row; gap: 10px; width: 100%; text-align: center; margin-top: 3px; }
+            
+            /* Sidebar becomes a top scrolling bar */
+            #main-container { flex-direction: column; height: calc(100% - 90px); }
+            #sidebar { 
+                width: 100%; height: auto; max-height: 120px; 
+                flex-direction: row; flex-wrap: wrap; 
+                border-right: none; border-bottom: 1px solid #ccc;
+                overflow-x: hidden; overflow-y: auto;
+                padding: 2px;
+            }
+            .region-item { 
+                flex: 1 1 45%; /* 2 items per row */
+                text-align: center; border: 1px solid #34495e; margin: 1px; border-radius: 3px;
+                padding: 6px; font-size: 12px;
+            }
+            .region-item.active { border: 1px solid #fff; border-left: 1px solid #fff; }
         }
     </style>
 </head>
 <body>
 
 <header id="header">
-    <div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div>
+    <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
     
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Missing JSON</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download JSON</button>
         
-        <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
-            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> Wikidata only <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
+        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')">
+            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span style="margin-left:3px">Wikidata only</span> <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
-        <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
-            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> OSM+Wikidata <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
+        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')">
+            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span style="margin-left:3px">Mapped</span> <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div id="meta-info">
             <div class="date-row"><b>OSM:</b> <span id="date-osm">--</span></div>
-            <div class="date-row"><b>Wikidata:</b> <span id="date-wiki">--</span></div>
+            <div class="date-row"><b>WD:</b> <span id="date-wiki">--</span></div>
         </div>
     </div>
 </header>
@@ -122,7 +140,7 @@
         boundariesGeoJSON = bounds; 
         
         updateDates(metadata.global_osm_date, metadata.global_wiki_date);
-        renderSidebar();
+        renderSidebar(); // Sidebar without Reset Button
 
         if (boundariesGeoJSON) loadRegionsShape();
     });
@@ -136,12 +154,8 @@
         var sb = document.getElementById('sidebar');
         sb.innerHTML = "";
         
-        var btnReset = document.createElement('div');
-        btnReset.className = "region-item region-item-reset";
-        btnReset.innerText = "Show Overview";
-        btnReset.onclick = function() { location.reload(); };
-        sb.appendChild(btnReset);
-
+        // NO RESET BUTTON HERE
+        
         var sortedKeys = Object.keys(regionConfig).sort((a,b) => regionConfig[a].name.localeCompare(regionConfig[b].name));
         sortedKeys.forEach(key => {
             var div = document.createElement('div');
@@ -236,11 +250,12 @@
                 if (p.status === 'done') { color = "#2ecc71"; target = layers.done; cDone++; } 
                 else { cMiss++; currentMissingFeatures.push(feature); }
 
+                // FIXED LOGO URL
                 var pop = `<div style="text-align:center">
                     <b>${p.name}</b><br><small>${p.wikidata}</small>
                     <div class="logo-row">
                         <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo-en.svg" alt="WD">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
                         </a>`;
                 if(p.osm_id) {
                     pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">

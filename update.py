@@ -9,7 +9,7 @@ import datetime
 # --- CONFIGURATION ---
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
-OVERPASS_URL = "https://interpreter.overpass-api.de/api/interpreter"
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"   
 DATA_DIR = "data" 
 

@@ -36,8 +36,13 @@ jobs:
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git pull --rebase
-          # Add output folder (data_overpass) and raw cache (osm)
+          
+          # 1. Erst ALLES hinzufügen und committen (damit ist das Verzeichnis "sauber")
           git add osm/*.json data_overpass/*.geojson metadata.json
           git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
+          
+          # 2. JETZT erst die Updates vom Server holen (rebase legt unsere neuen Daten oben drauf)
+          git pull --rebase
+          
+          # 3. Hochladen
           git push

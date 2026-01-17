@@ -14,8 +14,9 @@ OSM_DIR = "osm"
 DATA_DIR = "data_overpass"  
 
 def fetch_osm_overpass(area_id):
+    # Timeout raised to 240s
     query = f"""
-    [out:json][timeout:180];
+    [out:json][timeout:240];
     area({area_id})->.searchArea;
     (
       node["wikidata"](area.searchArea);
@@ -78,11 +79,11 @@ def main():
     for key, config in regions.items():
         print(f"\n--- Processing {config['name']} ---")
         
-        # 1. Update OSM Data (Overpass with Cache Fallback)
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         osm_data = None
         current_osm_date = "Unknown"
         
+        # 1. Update OSM Data (Overpass)
         if "osm" in config:
             print(f"   -> Fetching OSM items...", end=" ")
             sys.stdout.flush()
@@ -96,8 +97,10 @@ def main():
             else:
                 print("Failed. Using cache.")
         
+        # 2. Load Cache
         if not osm_data and os.path.exists(file_osm):
             try:
+                # Use file date if update failed
                 ts = os.path.getmtime(file_osm)
                 current_osm_date = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
                 with open(file_osm, 'r', encoding='utf-8') as f:
@@ -105,19 +108,24 @@ def main():
             except Exception as e:
                 print(f"   [!] Cache error: {e}")
         
-        if not osm_data: continue
+        if not osm_data: 
+            print("   [!] No OSM data available. Skipping.")
+            continue
 
         region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
         all_osm_dates.add(current_osm_date)
 
+        # Build IDs
         osm_ids = {}
         for el in osm_data.get('elements', []):
             if 'wikidata' in el.get('tags', {}):
-                for raw in el['tags']['wikidata'].split(';'):
+                # Robust split by semicolon or comma
+                raw_tags = el['tags']['wikidata'].replace(',', ';')
+                for raw in raw_tags.split(';'):
                     raw = raw.strip().upper()
                     if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
 
-        # 2. Update Wikidata
+        # Wikidata
         csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
@@ -130,13 +138,19 @@ def main():
             if not qid: continue
             qid = qid.split('/')[-1].upper()
             if qid in seen: continue
+            
+            lat = row.get('lat') or row.get('?lat')
+            lon = row.get('lon') or row.get('?lon')
+            if not lat or not lon: continue
+
             try:
-                lat = float(row.get('lat') or row.get('?lat'))
-                lon = float(row.get('lon') or row.get('?lon'))
-                label = row.get('label') or row.get('?label') or qid
+                lat = float(lat)
+                lon = float(lon)
             except: continue
 
+            label = row.get('label') or row.get('?label') or qid
             status = "done" if osm_ids.get(qid) else "missing"
+            
             features.append({
                 "type": "Feature",
                 "properties": { "wikidata": qid, "name": label, "status": status, "osm_id": osm_ids.get(qid) },

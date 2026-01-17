@@ -26,15 +26,13 @@ def fetch_osm_with_retry(area_id, retries=3):
     """
     for attempt in range(retries):
         try:
-            # Versuch starten
             response = requests.get(OVERPASS_URL, params={'data': query}, timeout=605)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             print(f"      [!] Attempt {attempt+1}/{retries} failed: {e}")
-            time.sleep(10) # 10 Sekunden warten vor Neustart
-    
-    return None # Aufgeben nach 3 Versuchen
+            time.sleep(5)
+    return None
 
 def get_wikidata_clean(qid, region_name):
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
@@ -72,7 +70,7 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starting Update Process (Max Robustness) ---")
+    print(f"--- Starting Update Process ---")
     processed = 0
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
     
@@ -86,11 +84,12 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. Update OSM Data (Mit Retry)
+        # 1. VERSUCH: Overpass Download
         if "osm" in config:
             print(f"   -> Fetching OSM items...", end=" ")
             sys.stdout.flush()
-            new_data = fetch_osm_with_retry(config['osm']) # Neue Funktion
+            new_data = fetch_osm_with_retry(config['osm'])
+            
             if new_data:
                 print("Success.")
                 with open(file_osm, 'w', encoding='utf-8') as f:
@@ -98,20 +97,23 @@ def main():
                 osm_data = new_data
                 current_osm_date = now_str
             else:
-                print("Failed (all retries). Using cache.")
-        
-        # 2. Fallback Cache
+                print("Failed (Server busy). Trying cache.")
+
+        # 2. FALLBACK: Cache nutzen
         if not osm_data and os.path.exists(file_osm):
             try:
                 ts = os.path.getmtime(file_osm)
-                current_osm_date = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
+                file_date = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
+                print(f"   -> Using cached file from {file_date}")
+                
                 with open(file_osm, 'r', encoding='utf-8') as f:
                     osm_data = json.load(f)
+                current_osm_date = file_date
             except Exception as e:
-                print(f"   [!] Cache error: {e}")
+                print(f"   [!] Cache corrupt: {e}")
         
-        if not osm_data: 
-            print("   [!] No OSM data available. Skipping.")
+        if not osm_data:
+            print("   [!] No data available (neither online nor cache). Skipping.")
             continue
 
         region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
@@ -161,10 +163,9 @@ def main():
         processed += 1
         time.sleep(2)
 
-    # Metadata
     global_osm_date = now_str
     if len(all_osm_dates) > 1:
-        global_osm_date = sorted(list(all_osm_dates))[-1] + " *"
+        global_osm_date = sorted(list(all_osm_dates))[-1] + " (mixed)"
     elif len(all_osm_dates) == 1:
         global_osm_date = list(all_osm_dates)[0]
 

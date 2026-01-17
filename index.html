@@ -69,7 +69,8 @@
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    // Fixed Attribution Link
+    
+    // Fixed Attribution
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
@@ -79,7 +80,7 @@
     var regionConfig = {};
     var metaDataGlobal = {};
     var currentMissingFeatures = [];
-    var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
+    var REGIONS_GEOJSON_URL = "regions_boundaries.geojson";
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
@@ -101,6 +102,7 @@
             opt.innerText = regions[key].name;
             select.appendChild(opt);
         });
+        
         loadRegionsShape();
     });
 
@@ -114,18 +116,18 @@
             var layer = L.geoJSON(geojson, {
                 style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
                 onEachFeature: function(feature, layer) {
+                    var key = feature.properties.reg_key; 
                     var regName = feature.properties.reg_name;
-                    var foundKey = Object.keys(regionConfig).find(k => regionConfig[k].name.toLowerCase().includes(regName.toLowerCase()) || regName.toLowerCase().includes(regionConfig[k].name.toLowerCase()));
-                    if (foundKey) {
-                        layer.on('click', function() { changeRegion(foundKey); });
+                    if (key && regionConfig[key]) {
+                        layer.on('click', function() { changeRegion(key); });
                         layer.bindTooltip(regName, {permanent: false, direction: "center"});
-                        layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${foundKey}')" class="btn btn-load">Load Data</button>`);
+                        layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${key}')" class="btn btn-load">Load Data</button>`);
                     }
                 }
             });
             layers.regions.addLayer(layer);
             map.addLayer(layers.regions);
-        });
+        }).catch(err => console.log("Boundaries file not found yet."));
     }
 
     function changeRegion(key) {
@@ -135,9 +137,11 @@
         map.removeLayer(layers.regions);
         layers.activeBorder.clearLayers();
         
+        // Active border from polygons.openstreetmap.fr
         var osmId = regionConfig[key].osm;
         if(osmId) {
-            fetch(`https://polygons.openstreetmap.fr/get_geojson.py?id=${osmId}&params=0`)
+            var relId = parseInt(osmId) - 3600000000;
+            fetch(`https://polygons.openstreetmap.fr/get_geojson.py?id=${relId}&params=0`)
                 .then(r => r.json())
                 .then(geo => {
                     var border = L.geoJSON(geo, {

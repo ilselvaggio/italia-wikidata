@@ -69,17 +69,16 @@
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    // Fixed Attribution
+    // Fixed Attribution Link
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
     }).addTo(map);
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig = {};
     var metaDataGlobal = {};
     var currentMissingFeatures = [];
-    // Changed source to one that usually has correct shapes (no holes)
     var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
     Promise.all([
@@ -133,11 +132,9 @@
         if (key === "RESET") { location.reload(); return; }
         document.getElementById('regionSelect').value = key;
         
-        // Remove overview shapes
         map.removeLayer(layers.regions);
         layers.activeBorder.clearLayers();
         
-        // Load REAL boundary from OSM (polygons.openstreetmap.fr)
         var osmId = regionConfig[key].osm;
         if(osmId) {
             fetch(`https://polygons.openstreetmap.fr/get_geojson.py?id=${osmId}&params=0`)
@@ -148,7 +145,7 @@
                     });
                     layers.activeBorder.addLayer(border);
                     map.addLayer(layers.activeBorder);
-                    border.bringToBack(); // Ensure it stays behind dots
+                    border.bringToBack();
                 });
         }
 
@@ -164,7 +161,6 @@
         layers.missing.clearLayers(); layers.done.clearLayers();
         currentMissingFeatures = [];
 
-        // Loading from data_overpass/
         fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
             var cMiss = 0; var cDone = 0;
             var bounds = L.latLngBounds([]);

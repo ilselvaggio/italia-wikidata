@@ -70,7 +70,7 @@
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     
-    // Fixed Attribution
+    // Fixed Attribution with Link
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
@@ -80,14 +80,20 @@
     var regionConfig = {};
     var metaDataGlobal = {};
     var currentMissingFeatures = [];
+    var boundariesGeoJSON = null;
+
+    // Load your manual file
     var REGIONS_GEOJSON_URL = "regions_boundaries.geojson";
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
-        fetch('metadata.json').then(r => r.json()).catch(() => ({}))
-    ]).then(([regions, metadata]) => {
+        fetch('metadata.json').then(r => r.json()).catch(() => ({})),
+        fetch(REGIONS_GEOJSON_URL).then(r => r.json()).catch(e => null)
+    ]).then(([regions, metadata, bounds]) => {
         regionConfig = regions;
         metaDataGlobal = metadata;
+        boundariesGeoJSON = bounds; 
+        
         updateDates(metadata.global_osm_date, metadata.global_wiki_date);
 
         var select = document.getElementById('regionSelect');
@@ -103,7 +109,8 @@
             select.appendChild(opt);
         });
         
-        loadRegionsShape();
+        if (boundariesGeoJSON) loadRegionsShape();
+        else console.log("Missing regions_boundaries.geojson");
     });
 
     function updateDates(osm, wiki) {
@@ -111,23 +118,33 @@
         document.getElementById('date-wiki').innerText = wiki || "--";
     }
 
+    // Match Overpass ID (3600xxxx) to GeoJSON ID (usually relation/xxxx or just xxxx)
+    function getKeyFromFeature(feature) {
+        var featId = feature.id || feature.properties.id || feature.properties['@id'];
+        if (!featId) return null;
+        featId = String(featId).replace("relation/", "");
+        
+        return Object.keys(regionConfig).find(key => {
+            var configSimpleId = String(parseInt(regionConfig[key].osm) - 3600000000);
+            return configSimpleId === featId;
+        });
+    }
+
     function loadRegionsShape() {
-        fetch(REGIONS_GEOJSON_URL).then(r => r.json()).then(geojson => {
-            var layer = L.geoJSON(geojson, {
-                style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
-                onEachFeature: function(feature, layer) {
-                    var key = feature.properties.reg_key; 
-                    var regName = feature.properties.reg_name;
-                    if (key && regionConfig[key]) {
-                        layer.on('click', function() { changeRegion(key); });
-                        layer.bindTooltip(regName, {permanent: false, direction: "center"});
-                        layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${key}')" class="btn btn-load">Load Data</button>`);
-                    }
+        var layer = L.geoJSON(boundariesGeoJSON, {
+            style: { color: "#3498db", weight: 2, fillOpacity: 0.1 },
+            onEachFeature: function(feature, layer) {
+                var key = getKeyFromFeature(feature);
+                if (key) {
+                    var regName = regionConfig[key].name;
+                    layer.on('click', function() { changeRegion(key); });
+                    layer.bindTooltip(regName, {permanent: false, direction: "center"});
+                    layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${key}')" class="btn btn-load">Load Data</button>`);
                 }
-            });
-            layers.regions.addLayer(layer);
-            map.addLayer(layers.regions);
-        }).catch(err => console.log("Boundaries file not found yet."));
+            }
+        });
+        layers.regions.addLayer(layer);
+        map.addLayer(layers.regions);
     }
 
     function changeRegion(key) {
@@ -137,20 +154,17 @@
         map.removeLayer(layers.regions);
         layers.activeBorder.clearLayers();
         
-        // Active border from polygons.openstreetmap.fr
-        var osmId = regionConfig[key].osm;
-        if(osmId) {
-            var relId = parseInt(osmId) - 3600000000;
-            fetch(`https://polygons.openstreetmap.fr/get_geojson.py?id=${relId}&params=0`)
-                .then(r => r.json())
-                .then(geo => {
-                    var border = L.geoJSON(geo, {
-                        style: { color: "#3498db", weight: 3, fillOpacity: 0.05, interactive: false }
-                    });
-                    layers.activeBorder.addLayer(border);
-                    map.addLayer(layers.activeBorder);
-                    border.bringToBack();
+        // Highlight logic using local file
+        if(boundariesGeoJSON) {
+            var targetFeature = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
+            if(targetFeature) {
+                var border = L.geoJSON(targetFeature, {
+                    style: { color: "#3498db", weight: 3, fillOpacity: 0.05, interactive: false }
                 });
+                layers.activeBorder.addLayer(border);
+                map.addLayer(layers.activeBorder);
+                border.bringToBack();
+            }
         }
 
         if (metaDataGlobal.regions && metaDataGlobal.regions[key]) {

@@ -10,8 +10,9 @@ import datetime
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-OSM_DIR = "osm"             # Input (Cache)
-DATA_DIR = "data_overpass"  # Output (New files)
+OSM_DIR = "osm"             
+DATA_DIR = "data_overpass"  
+BOUNDARIES_FILE = "regions_boundaries.geojson"
 
 def fetch_osm_overpass(area_id):
     query = f"""
@@ -30,6 +31,19 @@ def fetch_osm_overpass(area_id):
         return response.json()
     except Exception as e:
         print(f"      [!] Overpass failed: {e}")
+        return None
+
+def fetch_boundary_geojson(osm_area_id):
+    # Konvertiert Overpass Area ID (3600xxxxxx) zu Relation ID (xxxxxx)
+    try:
+        rel_id = int(osm_area_id) - 3600000000
+        # params=0.002 vereinfacht die Geometrie leicht fuer Performance
+        url = f"https://polygons.openstreetmap.fr/get_geojson.py?id={rel_id}&params=0.002"
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        print(f"      [!] Boundary download failed for {osm_area_id}: {e}")
         return None
 
 def get_wikidata_clean(qid, region_name):
@@ -68,26 +82,38 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    print(f"--- Starting Update Process (Output: {DATA_DIR}) ---")
+    print(f"--- Starting Update Process ---")
     processed = 0
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
     
     region_meta = {}
     all_osm_dates = set()
+    boundary_features = []
 
     for key, config in regions.items():
         print(f"\n--- Processing {config['name']} ---")
         
+        # 1. Update Boundaries
+        if "osm" in config:
+            print("   -> Fetching boundary polygon...", end=" ")
+            sys.stdout.flush()
+            poly_geo = fetch_boundary_geojson(config['osm'])
+            if poly_geo:
+                print("OK.")
+                poly_geo['properties'] = { 'reg_name': config['name'], 'reg_key': key }
+                boundary_features.append(poly_geo)
+            else:
+                print("Failed.")
+
+        # 2. Update Data
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. Try Overpass (updates local cache in osm/)
         if "osm" in config:
-            print(f"   -> Fetching OSM data...", end=" ")
+            print(f"   -> Fetching OSM items...", end=" ")
             sys.stdout.flush()
             new_data = fetch_osm_overpass(config['osm'])
-            
             if new_data:
                 print("Success.")
                 with open(file_osm, 'w', encoding='utf-8') as f:
@@ -97,7 +123,6 @@ def main():
             else:
                 print("Failed. Using cache.")
         
-        # 2. Fallback to Cache
         if not osm_data and os.path.exists(file_osm):
             try:
                 ts = os.path.getmtime(file_osm)
@@ -105,7 +130,7 @@ def main():
                 with open(file_osm, 'r', encoding='utf-8') as f:
                     osm_data = json.load(f)
             except Exception as e:
-                print(f"   [!] Cache read error: {e}")
+                print(f"   [!] Cache error: {e}")
         
         if not osm_data: continue
 
@@ -145,14 +170,19 @@ def main():
             })
             seen.add(qid)
 
-        # Save to DATA_OVERPASS
         with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
         
-        print(f"   -> Saved {len(features)} items to {DATA_DIR}")
+        print(f"   -> Saved {len(features)} items")
         processed += 1
         time.sleep(2)
 
+    # Save Boundaries
+    if boundary_features:
+        with open(BOUNDARIES_FILE, 'w', encoding='utf-8') as f:
+            json.dump({"type": "FeatureCollection", "features": boundary_features}, f)
+
+    # Metadata
     global_osm_date = now_str
     if len(all_osm_dates) > 1:
         global_osm_date = sorted(list(all_osm_dates))[-1] + " *"
@@ -161,11 +191,7 @@ def main():
 
     if processed > 0:
         with open("metadata.json", "w") as f:
-            json.dump({ 
-                "global_osm_date": global_osm_date, 
-                "global_wiki_date": now_str, 
-                "regions": region_meta
-            }, f)
+            json.dump({ "global_osm_date": global_osm_date, "global_wiki_date": now_str, "regions": region_meta }, f)
 
     print("\nDONE.")
 

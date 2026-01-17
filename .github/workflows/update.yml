@@ -6,6 +6,7 @@ on:
       - 'osm/**'
       - 'update.py'
       - 'regions.json'
+      - 'index.html'
       - '.github/workflows/update.yml'
   schedule:
     - cron: '0 3 * * *'
@@ -20,6 +21,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Holt die ganze Historie, hilft bei Konflikten
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -29,20 +32,21 @@ jobs:
       - name: Install Libraries
         run: pip install requests
 
-      - name: Run Update Script
-        run: python -u update.py
-
-      - name: Save Data to GitHub
+      - name: Update and Sync
         run: |
+          # 1. Git konfigurieren
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # 1. Erst ALLES hinzufügen und committen (damit ist das Verzeichnis "sauber")
-          git add osm/*.json data_overpass/*.geojson metadata.json
+          # 2. Aktuellen Stand holen (verhindert add/add Konflikte)
+          git pull origin main --no-rebase
+          
+          # 3. Skript ausführen (generiert frische Daten)
+          python -u update.py
+          
+          # 4. Alles hinzufügen (Daten + Boundaries + Metadata)
+          git add osm/*.json data_overpass/*.geojson regions_boundaries.geojson metadata.json
+          
+          # 5. Commit und Push (nur wenn es Änderungen gibt)
           git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
-          
-          # 2. JETZT erst die Updates vom Server holen (rebase legt unsere neuen Daten oben drauf)
-          git pull --rebase
-          
-          # 3. Hochladen
-          git push
+          git push origin main

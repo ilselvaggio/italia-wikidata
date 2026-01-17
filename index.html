@@ -7,19 +7,48 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
-        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative; }
-        #left-col { display: flex; align-items: center; gap: 20px; }
+        
+        /* HEADER */
+        #header {
+            background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
+        }
         #title { font-weight: 700; font-size: 18px; white-space: nowrap; cursor: pointer; text-decoration: none; color: white; }
         #title:hover { color: #3498db; }
-        #regionSelect { background: #555; border: 1px solid #666; color: white; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer; min-width: 150px; width: auto; }
+
         #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; margin-left: auto; }
+
+        /* MAIN LAYOUT (Sidebar + Map) */
+        #main-container { display: flex; height: calc(100% - 60px); width: 100%; }
+        
+        #sidebar {
+            width: 240px; background-color: #2c3e50; color: #ecf0f1;
+            overflow-y: auto; display: flex; flex-direction: column;
+            border-right: 1px solid #1a252f; flex-shrink: 0;
+        }
+
+        #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
+
+        /* SIDEBAR ITEMS */
+        .region-item {
+            padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e;
+            transition: background 0.2s; font-size: 14px;
+        }
+        .region-item:hover { background-color: #34495e; }
+        .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
+        .region-item-reset { background-color: #c0392b; text-align: center; font-weight: bold; }
+        .region-item-reset:hover { background-color: #e74c3c; }
+
+        /* CONTROLS & STATS */
         .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
         .stat-item input { margin: 0; cursor: pointer; }
         .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
+        
         .btn-download { background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: none; }
         .btn-download:hover { background-color: #d35400; }
+
         #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 15px; display: flex; flex-direction: column; justify-content: center; min-width: 100px; }
         .date-row { white-space: nowrap; }
         
@@ -28,37 +57,36 @@
         .logo-link { display: inline-block; width: 30px; height: 30px; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        @media (max-width: 700px) {
-            #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
-            #left-col { justify-content: space-between; width: 100%; }
-            #controls { width: 100%; justify-content: space-between; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; }
-            #meta-info { border: none; padding: 0; margin-top: 5px; width: 100%; text-align: center; flex-direction: row; gap: 15px;}
-            #map { height: calc(100% - 130px) !important; } 
-        }
-        #map { height: calc(100% - 60px); width: 100%; background: #f0f0f0; }
         #loading { display:none; color: #f1c40f; font-weight: bold; }
         .btn-load { background-color: #3498db; width: 100%; border:none; cursor: pointer; margin-top: 5px; color: white; padding: 5px; border-radius: 4px; }
+
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 700px) {
+            #header { height: auto; flex-direction: column; padding: 10px; }
+            #controls { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+            #main-container { flex-direction: column; height: calc(100% - 100px); }
+            #sidebar { width: 100%; height: 120px; border-right: none; border-bottom: 1px solid #ccc; }
+            #meta-info { border: none; padding: 0; flex-direction: row; gap: 15px; width: 100%; text-align: center; }
+        }
     </style>
 </head>
 <body>
 
 <header id="header">
-    <div id="left-col">
-        <div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div>
-        <select id="regionSelect" onchange="changeRegion(this.value)">
-            <option value="" disabled selected>Select Region...</option>
-        </select>
-    </div>
-
+    <div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div>
+    
     <div id="controls">
         <div id="loading">Loading...</div>
         <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Missing JSON</button>
+        
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> Wikidata only <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
+        
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
             <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> OSM+Wikidata <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
         </div>
+        
         <div id="meta-info">
             <div class="date-row"><b>OSM:</b> <span id="date-osm">--</span></div>
             <div class="date-row"><b>Wikidata:</b> <span id="date-wiki">--</span></div>
@@ -66,7 +94,12 @@
     </div>
 </header>
 
-<div id="map"></div>
+<div id="main-container">
+    <div id="sidebar">
+        </div>
+    <div id="map"></div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
@@ -94,20 +127,8 @@
         boundariesGeoJSON = bounds; 
         
         updateDates(metadata.global_osm_date, metadata.global_wiki_date);
+        renderSidebar();
 
-        var select = document.getElementById('regionSelect');
-        var optReset = document.createElement('option');
-        optReset.value = "RESET";
-        optReset.innerText = "-- Overview --";
-        select.appendChild(optReset);
-
-        Object.keys(regions).sort((a,b) => regions[a].name.localeCompare(regions[b].name)).forEach(key => {
-            var opt = document.createElement('option');
-            opt.value = key;
-            opt.innerText = regions[key].name;
-            select.appendChild(opt);
-        });
-        
         if (boundariesGeoJSON) loadRegionsShape();
         else console.log("Missing regions_boundaries.geojson");
     });
@@ -117,11 +138,31 @@
         document.getElementById('date-wiki').innerText = wiki || "--";
     }
 
-    // ROBUST KEY FINDER (Matches ID OR Name)
+    function renderSidebar() {
+        var sb = document.getElementById('sidebar');
+        sb.innerHTML = "";
+
+        // Reset Button
+        var btnReset = document.createElement('div');
+        btnReset.className = "region-item region-item-reset";
+        btnReset.innerText = "Show Overview";
+        btnReset.onclick = function() { location.reload(); };
+        sb.appendChild(btnReset);
+
+        // Region List
+        var sortedKeys = Object.keys(regionConfig).sort((a,b) => regionConfig[a].name.localeCompare(regionConfig[b].name));
+        sortedKeys.forEach(key => {
+            var div = document.createElement('div');
+            div.className = "region-item";
+            div.id = "sb-item-" + key;
+            div.innerText = regionConfig[key].name;
+            div.onclick = function() { changeRegion(key); };
+            sb.appendChild(div);
+        });
+    }
+
     function getKeyFromFeature(feature) {
         var props = feature.properties || {};
-        
-        // 1. Try Matching by ID (Relation ID vs Overpass Area ID)
         var featId = feature.id || props.id || props['@id'];
         if (featId) {
             featId = String(featId).replace("relation/", "");
@@ -131,8 +172,6 @@
             });
             if (foundKey) return foundKey;
         }
-
-        // 2. Fallback: Match by Name (e.g. "Veneto" in "Veneto")
         var name = props.name || props['name:it'] || "";
         if (name) {
             name = name.toLowerCase();
@@ -153,7 +192,6 @@
                     var regName = regionConfig[key].name;
                     layer.on('click', function() { changeRegion(key); });
                     layer.bindTooltip(regName, {permanent: false, direction: "center"});
-                    layer.bindPopup(`<b>${regName}</b><br><button onclick="changeRegion('${key}')" class="btn btn-load">Load Data</button>`);
                 }
             }
         });
@@ -162,12 +200,15 @@
     }
 
     function changeRegion(key) {
-        if (key === "RESET") { location.reload(); return; }
-        document.getElementById('regionSelect').value = key;
-        
+        // Highlight in Sidebar
+        document.querySelectorAll('.region-item').forEach(el => el.classList.remove('active'));
+        var activeItem = document.getElementById("sb-item-" + key);
+        if(activeItem) activeItem.classList.add('active');
+
         map.removeLayer(layers.regions);
         layers.activeBorder.clearLayers();
         
+        // 1. ZOOM TO BOUNDARY (Not points!)
         if(boundariesGeoJSON) {
             var targetFeature = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
             if(targetFeature) {
@@ -177,14 +218,15 @@
                 layers.activeBorder.addLayer(border);
                 map.addLayer(layers.activeBorder);
                 border.bringToBack();
+                
+                // FORCE ZOOM TO REGION BOUNDARY
+                map.fitBounds(border.getBounds()); 
             }
         }
 
-        // Fix: Use region-specific dates if available
         if (metaDataGlobal.regions && metaDataGlobal.regions[key]) {
             updateDates(metaDataGlobal.regions[key].osm, metaDataGlobal.regions[key].wiki);
         } else {
-            // Fallback to global if region meta is missing
             updateDates(metaDataGlobal.global_osm_date, metaDataGlobal.global_wiki_date);
         }
 
@@ -198,25 +240,21 @@
 
         fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
             var cMiss = 0; var cDone = 0;
-            var bounds = L.latLngBounds([]);
 
             data.features.forEach(feature => {
                 var p = feature.properties;
                 var latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
-                bounds.extend(latlng);
                 var color = "#e74c3c"; 
                 var target = layers.missing;
                 if (p.status === 'done') { color = "#2ecc71"; target = layers.done; cDone++; } 
                 else { cMiss++; currentMissingFeatures.push(feature); }
 
-                // FIXED LOGO HTML
                 var pop = `<div style="text-align:center">
                     <b>${p.name}</b><br><small>${p.wikidata}</small>
                     <div class="logo-row">
                         <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
                             <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo-en.svg" alt="WD">
                         </a>`;
-                
                 if(p.osm_id) {
                     pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
                             <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
@@ -234,7 +272,8 @@
             if (cMiss > 0) document.getElementById('btnDownload').style.display = 'block';
             if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
             if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
-            if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
+            
+            // Note: We do NOT use map.fitBounds(bounds) here anymore, because we zoomed to boundary above.
         }).catch(e => { console.error(e); document.getElementById('loading').innerText = "Data error"; });
     }
 

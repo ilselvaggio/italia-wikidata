@@ -13,6 +13,7 @@
             padding: 0 15px; height: 60px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
         }
         
+        /* Left Section */
         #left-col { display: flex; align-items: center; gap: 20px; }
         
         #title { 
@@ -27,6 +28,7 @@
             cursor: pointer; min-width: 150px; width: auto;
         }
 
+        /* Right Section */
         #controls { display: flex; gap: 15px; align-items: center; font-size: 13px; margin-left: auto; }
         
         .stat-item { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
@@ -36,6 +38,15 @@
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
+        /* Download Button */
+        .btn-download {
+            background-color: #e67e22; color: white; border: none;
+            padding: 5px 10px; border-radius: 4px; cursor: pointer;
+            font-weight: bold; font-size: 12px; display: none; /* hidden by default */
+        }
+        .btn-download:hover { background-color: #d35400; }
+
+        /* Date Info */
         #meta-info { 
             font-size: 10px; color: #ccc; text-align: right; 
             border-left: 1px solid #555; padding-left: 15px; 
@@ -43,6 +54,12 @@
         }
         .date-row { white-space: nowrap; }
 
+        /* Popup Styling */
+        .logo-row { display: flex; gap: 10px; margin-top: 8px; justify-content: center; }
+        .logo-link img { width: 24px; height: 24px; opacity: 0.8; transition: opacity 0.2s; }
+        .logo-link:hover img { opacity: 1; transform: scale(1.1); }
+
+        /* Responsive */
         @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
             #left-col { justify-content: space-between; width: 100%; }
@@ -53,10 +70,9 @@
 
         #map { height: calc(100% - 60px); width: 100%; background: #f0f0f0; }
         
-        .btn { display: block; text-align: center; padding: 6px; margin-top: 5px; text-decoration: none; border-radius: 4px; color: white; font-weight: 500; font-size: 13px; }
-        .btn-wiki { background-color: #333; }
-        .btn-osm { background-color: #2ecc71; }
-        .btn-load { background-color: #3498db; width: 100%; border:none; cursor: pointer; margin-top: 5px;}
+        /* Loading Overlay */
+        #loading { display:none; color: #f1c40f; font-weight: bold; }
+        .btn-load { background-color: #3498db; width: 100%; border:none; cursor: pointer; margin-top: 5px; color: white; padding: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -70,12 +86,14 @@
     </div>
 
     <div id="controls">
-        <div id="loading" style="display:none; color: #f1c40f; font-weight: bold;">Loading...</div>
+        <div id="loading">Loading...</div>
+
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Missing JSON</button>
         
         <div class="stat-item" id="stat-missing" style="display:none" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span>
             <input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)">
-            Wikidata <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
+            Wikidata only <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div class="stat-item" id="stat-done" style="display:none" onclick="toggleCheckbox('chkDone')">
@@ -101,8 +119,10 @@
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup() };
     var regionConfig = {};
+    var currentMissingFeatures = []; // Store data for download
     var REGIONS_GEOJSON_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
+    // Initialize
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({}))
@@ -151,11 +171,15 @@
         if (key === "RESET") { location.reload(); return; }
         document.getElementById('regionSelect').value = key;
         map.removeLayer(layers.regions);
+        
+        // Reset UI
         document.getElementById('loading').style.display = 'block';
         document.getElementById('stat-missing').style.display = 'none';
         document.getElementById('stat-done').style.display = 'none';
+        document.getElementById('btnDownload').style.display = 'none';
         
         layers.missing.clearLayers(); layers.done.clearLayers();
+        currentMissingFeatures = [];
 
         fetch(`data/data_${key}.geojson`).then(res => res.json()).then(data => {
             var cMiss = 0; var cDone = 0;
@@ -175,25 +199,60 @@
                     cDone++; 
                 } else { 
                     cMiss++; 
+                    currentMissingFeatures.push(feature);
                 }
 
-                var pop = `<b>${p.name}</b><br><small>${p.wikidata}</small><br><a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="btn btn-wiki">Wikidata</a>`;
-                if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="btn btn-osm">OSM</a>`;
+                // Popup with Logos
+                var logoWiki = "https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo-en.svg";
+                var logoOsm = "https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg";
+                
+                var pop = `<div style="text-align:center">
+                    <b>${p.name}</b><br><small>${p.wikidata}</small>
+                    <div class="logo-row">
+                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Open in Wikidata">
+                            <img src="${logoWiki}" alt="Wikidata">
+                        </a>`;
+                
+                if(p.osm_id) {
+                    pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="Open in OSM">
+                            <img src="${logoOsm}" alt="OSM">
+                        </a>`;
+                }
+                pop += `</div></div>`;
                 
                 target.addLayer(L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(pop));
             });
 
+            // Update Counts and UI
             document.getElementById('count-missing').innerText = `(${cMiss})`;
             document.getElementById('count-done').innerText = `(${cDone})`;
             document.getElementById('loading').style.display = 'none';
             document.getElementById('stat-missing').style.display = 'flex';
             document.getElementById('stat-done').style.display = 'flex';
+            
+            if (cMiss > 0) document.getElementById('btnDownload').style.display = 'block';
 
             if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
             if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
             
             if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
-        }).catch(e => { document.getElementById('loading').innerText = "No Data"; });
+        }).catch(e => { 
+            console.error(e);
+            document.getElementById('loading').innerText = "Data missing or error"; 
+        });
+    }
+
+    function downloadCurrentMissing() {
+        if (!currentMissingFeatures.length) return;
+        var geojson = { "type": "FeatureCollection", "features": currentMissingFeatures };
+        var blob = new Blob([JSON.stringify(geojson)], {type: "application/json"});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "missing_wikidata_items.geojson";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 
     function toggleLayer(type, checked) { if(checked) map.addLayer(layers[type]); else map.removeLayer(layers[type]); }

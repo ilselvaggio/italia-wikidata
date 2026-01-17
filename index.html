@@ -22,9 +22,12 @@
         .btn-download:hover { background-color: #d35400; }
         #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 15px; display: flex; flex-direction: column; justify-content: center; min-width: 100px; }
         .date-row { white-space: nowrap; }
-        .logo-row { display: flex; gap: 10px; margin-top: 8px; justify-content: center; }
-        .logo-link img { width: 24px; height: 24px; opacity: 0.8; transition: opacity 0.2s; }
-        .logo-link:hover img { opacity: 1; transform: scale(1.1); }
+        
+        /* LOGO FIX */
+        .logo-row { display: flex; gap: 15px; margin-top: 10px; justify-content: center; align-items: center; }
+        .logo-link { display: inline-block; width: 30px; height: 30px; }
+        .logo-link img { width: 100%; height: 100%; object-fit: contain; }
+
         @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
             #left-col { justify-content: space-between; width: 100%; }
@@ -69,8 +72,6 @@
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    
-    // Fixed Attribution with Link
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
@@ -81,8 +82,6 @@
     var metaDataGlobal = {};
     var currentMissingFeatures = [];
     var boundariesGeoJSON = null;
-
-    // Load your manual file
     var REGIONS_GEOJSON_URL = "regions_boundaries.geojson";
 
     Promise.all([
@@ -118,16 +117,31 @@
         document.getElementById('date-wiki').innerText = wiki || "--";
     }
 
-    // Match Overpass ID (3600xxxx) to GeoJSON ID (usually relation/xxxx or just xxxx)
+    // ROBUST KEY FINDER (Matches ID OR Name)
     function getKeyFromFeature(feature) {
-        var featId = feature.id || feature.properties.id || feature.properties['@id'];
-        if (!featId) return null;
-        featId = String(featId).replace("relation/", "");
+        var props = feature.properties || {};
         
-        return Object.keys(regionConfig).find(key => {
-            var configSimpleId = String(parseInt(regionConfig[key].osm) - 3600000000);
-            return configSimpleId === featId;
-        });
+        // 1. Try Matching by ID (Relation ID vs Overpass Area ID)
+        var featId = feature.id || props.id || props['@id'];
+        if (featId) {
+            featId = String(featId).replace("relation/", "");
+            var foundKey = Object.keys(regionConfig).find(key => {
+                var configSimpleId = String(parseInt(regionConfig[key].osm) - 3600000000);
+                return configSimpleId === featId;
+            });
+            if (foundKey) return foundKey;
+        }
+
+        // 2. Fallback: Match by Name (e.g. "Veneto" in "Veneto")
+        var name = props.name || props['name:it'] || "";
+        if (name) {
+            name = name.toLowerCase();
+            return Object.keys(regionConfig).find(key => {
+                var confName = regionConfig[key].name.toLowerCase();
+                return name.includes(confName) || confName.includes(name);
+            });
+        }
+        return null;
     }
 
     function loadRegionsShape() {
@@ -154,7 +168,6 @@
         map.removeLayer(layers.regions);
         layers.activeBorder.clearLayers();
         
-        // Highlight logic using local file
         if(boundariesGeoJSON) {
             var targetFeature = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
             if(targetFeature) {
@@ -167,8 +180,12 @@
             }
         }
 
+        // Fix: Use region-specific dates if available
         if (metaDataGlobal.regions && metaDataGlobal.regions[key]) {
             updateDates(metaDataGlobal.regions[key].osm, metaDataGlobal.regions[key].wiki);
+        } else {
+            // Fallback to global if region meta is missing
+            updateDates(metaDataGlobal.global_osm_date, metaDataGlobal.global_wiki_date);
         }
 
         document.getElementById('loading').style.display = 'block';
@@ -192,9 +209,19 @@
                 if (p.status === 'done') { color = "#2ecc71"; target = layers.done; cDone++; } 
                 else { cMiss++; currentMissingFeatures.push(feature); }
 
-                var pop = `<div style="text-align:center"><b>${p.name}</b><br><small>${p.wikidata}</small><div class="logo-row">
-                    <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo-en.svg" alt="WD"></a>`;
-                if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM"></a>`;
+                // FIXED LOGO HTML
+                var pop = `<div style="text-align:center">
+                    <b>${p.name}</b><br><small>${p.wikidata}</small>
+                    <div class="logo-row">
+                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo-en.svg" alt="WD">
+                        </a>`;
+                
+                if(p.osm_id) {
+                    pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
+                        </a>`;
+                }
                 pop += `</div></div>`;
                 target.addLayer(L.circleMarker(latlng, { radius: 5, fillColor: color, color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).bindPopup(pop));
             });

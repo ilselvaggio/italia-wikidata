@@ -1,24 +1,21 @@
 name: Update Map Data Online
 
 on:
-  # Triggers on push to specific paths
   push:
     paths:
       - 'osm/**'
       - 'update.py'
       - 'regions.json'
       - '.github/workflows/update.yml'
-  # Scheduled run at 03:00 UTC (approx 04:00 AM Italy time)
   schedule:
     - cron: '0 3 * * *'
-  # Manual Trigger
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Essential for saving data back to repo
+      contents: write
       
     steps:
       - name: Checkout Code
@@ -33,7 +30,6 @@ jobs:
         run: pip install requests
 
       - name: Run Update Script
-        # Will try to fetch from Overpass, fallback to local files on failure
         run: python -u update.py
 
       - name: Save Data to GitHub
@@ -41,7 +37,7 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git pull --rebase
-          # Dann fügen wir unsere neuen Daten hinzu
-          git add osm/*.json data/*.geojson metadata.json
+          # Add output folder (data_overpass) and raw cache (osm)
+          git add osm/*.json data_overpass/*.geojson metadata.json
           git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
           git push

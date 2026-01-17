@@ -12,7 +12,6 @@ WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"             
 DATA_DIR = "data_overpass"  
-BOUNDARIES_FILE = "regions_boundaries.geojson"
 
 def fetch_osm_overpass(area_id):
     query = f"""
@@ -31,19 +30,6 @@ def fetch_osm_overpass(area_id):
         return response.json()
     except Exception as e:
         print(f"      [!] Overpass failed: {e}")
-        return None
-
-def fetch_boundary_geojson(osm_area_id):
-    # Konvertiert Overpass Area ID (3600xxxxxx) zu Relation ID (xxxxxx)
-    try:
-        rel_id = int(osm_area_id) - 3600000000
-        # params=0.002 vereinfacht die Geometrie leicht fuer Performance
-        url = f"https://polygons.openstreetmap.fr/get_geojson.py?id={rel_id}&params=0.002"
-        r = requests.get(url, timeout=30)
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        print(f"      [!] Boundary download failed for {osm_area_id}: {e}")
         return None
 
 def get_wikidata_clean(qid, region_name):
@@ -88,24 +74,11 @@ def main():
     
     region_meta = {}
     all_osm_dates = set()
-    boundary_features = []
 
     for key, config in regions.items():
         print(f"\n--- Processing {config['name']} ---")
         
-        # 1. Update Boundaries
-        if "osm" in config:
-            print("   -> Fetching boundary polygon...", end=" ")
-            sys.stdout.flush()
-            poly_geo = fetch_boundary_geojson(config['osm'])
-            if poly_geo:
-                print("OK.")
-                poly_geo['properties'] = { 'reg_name': config['name'], 'reg_key': key }
-                boundary_features.append(poly_geo)
-            else:
-                print("Failed.")
-
-        # 2. Update Data
+        # 1. Update OSM Data (Overpass with Cache Fallback)
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         osm_data = None
         current_osm_date = "Unknown"
@@ -144,6 +117,7 @@ def main():
                     raw = raw.strip().upper()
                     if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
 
+        # 2. Update Wikidata
         csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
@@ -176,11 +150,6 @@ def main():
         print(f"   -> Saved {len(features)} items")
         processed += 1
         time.sleep(2)
-
-    # Save Boundaries
-    if boundary_features:
-        with open(BOUNDARIES_FILE, 'w', encoding='utf-8') as f:
-            json.dump({"type": "FeatureCollection", "features": boundary_features}, f)
 
     # Metadata
     global_osm_date = now_str

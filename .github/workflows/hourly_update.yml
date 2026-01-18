@@ -2,9 +2,9 @@ name: Update Overpass Data
 
 on:
   schedule:
-    # Läuft jede Stunde zur Minute 0 (z.B. 14:00, 15:00...)
+
     - cron: '0 * * * *'
-  # Erlaubt auch manuellen Start per Klick im Browser
+
   workflow_dispatch:
 
 jobs:
@@ -12,26 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    # 1. Code auschecken
+
     - name: Checkout repository
       uses: actions/checkout@v3
       
-    # 2. Python installieren
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
         
-    # 3. Bibliotheken installieren (Requests etc.)
     - name: Install dependencies
       run: |
         pip install requests geojson
         
-    # 4. Dein Skript ausführen (das die Dateien aktualisiert)
     - name: Run update script
       run: python update_data.py
       
-    # 5. Änderungen speichern (Commit & Push)
     - name: Commit and push if changed
       run: |
         git config --global user.name "GitHub Action Bot"

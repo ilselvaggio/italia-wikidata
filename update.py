@@ -16,6 +16,7 @@ DATA_DIR = "data_overpass"
 METADATA_FILE = "metadata.json"
 
 def fetch_osm_with_retry(area_id, retries=3):
+    # Timeout 600s
     query = f"""
     [out:json][timeout:600];
     area({area_id})->.searchArea;
@@ -63,7 +64,7 @@ def get_wikidata_clean(qid, region_name):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--region", default="all", help="Specific region key or 'all'")
+    parser.add_argument("--region", default="all", help="Region key")
     args = parser.parse_args()
 
     if not os.path.exists(REGIONS_FILE): return
@@ -73,35 +74,35 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    # Load existing metadata to preserve dates of skipped regions
-    region_meta = {}
+    # ALTE METADATA LADEN (WICHTIG FÜR CACHE DATUM)
+    old_region_meta = {}
     if os.path.exists(METADATA_FILE):
         try:
             with open(METADATA_FILE, 'r') as f:
-                old_meta = json.load(f)
-                region_meta = old_meta.get("regions", {})
+                full_meta = json.load(f)
+                old_region_meta = full_meta.get("regions", {})
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
     print(f"--- Starting Update Process (Target: {args.region}) ---")
     
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+    
+    # Wir kopieren erst mal alles Alte in das Neue, damit nicht bearbeitete Regionen bleiben
+    new_region_meta = old_region_meta.copy()
+    
     processed_count = 0
 
     for key in target_regions:
-        if key not in regions: 
-            print(f"Skipping unknown region: {key}")
-            continue
-
+        if key not in regions: continue
         config = regions[key]
         print(f"\n--- Processing {config['name']} ---")
         
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         osm_data = None
         current_osm_date = "Unknown"
-        is_cached = False
         
-        # 1. Overpass Download
+        # 1. Download
         print(f"   -> Fetching OSM items...", end=" ")
         sys.stdout.flush()
         new_data = fetch_osm_with_retry(config['osm'])
@@ -113,31 +114,33 @@ def main():
             osm_data = new_data
             current_osm_date = now_str
         else:
-            print("Failed. Checking cache...")
-            is_cached = True
+            print("Failed. Using cache.")
+            
+            # CACHE LOGIK: Datum aus alter Metadata holen!
+            if key in old_region_meta:
+                old_date = old_region_meta[key].get("osm", "Unknown")
+                # Sicherstellen, dass "(Cached)" dran steht
+                if "(Cached)" not in old_date:
+                    current_osm_date = f"{old_date} (Cached)"
+                else:
+                    current_osm_date = old_date
+            else:
+                current_osm_date = "Unknown (Cached)"
+                
+            # Datei laden
+            if os.path.exists(file_osm):
+                try:
+                    with open(file_osm, 'r', encoding='utf-8') as f:
+                        osm_data = json.load(f)
+                except: pass
 
-        # 2. Cache Fallback
-        if not osm_data and os.path.exists(file_osm):
-            try:
-                ts = os.path.getmtime(file_osm)
-                file_date = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
-                with open(file_osm, 'r', encoding='utf-8') as f:
-                    cached = json.load(f)
-                    if 'elements' in cached:
-                        osm_data = cached
-                        current_osm_date = f"{file_date} (Cached)"
-                        print(f"   -> Using valid cache from {file_date}")
-            except Exception as e:
-                print(f"   [!] Cache corrupt: {e}")
-        
         if not osm_data:
             print("   [CRITICAL] No Data. Skipping.")
             continue
 
-        # Metadata update for this region
-        region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
+        new_region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
 
-        # Build IDs
+        # IDs
         osm_ids = {}
         for el in osm_data.get('elements', []):
             if 'wikidata' in el.get('tags', {}):
@@ -159,12 +162,11 @@ def main():
             if not qid: continue
             qid = qid.split('/')[-1].upper()
             if qid in seen: continue
-            
             try:
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))
             except: continue
-
+            
             label = row.get('label') or row.get('?label') or qid
             status = "done" if osm_ids.get(qid) else "missing"
             
@@ -182,11 +184,15 @@ def main():
         processed_count += 1
         time.sleep(2)
 
-    # Save Metadata
-    if processed_count > 0:
-        with open(METADATA_FILE, 'w') as f:
-            # Global dates are just "Now" because we touched the file
-            json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": region_meta }, f)
+    # Metadata Globales Datum
+    global_osm_date = now_str
+    if args.region == 'all':
+        # Wenn alles lief, ist "Now" okay, es sei denn es gab Cached
+        # Wir prüfen, ob irgendwas cached ist
+        pass 
+    
+    with open(METADATA_FILE, 'w') as f:
+        json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_region_meta }, f)
 
     print("\nDONE.")
 

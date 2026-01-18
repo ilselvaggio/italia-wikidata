@@ -14,44 +14,68 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"             
 DATA_DIR = "data_overpass"  
 METADATA_FILE = "metadata.json"
+BOUNDARIES_FILE = "regions_boundaries.geojson"
 
-def fetch_osm_with_retry(area_id, retries=3):
-    # Wir berechnen die Relation ID aus der Area ID (Area = Rel + 3600000000)
-    rel_id = int(area_id) - 3600000000
+def get_bbox_from_feature(feature):
+    """Berechnet min_lat, min_lon, max_lat, max_lon aus einem GeoJSON Feature"""
+    all_coords = []
     
-    # Query: Alles DRINNEN + Alles im 100m PUFFER um die Grenze
+    def extract(coords_list):
+        for item in coords_list:
+            # Wenn es eine Koordinate ist [lon, lat]
+            if isinstance(item, list) and len(item) == 2 and isinstance(item[0], (int, float)):
+                all_coords.append(item)
+            elif isinstance(item, list):
+                extract(item)
+    
+    extract(feature['geometry']['coordinates'])
+    
+    if not all_coords: return None
+    
+    lons = [c[0] for c in all_coords]
+    lats = [c[1] for c in all_coords]
+    return (min(lats), min(lons), max(lats), max(lons))
+
+def fetch_osm_bbox(bbox, retries=3):
+    # bbox = (south, west, north, east)
     query = f"""
-    [out:json][timeout:600];
-    area({area_id})->.searchArea;
-    rel({rel_id});
-    map_to_area -> .boundaryArea; 
-    // Wir holen die Grenze (Relation -> Ways/Nodes)
-    rel({rel_id});
-    > -> .boundary;
-    
+    [out:json][timeout:180];
     (
-      // 1. Alles strikt innerhalb
-      node["wikidata"](area.searchArea);
-      way["wikidata"](area.searchArea);
-      relation["wikidata"](area.searchArea);
-      
-      // 2. Alles im 100m Radius um die Grenze (fängt Gipfel/Grenzsteine)
-      node["wikidata"](around.boundary:100);
-      way["wikidata"](around.boundary:100);
-      // Relationen brauchen keinen Puffer, die sind meist groß genug
+      node["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+      way["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+      relation["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
     );
     out tags qt;
     """
-    
     for attempt in range(retries):
         try:
-            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=605)
+            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
             response.raise_for_status()
             data = response.json()
             if 'elements' in data: return data
         except Exception as e:
             print(f"      [!] Attempt {attempt+1}/{retries} failed: {e}")
             time.sleep(5)
+    return None
+
+def fetch_osm_area_fallback(area_id, retries=2):
+    # Fallback zur alten Methode, falls GeoJSON fehlt
+    query = f"""
+    [out:json][timeout:180];
+    area({area_id})->.searchArea;
+    (
+      node["wikidata"](area.searchArea);
+      way["wikidata"](area.searchArea);
+      relation["wikidata"](area.searchArea);
+    );
+    out tags qt;
+    """
+    for attempt in range(retries):
+        try:
+            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
+            response.raise_for_status()
+            return response.json()
+        except: time.sleep(5)
     return None
 
 def get_wikidata_clean(qid, region_name):
@@ -67,7 +91,7 @@ def get_wikidata_clean(qid, region_name):
        OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='it') }}
     }}"""
     
-    print(f"   -> Downloading Wikidata for {region_name} ({qid})...", end=" ", flush=True)
+    print(f"   -> Downloading Wikidata ({qid})...", end=" ", flush=True)
     try:
         headers = {'User-Agent': 'ItaliaWikidataCheck/1.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
@@ -90,16 +114,31 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
+    # Lade Grenzen für BBox Berechnung
+    boundary_features = {}
+    if os.path.exists(BOUNDARIES_FILE):
+        try:
+            with open(BOUNDARIES_FILE, 'r', encoding='utf-8') as f:
+                gj = json.load(f)
+                for feat in gj.get('features', []):
+                    # Versuche OSM ID zu finden
+                    props = feat.get('properties', {})
+                    osm_id = props.get('id') or props.get('@id') or feat.get('id')
+                    if osm_id:
+                        osm_id = str(osm_id).replace('relation/', '')
+                        boundary_features[osm_id] = feat
+        except Exception as e:
+            print(f"[Warn] Could not load boundaries: {e}")
+
     old_region_meta = {}
     if os.path.exists(METADATA_FILE):
         try:
             with open(METADATA_FILE, 'r') as f:
-                full_meta = json.load(f)
-                old_region_meta = full_meta.get("regions", {})
+                old_region_meta = json.load(f).get("regions", {})
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
-    print(f"--- Starting Update Process (Target: {args.region}) ---")
+    print(f"--- Starting Update (Mode: BBox Fast) ---")
     
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
     new_region_meta = old_region_meta.copy()
@@ -114,11 +153,23 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. Download (mit Grenz-Puffer)
-        print(f"   -> Fetching OSM items...", end=" ")
-        sys.stdout.flush()
-        new_data = fetch_osm_with_retry(config['osm'])
+        # 1. Versuche BBox Strategy (Sehr schnell)
+        # Wir brauchen die Relation ID aus der Config, um das Feature zu finden
+        rel_id_str = str(int(config['osm']) - 3600000000)
+        bbox = None
         
+        if rel_id_str in boundary_features:
+            bbox = get_bbox_from_feature(boundary_features[rel_id_str])
+        
+        if bbox:
+            print(f"   -> Fetching OSM via BBox...", end=" ")
+            sys.stdout.flush()
+            new_data = fetch_osm_bbox(bbox)
+        else:
+            print(f"   -> Fallback: Fetching via Area (No BBox)...", end=" ")
+            sys.stdout.flush()
+            new_data = fetch_osm_area_fallback(config['osm'])
+
         if new_data:
             print("Success.")
             with open(file_osm, 'w', encoding='utf-8') as f:
@@ -129,13 +180,9 @@ def main():
             print("Failed. Using cache.")
             if key in old_region_meta:
                 old_date = old_region_meta[key].get("osm", "Unknown")
-                if "(Cached)" not in old_date:
-                    current_osm_date = f"{old_date} (Cached)"
-                else:
-                    current_osm_date = old_date
-            else:
-                current_osm_date = "Unknown (Cached)"
-                
+                if "(Cached)" not in old_date: current_osm_date = f"{old_date} (Cached)"
+                else: current_osm_date = old_date
+            
             if os.path.exists(file_osm):
                 try:
                     with open(file_osm, 'r', encoding='utf-8') as f:
@@ -169,7 +216,6 @@ def main():
             if not qid: continue
             qid = qid.split('/')[-1].upper()
             if qid in seen: continue
-            
             try:
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))
@@ -190,7 +236,7 @@ def main():
         
         print(f"   -> Saved {len(features)} items")
         processed_count += 1
-        time.sleep(2)
+        time.sleep(1)
 
     if processed_count > 0:
         with open(METADATA_FILE, 'w') as f:

@@ -16,17 +16,33 @@ DATA_DIR = "data_overpass"
 METADATA_FILE = "metadata.json"
 
 def fetch_osm_with_retry(area_id, retries=3):
-    # Timeout 600s
+    # Wir berechnen die Relation ID aus der Area ID (Area = Rel + 3600000000)
+    rel_id = int(area_id) - 3600000000
+    
+    # Query: Alles DRINNEN + Alles im 100m PUFFER um die Grenze
     query = f"""
     [out:json][timeout:600];
     area({area_id})->.searchArea;
+    rel({rel_id});
+    map_to_area -> .boundaryArea; 
+    // Wir holen die Grenze (Relation -> Ways/Nodes)
+    rel({rel_id});
+    > -> .boundary;
+    
     (
+      // 1. Alles strikt innerhalb
       node["wikidata"](area.searchArea);
       way["wikidata"](area.searchArea);
       relation["wikidata"](area.searchArea);
+      
+      // 2. Alles im 100m Radius um die Grenze (fängt Gipfel/Grenzsteine)
+      node["wikidata"](around.boundary:100);
+      way["wikidata"](around.boundary:100);
+      // Relationen brauchen keinen Puffer, die sind meist groß genug
     );
     out tags qt;
     """
+    
     for attempt in range(retries):
         try:
             response = requests.get(OVERPASS_URL, params={'data': query}, timeout=605)
@@ -74,7 +90,6 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    # ALTE METADATA LADEN (WICHTIG FÜR CACHE DATUM)
     old_region_meta = {}
     if os.path.exists(METADATA_FILE):
         try:
@@ -87,10 +102,7 @@ def main():
     print(f"--- Starting Update Process (Target: {args.region}) ---")
     
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
-    
-    # Wir kopieren erst mal alles Alte in das Neue, damit nicht bearbeitete Regionen bleiben
     new_region_meta = old_region_meta.copy()
-    
     processed_count = 0
 
     for key in target_regions:
@@ -102,7 +114,7 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. Download
+        # 1. Download (mit Grenz-Puffer)
         print(f"   -> Fetching OSM items...", end=" ")
         sys.stdout.flush()
         new_data = fetch_osm_with_retry(config['osm'])
@@ -115,11 +127,8 @@ def main():
             current_osm_date = now_str
         else:
             print("Failed. Using cache.")
-            
-            # CACHE LOGIK: Datum aus alter Metadata holen!
             if key in old_region_meta:
                 old_date = old_region_meta[key].get("osm", "Unknown")
-                # Sicherstellen, dass "(Cached)" dran steht
                 if "(Cached)" not in old_date:
                     current_osm_date = f"{old_date} (Cached)"
                 else:
@@ -127,7 +136,6 @@ def main():
             else:
                 current_osm_date = "Unknown (Cached)"
                 
-            # Datei laden
             if os.path.exists(file_osm):
                 try:
                     with open(file_osm, 'r', encoding='utf-8') as f:
@@ -140,7 +148,6 @@ def main():
 
         new_region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
 
-        # IDs
         osm_ids = {}
         for el in osm_data.get('elements', []):
             if 'wikidata' in el.get('tags', {}):
@@ -162,6 +169,7 @@ def main():
             if not qid: continue
             qid = qid.split('/')[-1].upper()
             if qid in seen: continue
+            
             try:
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))
@@ -184,15 +192,9 @@ def main():
         processed_count += 1
         time.sleep(2)
 
-    # Metadata Globales Datum
-    global_osm_date = now_str
-    if args.region == 'all':
-        # Wenn alles lief, ist "Now" okay, es sei denn es gab Cached
-        # Wir prüfen, ob irgendwas cached ist
-        pass 
-    
-    with open(METADATA_FILE, 'w') as f:
-        json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_region_meta }, f)
+    if processed_count > 0:
+        with open(METADATA_FILE, 'w') as f:
+            json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_region_meta }, f)
 
     print("\nDONE.")
 

@@ -15,29 +15,23 @@ OSM_DIR = "osm"
 DATA_DIR = "data_overpass"  
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
+BLACKLIST_FILE = "blacklist.json" # Neue Datei
 
 def get_bbox_from_feature(feature):
-    """Berechnet min_lat, min_lon, max_lat, max_lon aus einem GeoJSON Feature"""
     all_coords = []
-    
     def extract(coords_list):
         for item in coords_list:
-            # Wenn es eine Koordinate ist [lon, lat]
             if isinstance(item, list) and len(item) == 2 and isinstance(item[0], (int, float)):
                 all_coords.append(item)
             elif isinstance(item, list):
                 extract(item)
-    
     extract(feature['geometry']['coordinates'])
-    
     if not all_coords: return None
-    
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
     return (min(lats), min(lons), max(lats), max(lons))
 
 def fetch_osm_bbox(bbox, retries=3):
-    # bbox = (south, west, north, east)
     query = f"""
     [out:json][timeout:180];
     (
@@ -59,7 +53,6 @@ def fetch_osm_bbox(bbox, retries=3):
     return None
 
 def fetch_osm_area_fallback(area_id, retries=2):
-    # Fallback zur alten Methode, falls GeoJSON fehlt
     query = f"""
     [out:json][timeout:180];
     area({area_id})->.searchArea;
@@ -114,14 +107,23 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    # Lade Grenzen für BBox Berechnung
+    # 1. BLACKLIST LADEN
+    blacklist = set()
+    if os.path.exists(BLACKLIST_FILE):
+        try:
+            with open(BLACKLIST_FILE, 'r', encoding='utf-8') as f:
+                blacklist = set(json.load(f))
+                print(f"--- Loaded Blacklist: {len(blacklist)} items ---")
+        except Exception as e:
+            print(f"[Warn] Could not load blacklist: {e}")
+
+    # Boundaries laden
     boundary_features = {}
     if os.path.exists(BOUNDARIES_FILE):
         try:
             with open(BOUNDARIES_FILE, 'r', encoding='utf-8') as f:
                 gj = json.load(f)
                 for feat in gj.get('features', []):
-                    # Versuche OSM ID zu finden
                     props = feat.get('properties', {})
                     osm_id = props.get('id') or props.get('@id') or feat.get('id')
                     if osm_id:
@@ -153,8 +155,6 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. Versuche BBox Strategy (Sehr schnell)
-        # Wir brauchen die Relation ID aus der Config, um das Feature zu finden
         rel_id_str = str(int(config['osm']) - 3600000000)
         bbox = None
         
@@ -166,7 +166,7 @@ def main():
             sys.stdout.flush()
             new_data = fetch_osm_bbox(bbox)
         else:
-            print(f"   -> Fallback: Fetching via Area (No BBox)...", end=" ")
+            print(f"   -> Fallback: Fetching via Area...", end=" ")
             sys.stdout.flush()
             new_data = fetch_osm_area_fallback(config['osm'])
 
@@ -182,7 +182,6 @@ def main():
                 old_date = old_region_meta[key].get("osm", "Unknown")
                 if "(Cached)" not in old_date: current_osm_date = f"{old_date} (Cached)"
                 else: current_osm_date = old_date
-            
             if os.path.exists(file_osm):
                 try:
                     with open(file_osm, 'r', encoding='utf-8') as f:
@@ -203,7 +202,6 @@ def main():
                     raw = raw.strip().upper()
                     if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
 
-        # Wikidata
         csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
@@ -216,6 +214,11 @@ def main():
             if not qid: continue
             qid = qid.split('/')[-1].upper()
             if qid in seen: continue
+            
+            # 2. BLACKLIST CHECK
+            if qid in blacklist:
+                continue
+
             try:
                 lat = float(row.get('lat') or row.get('?lat'))
                 lon = float(row.get('lon') or row.get('?lon'))

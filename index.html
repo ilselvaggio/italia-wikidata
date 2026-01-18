@@ -156,17 +156,31 @@
         var mob = document.getElementById('mobileSelect');
         sb.innerHTML = "";
         var sortedKeys = Object.keys(regionConfig).sort((a,b) => regionConfig[a].name.localeCompare(regionConfig[b].name));
+        
         sortedKeys.forEach(key => {
             var div = document.createElement('div');
             div.className = "region-item";
             div.id = "sb-item-" + key;
-            div.innerText = regionConfig[key].name;
+
+            // --- BERECHNUNG PROZENT ---
+            var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) ? metaDataGlobal.regions[key] : null;
+            var pctHtml = "";
+            var pctText = "";
+            
+            if (meta && meta.total > 0) {
+                var pct = Math.round((meta.done / meta.total) * 100);
+                pctHtml = ` <span style="color: #2ecc71; font-weight: bold; font-size: 0.85em; margin-left: 5px;">${pct}%</span>`;
+                pctText = ` (${pct}%)`;
+            }
+            // --------------------------
+
+            div.innerHTML = regionConfig[key].name + pctHtml; // Sidebar (mit HTML für Farbe)
             div.onclick = function() { changeRegion(key); };
             sb.appendChild(div);
 
             var opt = document.createElement('option');
             opt.value = key;
-            opt.innerText = regionConfig[key].name;
+            opt.innerText = regionConfig[key].name + pctText; // Mobile Dropdown (nur Text)
             mob.appendChild(opt);
         });
     }

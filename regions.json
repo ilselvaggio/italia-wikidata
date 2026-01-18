@@ -9,7 +9,7 @@
     "emilia_romagna": { "name": "Emilia-Romagna", "qid": "Q1263", "osm": "3600042611", "lat": 44.5, "lon": 11.0 },
     "toscana": { "name": "Toscana", "qid": "Q1273", "osm": "3600041977", "lat": 43.4, "lon": 11.0 },
     "umbria": { "name": "Umbria", "qid": "Q1280", "osm": "3600042004", "lat": 42.9, "lon": 12.5 },
-    "marche": { "name": "Marche", "qid": "Q1279", "osm": "3600042004", "lat": 43.3, "lon": 13.0 },
+    "marche": { "name": "Marche", "qid": "Q1279", "osm": "3600053060", "lat": 43.3, "lon": 13.0 },
     "lazio": { "name": "Lazio", "qid": "Q1282", "osm": "3600053060", "lat": 41.9, "lon": 12.7 },
     "abruzzo": { "name": "Abruzzo", "qid": "Q1284", "osm": "3600053937", "lat": 42.2, "lon": 13.8 },
     "molise": { "name": "Molise", "qid": "Q1443", "osm": "3600041256", "lat": 41.7, "lon": 14.5 },

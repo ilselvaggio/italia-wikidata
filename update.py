@@ -113,8 +113,7 @@ def main():
             with open(BLACKLIST_FILE, 'r', encoding='utf-8') as f:
                 blacklist = set(json.load(f))
                 print(f"--- Loaded Blacklist: {len(blacklist)} items ---")
-        except Exception as e:
-            print(f"[Warn] Could not load blacklist: {e}")
+        except: pass
 
     boundary_features = {}
     if os.path.exists(BOUNDARIES_FILE):
@@ -127,8 +126,7 @@ def main():
                     if osm_id:
                         osm_id = str(osm_id).replace('relation/', '')
                         boundary_features[osm_id] = feat
-        except Exception as e:
-            print(f"[Warn] Could not load boundaries: {e}")
+        except: pass
 
     old_region_meta = {}
     if os.path.exists(METADATA_FILE):
@@ -138,8 +136,6 @@ def main():
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
-    print(f"--- Starting Update (Mode: BBox Fast) ---")
-    
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
     new_region_meta = old_region_meta.copy()
     processed_count = 0
@@ -173,17 +169,13 @@ def main():
             current_osm_date = now_str
         else:
             print("Failed. Using cache.")
-            if key in old_region_meta:
-                current_osm_date = old_region_meta[key].get("osm", "Unknown")
+            if key in old_region_meta: current_osm_date = old_region_meta[key].get("osm", "Unknown")
             if os.path.exists(file_osm):
                 try:
-                    with open(file_osm, 'r', encoding='utf-8') as f:
-                        osm_data = json.load(f)
+                    with open(file_osm, 'r', encoding='utf-8') as f: osm_data = json.load(f)
                 except: pass
 
-        if not osm_data:
-            print("   [CRITICAL] No Data. Skipping.")
-            continue
+        if not osm_data: continue
 
         osm_ids = {}
         for el in osm_data.get('elements', []):
@@ -199,48 +191,34 @@ def main():
         features = []
         seen = set()
         reader = csv.DictReader(csv_text.splitlines())
-        
         for row in reader:
             qid = (row.get('qid') or row.get('?qid', '')).split('/')[-1].upper()
             if not qid or qid in seen or qid in blacklist: continue
-            
             try:
-                lat = float(row.get('lat') or row.get('?lat'))
-                lon = float(row.get('lon') or row.get('?lon'))
+                lat, lon = float(row.get('lat') or row.get('?lat')), float(row.get('lon') or row.get('?lon'))
             except: continue
-            
-            label = row.get('label') or row.get('?label') or qid
             status = "done" if qid in osm_ids else "missing"
-            
             features.append({
                 "type": "Feature",
-                "properties": { "wikidata": qid, "name": label, "status": status, "osm_id": osm_ids.get(qid) },
+                "properties": { "wikidata": qid, "name": row.get('label') or row.get('?label') or qid, "status": status, "osm_id": osm_ids.get(qid) },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })
             seen.add(qid)
 
-        # Statistik berechnen
         done_count = sum(1 for f in features if f['properties']['status'] == 'done')
         total_count = len(features)
-
-        new_region_meta[key] = { 
-            "osm": current_osm_date, 
-            "wiki": now_str,
-            "done": done_count,
-            "total": total_count
-        }
+        new_region_meta[key] = { "osm": current_osm_date, "wiki": now_str, "done": done_count, "total": total_count }
 
         with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
         
-        print(f"   -> Saved {len(features)} items ({done_count} matched)")
+        print(f"   -> Saved {len(features)} items ({done_count}/{total_count})")
         processed_count += 1
         time.sleep(1)
 
     if processed_count > 0:
         with open(METADATA_FILE, 'w') as f:
             json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_region_meta }, f)
-
     print("\nDONE.")
 
 if __name__ == "__main__":

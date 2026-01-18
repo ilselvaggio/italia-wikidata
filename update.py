@@ -146,7 +146,7 @@ def main():
     new_region_meta = old_region_meta.copy()
     processed_count = 0
 
-    for key in target_regions:
+   for key in target_regions:
         if key not in regions: continue
         config = regions[key]
         print(f"\n--- Processing {config['name']} ---")
@@ -155,11 +155,9 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
+        # 1. OSM DATEN BESCHAFFEN
         rel_id_str = str(int(config['osm']) - 3600000000)
-        bbox = None
-        
-        if rel_id_str in boundary_features:
-            bbox = get_bbox_from_feature(boundary_features[rel_id_str])
+        bbox = get_bbox_from_feature(boundary_features[rel_id_str]) if rel_id_str in boundary_features else None
         
         if bbox:
             print(f"   -> Fetching OSM via BBox...", end=" ")
@@ -179,14 +177,72 @@ def main():
         else:
             print("Failed. Using cache.")
             if key in old_region_meta:
-                old_date = old_region_meta[key].get("osm", "Unknown")
-                if "(Cached)" not in old_date: current_osm_date = f"{old_date} (Cached)"
-                else: current_osm_date = old_date
+                current_osm_date = old_region_meta[key].get("osm", "Unknown")
             if os.path.exists(file_osm):
                 try:
                     with open(file_osm, 'r', encoding='utf-8') as f:
                         osm_data = json.load(f)
                 except: pass
+
+        if not osm_data:
+            print("   [CRITICAL] No Data. Skipping.")
+            continue
+
+        # 2. OSM-IDS INDEXIEREN
+        osm_ids = {}
+        for el in osm_data.get('elements', []):
+            if 'wikidata' in el.get('tags', {}):
+                raw_tags = el['tags']['wikidata'].replace(',', ';')
+                for raw in raw_tags.split(';'):
+                    raw = raw.strip().upper()
+                    if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
+
+        # 3. WIKIDATA DATEN BESCHAFFEN
+        csv_text = get_wikidata_clean(config['qid'], config['name'])
+        if not csv_text: continue
+
+        # 4. FEATURES VERARBEITEN
+        features = []
+        seen = set()
+        reader = csv.DictReader(csv_text.splitlines())
+        
+        for row in reader:
+            qid = (row.get('qid') or row.get('?qid', '')).split('/')[-1].upper()
+            if not qid or qid in seen or qid in blacklist: continue
+            
+            try:
+                lat = float(row.get('lat') or row.get('?lat'))
+                lon = float(row.get('lon') or row.get('?lon'))
+            except: continue
+            
+            label = row.get('label') or row.get('?label') or qid
+            status = "done" if qid in osm_ids else "missing"
+            
+            features.append({
+                "type": "Feature",
+                "properties": { "wikidata": qid, "name": label, "status": status, "osm_id": osm_ids.get(qid) },
+                "geometry": { "type": "Point", "coordinates": [lon, lat] }
+            })
+            seen.add(qid)
+
+        # 5. STATISTIK BERECHNEN & METADATEN SPEICHERN
+        done_count = sum(1 for f in features if f['properties']['status'] == 'done')
+        total_count = len(features)
+
+        new_region_meta[key] = { 
+            "osm": current_osm_date, 
+            "wiki": now_str,
+            "done": done_count,
+            "total": total_count
+        }
+
+        # 6. GEOJSON SPEICHERN
+        with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
+            json.dump({"type": "FeatureCollection", "features": features}, f)
+        
+        print(f"   -> Saved {len(features)} items ({done_count} matched)")
+        processed_count += 1
+        time.sleep(1)
 
         if not osm_data:
             print("   [CRITICAL] No Data. Skipping.")

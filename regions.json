@@ -12,7 +12,7 @@
     "marche": { "name": "Marche", "qid": "Q1279", "osm": "3600042004", "lat": 43.3, "lon": 13.0 },
     "lazio": { "name": "Lazio", "qid": "Q1282", "osm": "3600040169", "lat": 41.9, "lon": 12.7 },
     "abruzzo": { "name": "Abruzzo", "qid": "Q1284", "osm": "3600040783", "lat": 42.2, "lon": 13.8 },
-    "molise": { "name": "Molise", "qid": "Q1289", "osm": "3600040382", "lat": 41.7, "lon": 14.5 },
+    "molise": { "name": "Molise", "qid": "Q1443", "osm": "3600041256", "lat": 41.7, "lon": 14.5 },
     "campania": { "name": "Campania", "qid": "Q1438", "osm": "3600040263", "lat": 40.8, "lon": 14.8 },
     "puglia": { "name": "Puglia", "qid": "Q1447", "osm": "3600040049", "lat": 41.0, "lon": 16.5 },
     "basilicata": { "name": "Basilicata", "qid": "Q1452", "osm": "3600040134", "lat": 40.5, "lon": 16.0 },

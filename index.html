@@ -28,6 +28,12 @@
         .btn-download:hover { background-color: #aab7b8; }
         #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
         #loading { display:none; color: #f1c40f; font-weight: bold; }
+        
+        /* STILE AGGIUNTO PER I LOGHI */
+        .logo-row { display: flex; gap: 10px; margin-top: 5px; justify-content: center; align-items: center; }
+        .logo-link { display: inline-block; width: 24px; height: 24px; }
+        .logo-link img { width: 100%; height: 100%; object-fit: contain; }
+
         @media (max-width: 700px) { #sidebar { display: none; } }
     </style>
 </head>
@@ -63,18 +69,12 @@
         attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
     }).addTo(map);
 
-    // FIX: PANES ERSTELLEN FÜR KORREKTE SCHICHTUNG
     map.createPane('regionsPane');
-    map.getPane('regionsPane').style.zIndex = 400; // Unter den Markern
+    map.getPane('regionsPane').style.zIndex = 400;
     map.createPane('markersPane');
-    map.getPane('markersPane').style.zIndex = 600; // Über den Regionen
+    map.getPane('markersPane').style.zIndex = 600;
 
-    var layers = { 
-        missing: L.layerGroup(), 
-        done: L.layerGroup(), 
-        regions: L.layerGroup(), 
-        activeBorder: L.layerGroup() 
-    };
+    var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
     var currentMissingFeatures = [];
 
@@ -103,17 +103,15 @@
         return '#8B0000';
     }
 
-    // FIX: SORTIERUNG NACH PROZENT (ABSTEIGEND)
     function initNavigation() {
         var sb = document.getElementById('sidebar'); sb.innerHTML = "";
-        
         var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
             var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
             var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
             var pctA = (metaA.done / metaA.total);
             var pctB = (metaB.done / metaB.total);
-            if (pctB !== pctA) return pctB - pctA; // Höhere Prozentzahl zuerst
-            return regionConfig[a].name.localeCompare(regionConfig[b].name); // Dann alphabetisch
+            if (pctB !== pctA) return pctB - pctA;
+            return regionConfig[a].name.localeCompare(regionConfig[b].name);
         });
 
         sortedKeys.forEach(key => {
@@ -138,10 +136,9 @@
         return null;
     }
 
-    // FIX: REGIONEN IN EIGENES PANE (HINTERGRUND)
     function loadRegionsShape() {
         L.geoJSON(boundariesGeoJSON, {
-            pane: 'regionsPane', // WICHTIG: Legt Regionen nach unten
+            pane: 'regionsPane',
             style: function(f) {
                 var k = getKeyFromFeature(f);
                 var color = "#3498db", opacity = 0.1;
@@ -166,7 +163,7 @@
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
             var b = L.geoJSON(target, { 
-                pane: 'regionsPane', // Auch Border nach unten
+                pane: 'regionsPane', 
                 style: { color: "#3498db", weight: 3, fillOpacity: 0.05 } 
             }).addTo(layers.activeBorder);
             map.addLayer(layers.activeBorder); map.fitBounds(b.getBounds());
@@ -182,14 +179,23 @@
                 var isD = f.properties.status === 'done';
                 if(isD) cD++; else { cM++; currentMissingFeatures.push(f); }
                 var p = f.properties;
-                // Popup Content
-                var pop = `<div style="text-align:center"><b>${p.name}</b><br><small>${p.wikidata}</small><br>
-                           <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank">Wikidata</a>`;
-                if(p.osm_id) pop += ` | <a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank">OSM</a>`;
-                pop += `</div>`;
+                
+                // POPUP CON LOGHI
+                var pop = `<div style="text-align:center">
+                    <b>${p.name}</b><br><small>${p.wikidata}</small>
+                    <div class="logo-row">
+                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
+                        </a>`;
+                if(p.osm_id) {
+                    pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
+                        </a>`;
+                }
+                pop += `</div></div>`;
 
                 L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
-                    pane: 'markersPane', // WICHTIG: Marker nach oben
+                    pane: 'markersPane',
                     radius: 4.5, fillColor: isD ? "#2ecc71" : "#e74c3c", color: "#fff", weight: 1, fillOpacity: 0.8 
                 }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
             });

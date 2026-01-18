@@ -79,18 +79,18 @@
         if (boundariesGeoJSON) loadRegionsShape();
     });
 
-    // OPTIMIERTE FARBSKALA FÜR BESSERE UNTERSCHEIDBARKEIT
+    // NEUE, KONTRASTREICHERE FARBSKALA
     function getHeatColor(p) {
-        if (p >= 90) return '#1e8449'; // Dunkelgrün
-        if (p >= 80) return '#27ae60'; // Grün
-        if (p >= 70) return '#2ecc71'; // Hellgrün
-        if (p >= 60) return '#a2d149'; // Limette
-        if (p >= 50) return '#f1c40f'; // Gelb
-        if (p >= 40) return '#f39c12'; // Gold/Dunkelgelb
-        if (p >= 30) return '#e67e22'; // Orange
-        if (p >= 20) return '#d35400'; // Orangerot
-        if (p >= 10) return '#e74c3c'; // Rot
-        return '#c0392b';              // Dunkelrot
+        if (p >= 90) return '#006400'; // Dunkelgrün
+        if (p >= 80) return '#228B22'; // Waldgrün
+        if (p >= 70) return '#32CD32'; // Limettengrün
+        if (p >= 60) return '#ADFF2F'; // Grüngelb
+        if (p >= 50) return '#FFFF00'; // Gelb
+        if (p >= 40) return '#FFA500'; // Orange
+        if (p >= 30) return '#FF8C00'; // Dunkelorange
+        if (p >= 20) return '#FF4500'; // Orangerot
+        if (p >= 10) return '#FF0000'; // Rot
+        return '#8B0000';              // Dunkelrot
     }
 
     function initNavigation() {

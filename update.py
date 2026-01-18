@@ -15,7 +15,7 @@ OSM_DIR = "osm"
 DATA_DIR = "data_overpass"  
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
-BLACKLIST_FILE = "blacklist.json" # Neue Datei
+BLACKLIST_FILE = "blacklist.json"
 
 def get_bbox_from_feature(feature):
     all_coords = []
@@ -107,7 +107,6 @@ def main():
     with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
         regions = json.load(f)
 
-    # 1. BLACKLIST LADEN
     blacklist = set()
     if os.path.exists(BLACKLIST_FILE):
         try:
@@ -117,7 +116,6 @@ def main():
         except Exception as e:
             print(f"[Warn] Could not load blacklist: {e}")
 
-    # Boundaries laden
     boundary_features = {}
     if os.path.exists(BOUNDARIES_FILE):
         try:
@@ -146,7 +144,7 @@ def main():
     new_region_meta = old_region_meta.copy()
     processed_count = 0
 
-   for key in target_regions:
+    for key in target_regions:
         if key not in regions: continue
         config = regions[key]
         print(f"\n--- Processing {config['name']} ---")
@@ -155,7 +153,6 @@ def main():
         osm_data = None
         current_osm_date = "Unknown"
         
-        # 1. OSM DATEN BESCHAFFEN
         rel_id_str = str(int(config['osm']) - 3600000000)
         bbox = get_bbox_from_feature(boundary_features[rel_id_str]) if rel_id_str in boundary_features else None
         
@@ -188,7 +185,6 @@ def main():
             print("   [CRITICAL] No Data. Skipping.")
             continue
 
-        # 2. OSM-IDS INDEXIEREN
         osm_ids = {}
         for el in osm_data.get('elements', []):
             if 'wikidata' in el.get('tags', {}):
@@ -197,11 +193,9 @@ def main():
                     raw = raw.strip().upper()
                     if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
 
-        # 3. WIKIDATA DATEN BESCHAFFEN
         csv_text = get_wikidata_clean(config['qid'], config['name'])
         if not csv_text: continue
 
-        # 4. FEATURES VERARBEITEN
         features = []
         seen = set()
         reader = csv.DictReader(csv_text.splitlines())
@@ -225,7 +219,7 @@ def main():
             })
             seen.add(qid)
 
-        # 5. STATISTIK BERECHNEN & METADATEN SPEICHERN
+        # Statistik berechnen
         done_count = sum(1 for f in features if f['properties']['status'] == 'done')
         total_count = len(features)
 
@@ -236,79 +230,10 @@ def main():
             "total": total_count
         }
 
-        # 6. GEOJSON SPEICHERN
         with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
         
         print(f"   -> Saved {len(features)} items ({done_count} matched)")
-        processed_count += 1
-        time.sleep(1)
-
-        if not osm_data:
-            print("   [CRITICAL] No Data. Skipping.")
-            continue
-
-        with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
-            json.dump({"type": "FeatureCollection", "features": features}, f)
-
-        # HIER DIE BERECHNUNG EINFÜGEN
-        done_count = sum(1 for f in features if f['properties']['status'] == 'done')
-        total_count = len(features)
-
-        new_region_meta[key] = { 
-            "osm": current_osm_date, 
-            "wiki": now_str,
-            "done": done_count,
-            "total": total_count
-        }
-        
-        print(f"   -> Saved {len(features)} items ({done_count} matched)")
-        processed_count += 1
-
-        osm_ids = {}
-        for el in osm_data.get('elements', []):
-            if 'wikidata' in el.get('tags', {}):
-                raw_tags = el['tags']['wikidata'].replace(',', ';')
-                for raw in raw_tags.split(';'):
-                    raw = raw.strip().upper()
-                    if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
-
-        csv_text = get_wikidata_clean(config['qid'], config['name'])
-        if not csv_text: continue
-
-        features = []
-        seen = set()
-        reader = csv.DictReader(csv_text.splitlines())
-        
-        for row in reader:
-            qid = row.get('qid') or row.get('?qid')
-            if not qid: continue
-            qid = qid.split('/')[-1].upper()
-            if qid in seen: continue
-            
-            # 2. BLACKLIST CHECK
-            if qid in blacklist:
-                continue
-
-            try:
-                lat = float(row.get('lat') or row.get('?lat'))
-                lon = float(row.get('lon') or row.get('?lon'))
-            except: continue
-            
-            label = row.get('label') or row.get('?label') or qid
-            status = "done" if osm_ids.get(qid) else "missing"
-            
-            features.append({
-                "type": "Feature",
-                "properties": { "wikidata": qid, "name": label, "status": status, "osm_id": osm_ids.get(qid) },
-                "geometry": { "type": "Point", "coordinates": [lon, lat] }
-            })
-            seen.add(qid)
-
-        with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
-            json.dump({"type": "FeatureCollection", "features": features}, f)
-        
-        print(f"   -> Saved {len(features)} items")
         processed_count += 1
         time.sleep(1)
 

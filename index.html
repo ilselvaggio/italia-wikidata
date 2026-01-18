@@ -40,7 +40,6 @@
         .region-item:hover { background-color: #34495e; }
         .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
 
-        /* WICHTIG: Standardmäßig ausgeblendet (display: none) */
         .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
         .stat-item input { margin: 0; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
@@ -138,7 +137,6 @@
         
         updateDates(metadata.global_osm_date, metadata.global_wiki_date);
         
-        // Ensure stats are hidden on load
         document.getElementById('stat-missing').style.display = 'none';
         document.getElementById('stat-done').style.display = 'none';
         
@@ -172,15 +170,14 @@
                 pctHtml = ` <span style="color: #2ecc71; font-weight: bold; font-size: 0.85em; margin-left: 5px;">${pct}%</span>`;
                 pctText = ` (${pct}%)`;
             }
-            // --------------------------
 
-            div.innerHTML = regionConfig[key].name + pctHtml; // Sidebar (mit HTML für Farbe)
+            div.innerHTML = regionConfig[key].name + pctHtml;
             div.onclick = function() { changeRegion(key); };
             sb.appendChild(div);
 
             var opt = document.createElement('option');
             opt.value = key;
-            opt.innerText = regionConfig[key].name + pctText; // Mobile Dropdown (nur Text)
+            opt.innerText = regionConfig[key].name + pctText;
             mob.appendChild(opt);
         });
     }
@@ -288,7 +285,6 @@
             document.getElementById('count-done').innerText = `(${cDone})`;
             document.getElementById('loading').style.display = 'none';
             
-            // SHOW Controls when Data is ready
             document.getElementById('stat-missing').style.display = 'flex';
             document.getElementById('stat-done').style.display = 'flex';
             

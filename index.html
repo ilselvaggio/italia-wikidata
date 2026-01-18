@@ -20,6 +20,12 @@
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
+        .btn-download { 
+            background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; 
+            padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; 
+            display: none; 
+        }
+        .btn-download:hover { background-color: #aab7b8; }
         #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
         #loading { display:none; color: #f1c40f; font-weight: bold; }
         @media (max-width: 700px) { #sidebar { display: none; } }
@@ -30,6 +36,7 @@
     <div id="left-col"><div id="title" onclick="location.reload()">OSM-Wikidata Italia</div></div>
     <div id="controls">
         <div id="loading">Loading...</div>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Wikidata only</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
@@ -51,14 +58,14 @@
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     
-// Vollständig verlinkte Attribution:
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-    maxZoom: 19,
-    attribution: '<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>'
-}).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 19,
+        attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
+    }).addTo(map);
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
+    var currentMissingFeatures = [];
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
@@ -73,7 +80,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     });
 
     function getHeatColor(p) {
-        // Kontraststarke Farben (Rot -> Gelb -> Grün)
         return p > 80 ? '#27ae60' : p > 60 ? '#2ecc71' : p > 40 ? '#f1c40f' : p > 20 ? '#e67e22' : '#e74c3c';
     }
 
@@ -82,9 +88,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         Object.keys(regionConfig).sort((a,b) => regionConfig[a].name.localeCompare(regionConfig[b].name)).forEach(key => {
             var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) ? metaDataGlobal.regions[key] : null;
             var pct = (meta && meta.total > 0) ? Math.round((meta.done / meta.total) * 100) : null;
+            var color = pct !== null ? getHeatColor(pct) : "#fff";
+            
             var div = document.createElement('div');
             div.className = "region-item"; div.id = "sb-item-" + key;
-            div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:#2ecc71;font-weight:bold">${pct}%</span>` : "");
+            div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
             div.onclick = () => changeRegion(key);
             sb.appendChild(div);
         });
@@ -94,7 +102,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         var id = String(f.id || f.properties.id || f.properties['@id'] || "").replace("relation/", "");
         var found = Object.keys(regionConfig).find(k => String(parseInt(regionConfig[k].osm) - 3600000000) === id);
         if (found) return found;
-        // Fallback für Sardinien (Namensprüfung)
         var name = f.properties.name || f.properties['name:en'] || "";
         if (name.includes("Sardegna") || name.includes("Sardinia")) return "sardegna";
         return null;
@@ -129,12 +136,15 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             map.addLayer(layers.activeBorder); map.fitBounds(b.getBounds());
         }
         document.getElementById('loading').style.display = 'block';
+        document.getElementById('btnDownload').style.display = 'none';
         layers.missing.clearLayers(); layers.done.clearLayers();
+        currentMissingFeatures = [];
+
         fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
             var cM = 0, cD = 0;
             data.features.forEach(f => {
                 var isD = f.properties.status === 'done';
-                if(isD) cD++; else cM++;
+                if(isD) cD++; else { cM++; currentMissingFeatures.push(f); }
                 L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { radius: 4.5, fillColor: isD ? "#2ecc71" : "#e74c3c", color: "#fff", weight: 1, fillOpacity: 0.8 }).addTo(isD ? layers.done : layers.missing);
             });
             document.getElementById('count-missing').innerText = `(${cM})`;
@@ -142,9 +152,19 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('stat-missing').style.display = 'flex';
             document.getElementById('stat-done').style.display = 'flex';
+            if (cM > 0) document.getElementById('btnDownload').style.display = 'block';
             if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
             if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
         });
+    }
+
+    function downloadCurrentMissing() {
+        if (!currentMissingFeatures.length) return;
+        var blob = new Blob([JSON.stringify({ "type": "FeatureCollection", "features": currentMissingFeatures })], {type: "application/json"});
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "missing_items.geojson";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
     function toggleLayer(t, c) { if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); }

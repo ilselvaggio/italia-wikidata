@@ -90,14 +90,14 @@
     
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download JSON</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
         
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span style="margin-left:3px">Wikidata only</span> <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')">
-            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span style="margin-left:3px">Mapped</span> <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
+            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span style="margin-left:3px"></span> <span id="count-done" style="font-weight:bold; margin-left:3px"></span>
         </div>
         
         <div id="meta-info">

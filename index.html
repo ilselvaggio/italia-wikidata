@@ -8,7 +8,6 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
         
-        /* HEADER */
         #header {
             background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between;
             padding: 0 15px; height: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; position: relative;
@@ -17,20 +16,15 @@
         #title:hover { color: #3498db; }
 
         #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
-
-        /* Left Column in Header */
         #left-col { display: flex; align-items: center; gap: 15px; }
 
-        /* Mobile Dropdown */
         #mobileSelect { 
             display: none; background: #555; border: 1px solid #666; color: white; 
             padding: 5px; border-radius: 4px; font-size: 14px; width: 150px;
         }
 
-        /* MAIN LAYOUT */
         #main-container { display: flex; height: calc(100% - 50px); width: 100%; }
         
-        /* SIDEBAR (Desktop) */
         #sidebar {
             width: 200px; background-color: #2c3e50; color: #ecf0f1;
             overflow-y: auto; display: flex; flex-direction: column;
@@ -46,39 +40,29 @@
         .region-item:hover { background-color: #34495e; }
         .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
 
-        /* STATS & BUTTONS */
-        .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+        /* WICHTIG: Standardmäßig ausgeblendet (display: none) */
+        .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
         .stat-item input { margin: 0; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        /* DOWNLOAD BUTTON STYLE (Gray & PC Only) */
         .btn-download { 
-            background-color: #bdc3c7; /* Hellgrau */
-            color: #333; /* Dunkler Text */
-            border: 1px solid #95a5a6; 
-            padding: 4px 8px; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 11px; 
-            display: none; /* Hidden by default until data loads */
+            background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; 
+            padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; 
+            display: none; 
         }
         .btn-download:hover { background-color: #aab7b8; }
 
         #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; display: flex; flex-direction: column; justify-content: center; min-width: 80px; }
         .date-row { white-space: nowrap; }
         
-        /* LOGOS */
         .logo-row { display: flex; gap: 10px; margin-top: 5px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 24px; height: 24px; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
         #loading { display:none; color: #f1c40f; font-weight: bold; }
-        .btn-load { background-color: #3498db; width: 100%; border:none; cursor: pointer; margin-top: 5px; color: white; padding: 5px; border-radius: 4px; }
 
-        /* MOBILE OPTIMIZATION */
         @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; padding: 5px; gap: 5px; align-items: stretch; }
             #left-col { width: 100%; justify-content: space-between; }
@@ -86,10 +70,7 @@
             #mobileSelect { display: block; } 
             #sidebar { display: none; } 
             #controls { width: 100%; justify-content: center; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px; }
-            
-            /* HIDE DOWNLOAD BUTTON ON MOBILE */
             .btn-download { display: none !important; }
-            
             #meta-info { border: none; padding: 0; flex-direction: row; gap: 10px; width: 100%; text-align: center; margin-top: 3px; }
             #main-container { height: calc(100% - 110px); }
         }
@@ -107,7 +88,7 @@
     
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download for JOSM</button>
         
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span style="margin-left:3px">Wikidata only</span> <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
@@ -125,8 +106,7 @@
 </header>
 
 <div id="main-container">
-    <div id="sidebar">
-        </div>
+    <div id="sidebar"></div>
     <div id="map"></div>
 </div>
 
@@ -157,8 +137,12 @@
         boundariesGeoJSON = bounds; 
         
         updateDates(metadata.global_osm_date, metadata.global_wiki_date);
+        
+        // Ensure stats are hidden on load
+        document.getElementById('stat-missing').style.display = 'none';
+        document.getElementById('stat-done').style.display = 'none';
+        
         initNavigation();
-
         if (boundariesGeoJSON) loadRegionsShape();
     });
 
@@ -171,7 +155,6 @@
         var sb = document.getElementById('sidebar');
         var mob = document.getElementById('mobileSelect');
         sb.innerHTML = "";
-
         var sortedKeys = Object.keys(regionConfig).sort((a,b) => regionConfig[a].name.localeCompare(regionConfig[b].name));
         sortedKeys.forEach(key => {
             var div = document.createElement('div');
@@ -251,7 +234,7 @@
         if (metaDataGlobal.regions && metaDataGlobal.regions[key]) {
             updateDates(metaDataGlobal.regions[key].osm, metaDataGlobal.regions[key].wiki);
         } else {
-            updateDates(metaDataGlobal.global_osm_date, metaDataGlobal.global_wiki_date);
+            updateDates("--", "--");
         }
 
         document.getElementById('loading').style.display = 'block';
@@ -290,12 +273,12 @@
             document.getElementById('count-missing').innerText = `(${cMiss})`;
             document.getElementById('count-done').innerText = `(${cDone})`;
             document.getElementById('loading').style.display = 'none';
+            
+            // SHOW Controls when Data is ready
             document.getElementById('stat-missing').style.display = 'flex';
             document.getElementById('stat-done').style.display = 'flex';
             
-            // SHOW BUTTON ON DESKTOP ONLY
             if (cMiss > 0) {
-                // The CSS media query will force-hide it on mobile even if we set display:block here
                 document.getElementById('btnDownload').style.display = 'block';
             }
 

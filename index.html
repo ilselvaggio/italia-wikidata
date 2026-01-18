@@ -29,9 +29,10 @@
         #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
         #loading { display:none; color: #f1c40f; font-weight: bold; }
         
-        /* STILE AGGIUNTO PER I LOGHI */
-        .logo-row { display: flex; gap: 10px; margin-top: 5px; justify-content: center; align-items: center; }
-        .logo-link { display: inline-block; width: 24px; height: 24px; }
+        /* STILE PER I LOGHI NEI POPUP */
+        .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
+        .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
+        .logo-link:hover { transform: scale(1.1); }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
         @media (max-width: 700px) { #sidebar { display: none; } }
@@ -69,10 +70,11 @@
         attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
     }).addTo(map);
 
+    // CREAZIONE LIVELLI (PANES) PER GESTIRE L'ORDINE DI VISUALIZZAZIONE
     map.createPane('regionsPane');
-    map.getPane('regionsPane').style.zIndex = 400;
+    map.getPane('regionsPane').style.zIndex = 400; // Sfondo
     map.createPane('markersPane');
-    map.getPane('markersPane').style.zIndex = 600;
+    map.getPane('markersPane').style.zIndex = 600; // In primo piano
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
@@ -150,7 +152,11 @@
             },
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
-                if (k) { l.on('click', () => changeRegion(k)); l.bindTooltip(regionConfig[k].name, {pane: 'regionsPane'}); }
+                if (k) { 
+                    l.on('click', () => changeRegion(k)); 
+                    // FIX: RIMOSSO IL PANE 'regionsPane' DAL TOOLTIP PER FARLO APPARIRE SOPRA
+                    l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
+                }
             }
         }).addTo(layers.regions);
         map.addLayer(layers.regions);
@@ -180,7 +186,7 @@
                 if(isD) cD++; else { cM++; currentMissingFeatures.push(f); }
                 var p = f.properties;
                 
-                // POPUP CON LOGHI
+                // POPUP CON I LOGHI CORRETTI
                 var pop = `<div style="text-align:center">
                     <b>${p.name}</b><br><small>${p.wikidata}</small>
                     <div class="logo-row">

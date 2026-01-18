@@ -1,0 +1,43 @@
+name: Run Auto-Update
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Läuft jede Stunde
+  workflow_dispatch:      # Erlaubt manuellen Start per Button
+
+# WICHTIG: Gibt dem Bot Schreibrechte
+permissions:
+  contents: write
+
+jobs:
+  update-job:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. Code laden
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+      
+    # 2. Python installieren
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    # 3. Bibliotheken installieren (Dein Skript braucht requests)
+    - name: Install dependencies
+      run: pip install requests
+      
+    # 4. DEIN SKRIPT AUSFÜHREN
+    # Stelle sicher, dass deine Datei im Repo 'update.py' heißt (oder passe den Namen hier an)
+    - name: Run existing update script
+      run: python update.py --region all
+      
+    # 5. Ergebnisse speichern (Commit & Push)
+    - name: Commit and Push changes
+      run: |
+        git config --global user.name "GitHub Action Bot"
+        git config --global user.email "actions@github.com"
+        git add data_overpass/ osm/ metadata.json
+        # Nur committen, wenn sich was geändert hat, sonst kein Fehler
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Hourly Data Update" && git push)

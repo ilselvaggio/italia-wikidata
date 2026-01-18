@@ -192,7 +192,22 @@ def main():
             print("   [CRITICAL] No Data. Skipping.")
             continue
 
-        new_region_meta[key] = { "osm": current_osm_date, "wiki": now_str }
+        with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
+            json.dump({"type": "FeatureCollection", "features": features}, f)
+
+        # HIER DIE BERECHNUNG EINFÜGEN
+        done_count = sum(1 for f in features if f['properties']['status'] == 'done')
+        total_count = len(features)
+
+        new_region_meta[key] = { 
+            "osm": current_osm_date, 
+            "wiki": now_str,
+            "done": done_count,
+            "total": total_count
+        }
+        
+        print(f"   -> Saved {len(features)} items ({done_count} matched)")
+        processed_count += 1
 
         osm_ids = {}
         for el in osm_data.get('elements', []):

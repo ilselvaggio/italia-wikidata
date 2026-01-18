@@ -18,6 +18,15 @@
 
         #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
 
+        /* Left Column in Header */
+        #left-col { display: flex; align-items: center; gap: 15px; }
+
+        /* Mobile Dropdown */
+        #mobileSelect { 
+            display: none; background: #555; border: 1px solid #666; color: white; 
+            padding: 5px; border-radius: 4px; font-size: 14px; width: 150px;
+        }
+
         /* MAIN LAYOUT */
         #main-container { display: flex; height: calc(100% - 50px); width: 100%; }
         
@@ -37,15 +46,26 @@
         .region-item:hover { background-color: #34495e; }
         .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
 
-        /* CONTROLS */
+        /* STATS & BUTTONS */
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
         .stat-item input { margin: 0; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        .btn-download { background-color: #e67e22; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
-        .btn-download:hover { background-color: #d35400; }
+        /* DOWNLOAD BUTTON STYLE (Gray & PC Only) */
+        .btn-download { 
+            background-color: #bdc3c7; /* Hellgrau */
+            color: #333; /* Dunkler Text */
+            border: 1px solid #95a5a6; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 11px; 
+            display: none; /* Hidden by default until data loads */
+        }
+        .btn-download:hover { background-color: #aab7b8; }
 
         #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; display: flex; flex-direction: column; justify-content: center; min-width: 80px; }
         .date-row { white-space: nowrap; }
@@ -61,36 +81,33 @@
         /* MOBILE OPTIMIZATION */
         @media (max-width: 700px) {
             #header { height: auto; flex-direction: column; padding: 5px; gap: 5px; align-items: stretch; }
+            #left-col { width: 100%; justify-content: space-between; }
             #title { text-align: center; margin-bottom: 5px;}
+            #mobileSelect { display: block; } 
+            #sidebar { display: none; } 
             #controls { width: 100%; justify-content: center; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px; }
-            #meta-info { border: none; padding: 0; flex-direction: row; gap: 10px; width: 100%; text-align: center; margin-top: 3px; }
             
-            /* Sidebar becomes a top scrolling bar */
-            #main-container { flex-direction: column; height: calc(100% - 90px); }
-            #sidebar { 
-                width: 100%; height: auto; max-height: 120px; 
-                flex-direction: row; flex-wrap: wrap; 
-                border-right: none; border-bottom: 1px solid #ccc;
-                overflow-x: hidden; overflow-y: auto;
-                padding: 2px;
-            }
-            .region-item { 
-                flex: 1 1 45%; /* 2 items per row */
-                text-align: center; border: 1px solid #34495e; margin: 1px; border-radius: 3px;
-                padding: 6px; font-size: 12px;
-            }
-            .region-item.active { border: 1px solid #fff; border-left: 1px solid #fff; }
+            /* HIDE DOWNLOAD BUTTON ON MOBILE */
+            .btn-download { display: none !important; }
+            
+            #meta-info { border: none; padding: 0; flex-direction: row; gap: 10px; width: 100%; text-align: center; margin-top: 3px; }
+            #main-container { height: calc(100% - 110px); }
         }
     </style>
 </head>
 <body>
 
 <header id="header">
-    <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
+    <div id="left-col">
+        <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
+        <select id="mobileSelect" onchange="changeRegion(this.value)">
+            <option value="" disabled selected>Select Region...</option>
+        </select>
+    </div>
     
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download for JOSM</button>
         
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span style="margin-left:3px">Wikidata only</span> <span id="count-missing" style="font-weight:bold; margin-left:3px"></span>
@@ -140,7 +157,7 @@
         boundariesGeoJSON = bounds; 
         
         updateDates(metadata.global_osm_date, metadata.global_wiki_date);
-        renderSidebar(); // Sidebar without Reset Button
+        initNavigation();
 
         if (boundariesGeoJSON) loadRegionsShape();
     });
@@ -150,12 +167,11 @@
         document.getElementById('date-wiki').innerText = wiki || "--";
     }
 
-    function renderSidebar() {
+    function initNavigation() {
         var sb = document.getElementById('sidebar');
+        var mob = document.getElementById('mobileSelect');
         sb.innerHTML = "";
-        
-        // NO RESET BUTTON HERE
-        
+
         var sortedKeys = Object.keys(regionConfig).sort((a,b) => regionConfig[a].name.localeCompare(regionConfig[b].name));
         sortedKeys.forEach(key => {
             var div = document.createElement('div');
@@ -164,6 +180,11 @@
             div.innerText = regionConfig[key].name;
             div.onclick = function() { changeRegion(key); };
             sb.appendChild(div);
+
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.innerText = regionConfig[key].name;
+            mob.appendChild(opt);
         });
     }
 
@@ -209,6 +230,7 @@
         document.querySelectorAll('.region-item').forEach(el => el.classList.remove('active'));
         var activeItem = document.getElementById("sb-item-" + key);
         if(activeItem) activeItem.classList.add('active');
+        document.getElementById('mobileSelect').value = key;
 
         map.removeLayer(layers.regions);
         layers.activeBorder.clearLayers();
@@ -250,7 +272,6 @@
                 if (p.status === 'done') { color = "#2ecc71"; target = layers.done; cDone++; } 
                 else { cMiss++; currentMissingFeatures.push(feature); }
 
-                // FIXED LOGO URL
                 var pop = `<div style="text-align:center">
                     <b>${p.name}</b><br><small>${p.wikidata}</small>
                     <div class="logo-row">
@@ -271,7 +292,13 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('stat-missing').style.display = 'flex';
             document.getElementById('stat-done').style.display = 'flex';
-            if (cMiss > 0) document.getElementById('btnDownload').style.display = 'block';
+            
+            // SHOW BUTTON ON DESKTOP ONLY
+            if (cMiss > 0) {
+                // The CSS media query will force-hide it on mobile even if we set display:block here
+                document.getElementById('btnDownload').style.display = 'block';
+            }
+
             if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
             if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
         }).catch(e => { console.error(e); document.getElementById('loading').innerText = "Data error"; });

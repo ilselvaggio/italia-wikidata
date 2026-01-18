@@ -79,8 +79,18 @@
         if (boundariesGeoJSON) loadRegionsShape();
     });
 
+    // OPTIMIERTE FARBSKALA FÜR BESSERE UNTERSCHEIDBARKEIT
     function getHeatColor(p) {
-        return p > 80 ? '#27ae60' : p > 60 ? '#2ecc71' : p > 40 ? '#f1c40f' : p > 20 ? '#e67e22' : '#e74c3c';
+        if (p >= 90) return '#1e8449'; // Dunkelgrün
+        if (p >= 80) return '#27ae60'; // Grün
+        if (p >= 70) return '#2ecc71'; // Hellgrün
+        if (p >= 60) return '#a2d149'; // Limette
+        if (p >= 50) return '#f1c40f'; // Gelb
+        if (p >= 40) return '#f39c12'; // Gold/Dunkelgelb
+        if (p >= 30) return '#e67e22'; // Orange
+        if (p >= 20) return '#d35400'; // Orangerot
+        if (p >= 10) return '#e74c3c'; // Rot
+        return '#c0392b';              // Dunkelrot
     }
 
     function initNavigation() {
@@ -114,7 +124,7 @@
                 var color = "#3498db", opacity = 0.1;
                 if (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) {
                     var m = metaDataGlobal.regions[k];
-                    if (m.total > 0) { color = getHeatColor((m.done / m.total) * 100); opacity = 0.5; }
+                    if (m.total > 0) { color = getHeatColor((m.done / m.total) * 100); opacity = 0.6; }
                 }
                 return { color: color, weight: 1.5, fillOpacity: opacity };
             },

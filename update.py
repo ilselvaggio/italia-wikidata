@@ -71,7 +71,7 @@ def fetch_osm_area_fallback(area_id, retries=2):
         except: time.sleep(5)
     return None
 
-def get_wikidata_clean(qid, region_name):
+def get_wikidata_clean(qid):
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
@@ -83,17 +83,12 @@ def get_wikidata_clean(qid, region_name):
        OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='en') }} 
        OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='it') }}
     }}"""
-    
-    print(f"   -> Downloading Wikidata ({qid})...", end=" ", flush=True)
     try:
         headers = {'User-Agent': 'ItaliaWikidataCheck/1.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
-        print("OK.")
         return r.text
-    except Exception as e:
-        print(f"ERROR: {e}")
-        return None
+    except: return None
 
 def main():
     parser = argparse.ArgumentParser()
@@ -112,7 +107,6 @@ def main():
         try:
             with open(BLACKLIST_FILE, 'r', encoding='utf-8') as f:
                 blacklist = set(json.load(f))
-                print(f"--- Loaded Blacklist: {len(blacklist)} items ---")
         except: pass
 
     boundary_features = {}
@@ -128,64 +122,53 @@ def main():
                         boundary_features[osm_id] = feat
         except: pass
 
-    old_region_meta = {}
+    old_meta = {}
     if os.path.exists(METADATA_FILE):
         try:
             with open(METADATA_FILE, 'r') as f:
-                old_region_meta = json.load(f).get("regions", {})
+                old_meta = json.load(f).get("regions", {})
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
-    new_region_meta = old_region_meta.copy()
+    new_meta = old_meta.copy()
     processed_count = 0
 
     for key in target_regions:
         if key not in regions: continue
         config = regions[key]
-        print(f"\n--- Processing {config['name']} ---")
+        print(f"\nProcessing {config['name']}...")
         
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         osm_data = None
-        current_osm_date = "Unknown"
+        current_osm_date = now_str
         
         rel_id_str = str(int(config['osm']) - 3600000000)
         bbox = get_bbox_from_feature(boundary_features[rel_id_str]) if rel_id_str in boundary_features else None
         
         if bbox:
-            print(f"   -> Fetching OSM via BBox...", end=" ")
-            sys.stdout.flush()
             new_data = fetch_osm_bbox(bbox)
         else:
-            print(f"   -> Fallback: Fetching via Area...", end=" ")
-            sys.stdout.flush()
             new_data = fetch_osm_area_fallback(config['osm'])
 
         if new_data:
-            print("Success.")
-            with open(file_osm, 'w', encoding='utf-8') as f:
-                json.dump(new_data, f)
+            with open(file_osm, 'w', encoding='utf-8') as f: json.dump(new_data, f)
             osm_data = new_data
-            current_osm_date = now_str
         else:
-            print("Failed. Using cache.")
-            if key in old_region_meta: current_osm_date = old_region_meta[key].get("osm", "Unknown")
+            if key in old_meta: current_osm_date = old_meta[key].get("osm", "Unknown")
             if os.path.exists(file_osm):
-                try:
-                    with open(file_osm, 'r', encoding='utf-8') as f: osm_data = json.load(f)
-                except: pass
+                with open(file_osm, 'r', encoding='utf-8') as f: osm_data = json.load(f)
 
         if not osm_data: continue
 
         osm_ids = {}
         for el in osm_data.get('elements', []):
             if 'wikidata' in el.get('tags', {}):
-                raw_tags = el['tags']['wikidata'].replace(',', ';')
-                for raw in raw_tags.split(';'):
+                for raw in el['tags']['wikidata'].replace(',', ';').split(';'):
                     raw = raw.strip().upper()
                     if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
 
-        csv_text = get_wikidata_clean(config['qid'], config['name'])
+        csv_text = get_wikidata_clean(config['qid'])
         if not csv_text: continue
 
         features = []
@@ -197,6 +180,7 @@ def main():
             try:
                 lat, lon = float(row.get('lat') or row.get('?lat')), float(row.get('lon') or row.get('?lon'))
             except: continue
+            
             status = "done" if qid in osm_ids else "missing"
             features.append({
                 "type": "Feature",
@@ -205,21 +189,20 @@ def main():
             })
             seen.add(qid)
 
-        done_count = sum(1 for f in features if f['properties']['status'] == 'done')
-        total_count = len(features)
-        new_region_meta[key] = { "osm": current_osm_date, "wiki": now_str, "done": done_count, "total": total_count }
+        done = sum(1 for f in features if f['properties']['status'] == 'done')
+        total = len(features)
+        new_meta[key] = { "osm": current_osm_date, "wiki": now_str, "done": done, "total": total }
 
         with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
         
-        print(f"   -> Saved {len(features)} items ({done_count}/{total_count})")
+        print(f"   -> Saved {total} items ({done} matched)")
         processed_count += 1
         time.sleep(1)
 
     if processed_count > 0:
         with open(METADATA_FILE, 'w') as f:
-            json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_region_meta }, f)
-    print("\nDONE.")
+            json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_meta }, f)
 
 if __name__ == "__main__":
     main()

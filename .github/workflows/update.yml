@@ -34,21 +34,22 @@ jobs:
 
       - name: Update and Sync
         run: |
+          # Git Identität setzen
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # 1. Start: Aktuellen Stand holen
-          git pull origin main --no-rebase
-          
-          # 2. Skript ausführen (Dauer: ca. 6-10 Min)
+          # 1. Skript ausführen (generiert die neuen Daten)
           python -u update.py
           
-          # 3. Dateien vormerken
-          git add osm/*.json data_overpass/*.geojson metadata.json
+          # 2. Alle neuen Dateien vormerken
+          git add .
+          
+          # 3. Committen (speichert die Daten lokal im Runner)
           git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
           
-          # 4. FIX: Neueste Änderungen vom Server holen und integrieren
-          git pull origin main --rebase
+          # 4. WICHTIG: Updates vom Server holen und Konflikte "gewaltsam" lösen
+          # -Xtheirs bedeutet hier: Nimm bei Konflikten die Version des Skripts (die wir gerade committet haben)
+          git pull --rebase -Xtheirs origin main
           
           # 5. Hochladen
           git push origin main

@@ -11,8 +11,8 @@ import argparse
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-OSM_DIR = "osm"             
-DATA_DIR = "data_overpass"  
+OSM_DIR = "osm"
+DATA_DIR = "data_overpass"
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
@@ -95,7 +95,9 @@ def main():
     parser.add_argument("--region", default="all", help="Region key")
     args = parser.parse_args()
 
-    if not os.path.exists(REGIONS_FILE): return
+    if not os.path.exists(REGIONS_FILE): 
+        print(f"Error: {REGIONS_FILE} not found.")
+        return
     if not os.path.exists(OSM_DIR): os.makedirs(OSM_DIR)
     if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
 
@@ -147,8 +149,10 @@ def main():
         bbox = get_bbox_from_feature(boundary_features[rel_id_str]) if rel_id_str in boundary_features else None
         
         if bbox:
+            print("   -> Fetching OSM via BBox")
             new_data = fetch_osm_bbox(bbox)
         else:
+            print("   -> Fetching OSM via Area (Fallback)")
             new_data = fetch_osm_area_fallback(config['osm'])
 
         if new_data:

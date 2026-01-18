@@ -1,16 +1,37 @@
 name: Update Map Data Online
 
 on:
-  push:
-    paths:
-      - 'osm/**'
-      - 'update.py'
-      - 'regions.json'
-      - 'index.html'
-      - '.github/workflows/update.yml'
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3 * * *' # Täglich 3 Uhr nachts (alles)
   workflow_dispatch:
+    inputs:
+      region:
+        description: 'Region zum Aktualisieren'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - abruzzo
+          - basilicata
+          - calabria
+          - campania
+          - emilia_romagna
+          - friuli_venezia_giulia
+          - lazio
+          - liguria
+          - lombardia
+          - marche
+          - molise
+          - piemonte
+          - puglia
+          - sardegna
+          - sicilia
+          - toscana
+          - trentino_alto_adige
+          - umbria
+          - valle_aosta
+          - veneto
 
 jobs:
   build:
@@ -34,22 +55,14 @@ jobs:
 
       - name: Update and Sync
         run: |
-          # Git Identität setzen
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # 1. Skript ausführen (generiert die neuen Daten)
-          python -u update.py
+          # Skript mit Parameter starten (Auswahl aus dem Menü)
+          python -u update.py --region "${{ github.event.inputs.region || 'all' }}"
           
-          # 2. Alle neuen Dateien vormerken
           git add .
+          git commit -m "Manual update: ${{ github.event.inputs.region || 'all' }} [skip ci]" || echo "No changes"
           
-          # 3. Committen (speichert die Daten lokal im Runner)
-          git commit -m "Auto-update map data [skip ci]" || echo "No changes to commit"
-          
-          # 4. WICHTIG: Updates vom Server holen und Konflikte "gewaltsam" lösen
-          # -Xtheirs bedeutet hier: Nimm bei Konflikten die Version des Skripts (die wir gerade committet haben)
           git pull --rebase -Xtheirs origin main
-          
-          # 5. Hochladen
           git push origin main

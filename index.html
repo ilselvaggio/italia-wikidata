@@ -7,52 +7,81 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
-        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; height: 50px; z-index: 1000; position: relative; }
-        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; }
+        
+        /* HEADER */
+        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; height: 50px; z-index: 1000; position: relative; }
+        #left-col { display: flex; align-items: center; gap: 10px; }
+        #menu-toggle { display: none; background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; }
+        
+        /* CONTROLS */
         #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
-        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; overflow-y: auto; border-right: 1px solid #1a252f; flex-shrink: 0; }
-        #main-container { display: flex; height: calc(100% - 50px); width: 100%; }
+        
+        /* SIDEBAR */
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; overflow-y: auto; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; }
+        
+        /* MAIN LAYOUT */
+        #main-container { display: flex; height: calc(100% - 50px); width: 100%; position: relative; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
-        .region-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; }
+        
+        .region-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; }
         .region-item:hover { background-color: #34495e; }
         .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
-        .stat-item { display: none; align-items: center; gap: 4px; }
+        
+        .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
+        
         .btn-download { 
             background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; 
             padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; 
             display: none; 
         }
         .btn-download:hover { background-color: #aab7b8; }
-        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
-        #loading { display:none; color: #f1c40f; font-weight: bold; }
         
-        /* STILE PER I LOGHI NEI POPUP */
+        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
+        #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
+        
+        /* LOGOS IN POPUP */
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link:hover { transform: scale(1.1); }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        @media (max-width: 700px) { #sidebar { display: none; } }
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 700px) {
+            #menu-toggle { display: block; }
+            #sidebar { 
+                position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; 
+                transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+            }
+            #sidebar.open { transform: translateX(0); }
+            #title { font-size: 14px; }
+            #controls { gap: 5px; }
+            .stat-item span:nth-child(3) { display: none; } /* Hide text labels on small screens */
+            #meta-info { display: none; } /* Hide dates on very small screens to save space */
+        }
     </style>
 </head>
 <body>
 <header id="header">
-    <div id="left-col"><div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div></div>
+    <div id="left-col">
+        <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
+    </div>
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
-        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')">
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">↓ JSON</button>
+        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Wikidata only">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Wikidata only</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
-        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')">
-            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
+        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="Done">
+            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>Done</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
         <div id="meta-info">
-            <div><b>OSM:</b> <span id="date-osm">--</span></div>
-            <div><b>WD:</b> <span id="date-wiki">--</span></div>
+            <div>OSM: <span id="date-osm">--</span></div>
+            <div>WD: <span id="date-wiki">--</span></div>
         </div>
     </div>
 </header>
@@ -70,15 +99,23 @@
         attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
     }).addTo(map);
 
-    // CREAZIONE LIVELLI (PANES) PER GESTIRE L'ORDINE DI VISUALIZZAZIONE
-    map.createPane('regionsPane');
-    map.getPane('regionsPane').style.zIndex = 400; // Sfondo
-    map.createPane('markersPane');
-    map.getPane('markersPane').style.zIndex = 600; // In primo piano
+    map.createPane('regionsPane'); map.getPane('regionsPane').style.zIndex = 400;
+    map.createPane('markersPane'); map.getPane('markersPane').style.zIndex = 600;
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
     var currentMissingFeatures = [];
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // Close sidebar when clicking map on mobile
+    map.on('click', function() {
+        if (window.innerWidth <= 700) {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+    });
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
@@ -86,8 +123,8 @@
         fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null)
     ]).then(([regions, metadata, bounds]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
-        document.getElementById('date-osm').innerText = metadata.global_osm_date || "--";
-        document.getElementById('date-wiki').innerText = metadata.global_wiki_date || "--";
+        if(metadata.global_osm_date) document.getElementById('date-osm').innerText = metadata.global_osm_date.split(' ')[0];
+        if(metadata.global_wiki_date) document.getElementById('date-wiki').innerText = metadata.global_wiki_date.split(' ')[0];
         initNavigation();
         if (boundariesGeoJSON) loadRegionsShape();
     });
@@ -124,7 +161,7 @@
             var div = document.createElement('div');
             div.className = "region-item"; div.id = "sb-item-" + key;
             div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
-            div.onclick = () => changeRegion(key);
+            div.onclick = () => { changeRegion(key); if(window.innerWidth<=700) toggleSidebar(); };
             sb.appendChild(div);
         });
     }
@@ -154,7 +191,6 @@
                 var k = getKeyFromFeature(f); 
                 if (k) { 
                     l.on('click', () => changeRegion(k)); 
-                    // FIX: RIMOSSO IL PANE 'regionsPane' DAL TOOLTIP PER FARLO APPARIRE SOPRA
                     l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
             }
@@ -185,8 +221,6 @@
                 var isD = f.properties.status === 'done';
                 if(isD) cD++; else { cM++; currentMissingFeatures.push(f); }
                 var p = f.properties;
-                
-                // POPUP CON I LOGHI CORRETTI
                 var pop = `<div style="text-align:center">
                     <b>${p.name}</b><br><small>${p.wikidata}</small>
                     <div class="logo-row">

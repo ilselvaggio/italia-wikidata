@@ -72,10 +72,12 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
+    # Added P5817 filter to exclude "destroyed" locations
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
+       FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }} 
        MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
        BIND(geof:latitude(?loc) as ?lat) 

@@ -136,7 +136,7 @@ def main():
     target_regions = regions.keys() if args.region == 'all' else [args.region]
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     rome_time = utc_now + datetime.timedelta(hours=1)
-    now_str = rome_time.strftime("%Y-%m-%d %H:%M CET")
+    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
     new_meta = old_meta.copy()
     processed_count = 0
 

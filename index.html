@@ -72,16 +72,16 @@
     </div>
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">↓ WD Only</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Wikidata only">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Wikidata only</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
         <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="Done">
-            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>Done</span> <span id="count-done" style="font-weight:bold"></span>
+            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
         <div id="meta-info">
             <div>OSM: <span id="date-osm">--</span></div>
-            <div>WD: <span id="date-wiki">--</span></div>
+            <div>Wikidata: <span id="date-wiki">--</span></div>
         </div>
     </div>
 </header>

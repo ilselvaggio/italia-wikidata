@@ -123,8 +123,8 @@
         fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null)
     ]).then(([regions, metadata, bounds]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
-        if(metadata.global_osm_date) document.getElementById('date-osm').innerText = metadata.global_osm_date.split(' ')[0];
-        if(metadata.global_wiki_date) document.getElementById('date-wiki').innerText = metadata.global_wiki_date.split(' ')[0];
+        if(metadata.global_osm_date) document.getElementById('date-osm').innerText = metadata.global_osm_date;
+        if(metadata.global_wiki_date) document.getElementById('date-wiki').innerText = metadata.global_wiki_date;
         initNavigation();
         if (boundariesGeoJSON) loadRegionsShape();
     });

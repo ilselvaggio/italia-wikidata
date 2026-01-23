@@ -134,7 +134,8 @@ def main():
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
+    now_str = (utc_now + datetime.timedelta(hours=1)).strftime("%Y-%m-%d %H:%M UTC+1")
     new_meta = old_meta.copy()
     processed_count = 0
 

@@ -12,14 +12,13 @@ REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
-DATA_DIR = "data_overpass" # Ensure this matches your local folder name
+DATA_DIR = "data_overpass" # Ensure matches your folder
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 HISTORY_FILE = "history.json"
 
 # --- 3-LEVEL CATEGORY CONFIGURATION ---
-# Structure: Main Group -> Subgroup -> Type -> [QIDs]
 CATEGORY_CONFIG = {
     "Religione": {
         "color": "#E63946",
@@ -86,9 +85,9 @@ CATEGORY_CONFIG = {
                 "Casa museo": ["Q2087181"]
             },
             "Biblioteche e Archivi": {
-                "Biblioteca pubblica": ["Q28564", "Q2326815", "Q124750618", "Q124750593", "Q124750711"],
                 "Biblioteca universitaria": ["Q1622062"],
-                "Biblioteca": ["Q7075", "Q380829", "Q385994", "Q105763925"],
+                "Biblioteca pubblica": ["Q28564", "Q2326815", "Q124750618"],
+                "Altre biblioteche": ["Q7075", "Q380829", "Q385994", "Q124750593", "Q124750711", "Q105763925"],
                 "Archivio storico": ["Q3621673"],
                 "Archivio": ["Q166118", "Q604177", "Q17620767", "Q2877653"]
             },

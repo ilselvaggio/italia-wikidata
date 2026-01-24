@@ -18,9 +18,79 @@ BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 HISTORY_FILE = "history.json"
 
-# --- STRICT 3-LEVEL CATEGORY CONFIGURATION ---
-# Based strictly on your audit list. No merging.
+# --- 3-LEVEL CATEGORY CONFIGURATION (STRICT) ---
+# Basierend auf deiner Audit-Liste. Jede QID hat einen festen Platz.
 CATEGORY_CONFIG = {
+    "Religione": {
+        "color": "#E63946",
+        "subgroups": {
+            "Luoghi di Culto": {
+                "Chiesa": ["Q16970", "Q317557"],
+                "Chiesa parrocchiale": ["Q55876909", "Q317557", "Q1088552"],
+                "Basilica minore": ["Q120560"],
+                "Cappella": ["Q108325"],
+                "Cappella cimiteriale": ["Q1457501"],
+                "Oratorio": ["Q580499"],
+                "Santuario": ["Q697295"],
+                "Tempio": ["Q44539"],
+                "Capitello votivo": ["Q3395121"],
+                "Via Crucis": ["Q231685"],
+                "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496"]
+            },
+            "Vita Monastica": {
+                "Monastero": ["Q44613"],
+                "Abbazia": ["Q160742"],
+                "Convento": ["Q1128397"],
+                "Eremo": ["Q513550"],
+                "Canonica": ["Q607241"]
+            },
+            "Cimiteri": {
+                "Cimitero": ["Q39614"],
+                "Cimitero di guerra": ["Q1241568"],
+                "Necropoli": ["Q200141"],
+                "Tomba": ["Q381885"],
+                "Monumento funebre": ["Q56055312"]
+            },
+            "Amministrazione Religiosa": {
+                "Parrocchia": ["Q102496"]
+            }
+        }
+    },
+    "Cultura e tempo libero": {
+        "color": "#FFB703",
+        "subgroups": {
+            "Biblioteche": {
+                "Biblioteca universitaria": ["Q1622062"],
+                "Biblioteca pubblica": ["Q28564", "Q2326815", "Q124750618"],
+                "Altre biblioteche": ["Q7075", "Q380829", "Q385994", "Q124750593", "Q124750711", "Q105763925", "Q1076099"] 
+            },
+            "Musei": {
+                "Museo": ["Q33506"],
+                "Museo d'arte": ["Q207694", "Q108860593"],
+                "Pinacoteca": ["Q740437"],
+                "Museo archeologico": ["Q3329412"],
+                "Museo storico": ["Q16735822"],
+                "Museo etnografico": ["Q12104174"],
+                "Museo pubblico": ["Q124830213", "Q124830411"],
+                "Museo didattico": ["Q94701740"],
+                "Ecomuseo": ["Q94701721"],
+                "Casa museo": ["Q2087181"]
+            },
+            "Archivi": {
+                "Archivio": ["Q166118"],
+                "Archivio comunale": ["Q604177"],
+                "Archivio di Stato": ["Q17620767"],
+                "Archivio accademico": ["Q27032435", "Q2877653"]
+            },
+            "Spettacolo": {
+                "Teatro": ["Q24354"],
+                "Teatro d'opera": ["Q153562"],
+                "Cinema": ["Q41253"],
+                "Casinò": ["Q133215"],
+                "Centro culturale": ["Q1329623"]
+            }
+        }
+    },
     "Amministrazione": {
         "color": "#F4A261",
         "subgroups": {
@@ -43,70 +113,90 @@ CATEGORY_CONFIG = {
             }
         }
     },
-    "Cultura e tempo libero": {
-        "color": "#FFB703",
+    "Fortificazioni e militare": {
+        "color": "#606C38",
         "subgroups": {
-            "Biblioteche": {
-                "Biblioteca pubblica": ["Q28564"],
-                "Biblioteca universitaria": ["Q1622062"],
-                "Biblioteca scolastica": ["Q1076099"],
-                "Biblioteca privata": ["Q380829"],
-                "Biblioteca specializzata": ["Q385994"],
-                "Biblioteca di ente": ["Q124750618"],
-                "Biblioteca": ["Q7075"]
+            "Fortificazioni": {
+                "Castello": ["Q23413"],
+                "Castello in rovina": ["Q17715832"],
+                "Rocca": ["Q1195705"],
+                "Forte": ["Q1785071"],
+                "Fortezza": ["Q57831"],
+                "Fortificazione": ["Q57821"],
+                "Mura cittadine": ["Q16748868"],
+                "Porta cittadina": ["Q82117"],
+                "Torre": ["Q12518"],
+                "Torre campanaria": ["Q200334"],
+                "Baluardo": ["Q81851"]
             },
-            "Musei": {
-                "Museo": ["Q33506"],
-                "Museo d'arte": ["Q207694", "Q108860593"],
-                "Museo archeologico": ["Q3329412"],
-                "Museo storico": ["Q16735822"],
-                "Museo etnografico": ["Q12104174"],
-                "Museo pubblico": ["Q124830213", "Q124830411"],
-                "Museo didattico": ["Q94701740"],
-                "Ecomuseo": ["Q94701721"],
-                "Casa museo": ["Q2087181"]
-            },
-            "Archivi": {
-                "Archivio": ["Q166118"],
-                "Archivio comunale": ["Q604177"],
-                "Archivio di Stato": ["Q17620767"],
-                "Archivio accademico": ["Q27032435"]
-            },
-            "Spettacolo": {
-                "Teatro": ["Q24354"],
-                "Teatro d'opera": ["Q153562"],
-                "Cinema": ["Q41253"],
-                "Casinò": ["Q133215"],
-                "Centro culturale": ["Q1329623"]
+            "Militare": {
+                "Caserma": ["Q131263"],
+                "Bunker": ["Q91122"],
+                "Campo di concentramento": ["Q152081"]
             }
         }
     },
-    "Religione": {
-        "color": "#E63946",
+    "Natura e paesaggio": {
+        "color": "#2A9D8F",
         "subgroups": {
-            "Luoghi di Culto": {
-                "Chiesa": ["Q16970", "Q317557"],
-                "Chiesa parrocchiale": ["Q55876909", "Q317557"],
-                "Basilica minore": ["Q120560"],
-                "Cappella": ["Q108325"],
-                "Oratorio": ["Q580499"],
-                "Santuario": ["Q697295"],
-                "Capitello votivo": ["Q3395121"],
-                "Via Crucis": ["Q231685"],
-                "Ex chiesa": ["Q19899465"]
+            "Acqua": {
+                "Lago": ["Q23397"],
+                "Bacino artificiale": ["Q131681", "Q4735538"],
+                "Fiume": ["Q4022"],
+                "Sorgente": ["Q124714"],
+                "Cascata": ["Q34038"]
             },
-            "Vita Monastica": {
-                "Monastero": ["Q44613"],
-                "Abbazia": ["Q160742"],
-                "Canonica": ["Q607241"],
-                "Eremo": ["Q513550"]
+            "Mare e Costa": {
+                "Spiaggia": ["Q40080"],
+                "Baia": ["Q39594"],
+                "Capo": ["Q185113"],
+                "Isola": ["Q23442"]
             },
-            "Cimiteri": {
-                "Cimitero": ["Q39614"],
-                "Cimitero di guerra": ["Q1241568"]
+            "Montagna": {
+                "Montagna": ["Q8502"],
+                "Vetta": ["Q207326"],
+                "Catena montuosa": ["Q46831"],
+                "Valle": ["Q39816"],
+                "Passo": ["Q2231510"],
+                "Sella": ["Q10862618"],
+                "Gap": ["Q16887036"],
+                "Grotta": ["Q35509"]
             },
-            "Amministrazione Religiosa": {
-                "Parrocchia": ["Q102496"]
+            "Verde": {
+                "Parco": ["Q22698"],
+                "Parco cittadino": ["Q22746"],
+                "Giardino": ["Q1107656"],
+                "Orto botanico": ["Q167346"],
+                "Albero monumentale": ["Q811534"],
+                "Area protetta": ["Q473972", "Q15069452", "Q3936950"]
+            }
+        }
+    },
+    "Dimore ed edifici": {
+        "color": "#A53860",
+        "subgroups": {
+            "Residenze": {
+                "Palazzo": ["Q16560"],
+                "Palazzo italiano": ["Q2651004"],
+                "Villa": ["Q3950", "Q80966", "Q111189432"],
+                "Casa": ["Q3947"],
+                "Casa rurale": ["Q16884952"],
+                "Cascina": ["Q1169748"],
+                "Grangia": ["Q1098590"],
+                "Fattoria": ["Q1207909"]
+            },
+            "Ospitalità": {
+                "Albergo": ["Q27686"],
+                "Guest house": ["Q2460422"],
+                "Rifugio di montagna": ["Q182676"],
+                "Bivacco alpino": ["Q20743510"]
+            },
+            "Strutture Varie": {
+                "Edificio": ["Q41176"],
+                "Complesso di edifici": ["Q1497375"],
+                "Struttura architettonica": ["Q811979"],
+                "Rifugio per cani": ["Q1411287"],
+                "Dépendance": ["Q3044808"]
             }
         }
     },
@@ -129,82 +219,6 @@ CATEGORY_CONFIG = {
             }
         }
     },
-    "Fortificazioni e militare": {
-        "color": "#606C38",
-        "subgroups": {
-            "Fortificazioni": {
-                "Castello": ["Q23413"],
-                "Castello in rovina": ["Q17715832"],
-                "Forte": ["Q1785071"],
-                "Fortezza": ["Q57831"],
-                "Fortificazione": ["Q57821"],
-                "Mura cittadine": ["Q16748868"],
-                "Porta cittadina": ["Q82117"],
-                "Torre": ["Q12518"],
-                "Torre campanaria": ["Q200334"]
-            },
-            "Militare": {
-                "Caserma": ["Q131263"],
-                "Bunker": ["Q91122"],
-                "Campo di concentramento": ["Q152081"]
-            }
-        }
-    },
-    "Natura e paesaggio": {
-        "color": "#2A9D8F",
-        "subgroups": {
-            "Acqua": {
-                "Lago": ["Q23397"],
-                "Bacino artificiale": ["Q131681"],
-                "Sorgente": ["Q124714"]
-            },
-            "Mare e Costa": {
-                "Spiaggia": ["Q40080"],
-                "Baia": ["Q39594"],
-                "Isola": ["Q23442"]
-            },
-            "Montagna": {
-                "Montagna": ["Q8502"],
-                "Valle": ["Q39816"],
-                "Passo": ["Q2231510"],
-                "Sella": ["Q10862618"],
-                "Gap": ["Q16887036"]
-            },
-            "Verde": {
-                "Parco": ["Q22698"],
-                "Parco cittadino": ["Q22746"],
-                "Giardino": ["Q1107656"],
-                "Albero monumentale": ["Q811534"],
-                "Area protetta": ["Q473972", "Q15069452", "Q3936950"]
-            }
-        }
-    },
-    "Dimore ed edifici": {
-        "color": "#A53860",
-        "subgroups": {
-            "Residenze": {
-                "Palazzo": ["Q16560"],
-                "Palazzo italiano": ["Q2651004"],
-                "Villa": ["Q3950"],
-                "Casa": ["Q3947"],
-                "Cascina": ["Q1169748"],
-                "Grangia": ["Q1098590"]
-            },
-            "Ospitalità": {
-                "Albergo": ["Q27686"],
-                "Guest house": ["Q2460422"],
-                "Rifugio di montagna": ["Q182676"],
-                "Bivacco alpino": ["Q20743510"]
-            },
-            "Strutture Varie": {
-                "Edificio": ["Q41176"],
-                "Complesso di edifici": ["Q1497375"],
-                "Struttura architettonica": ["Q811979"],
-                "Rifugio per cani": ["Q1411287"],
-                "Dépendance": ["Q3044808"]
-            }
-        }
-    },
     "Infrastrutture": {
         "color": "#7D8597",
         "subgroups": {
@@ -220,17 +234,24 @@ CATEGORY_CONFIG = {
                 "Aerodromo": ["Q94993988"],
                 "Porto": ["Q44782"],
                 "Valico di confine": ["Q55599109"],
-                "Galleria": ["Q44377"],
+                "Galleria": ["Q44377", "Q2354973"],
                 "Strada urbana": ["Q79007"]
             },
             "Industria e Tecnica": {
                 "Edificio industriale": ["Q1662011"],
                 "Mulino": ["Q44494"],
+                "Fabbrica": ["Q3973051"],
                 "Centrale telefonica": ["Q256132"],
                 "Centrale elettrica": ["Q339353"],
                 "Lavatoio": ["Q1690211"],
                 "Stazione meteorologica": ["Q190107"],
-                "Società scientifica": ["Q955824"]
+                "Società scientifica": ["Q955824"],
+                "Osservatorio": ["Q1254933"]
+            },
+            "Opere Ingegneristiche": {
+                "Ponte": ["Q12280"],
+                "Viadotto": ["Q181348"],
+                "Faro": ["Q39715"]
             },
             "Servizi": {
                 "Servizio": ["Q13226383"],
@@ -245,9 +266,14 @@ CATEGORY_CONFIG = {
             "Siti": {
                 "Sito archeologico": ["Q839954"],
                 "Parco archeologico": ["Q3363945"],
-                "Nuraghe": ["Q688292"],
-                "Domus": ["Q782970"],
-                "Rovine": ["Q109607"]
+                "Nuraghe": ["Q688292", "Q1385277"],
+                "Domus de Janas": ["Q782970"],
+                "Tomba dei giganti": ["Q1523627"],
+                "Rovine": ["Q109607"],
+                "Città antica": ["Q15661340"],
+                "Anfiteatro": ["Q41735"],
+                "Teatro romano": ["Q3243464"],
+                "Terme": ["Q1341387"]
             }
         }
     },
@@ -258,6 +284,7 @@ CATEGORY_CONFIG = {
                 "Monumento": ["Q4989906"],
                 "Memoriale di guerra": ["Q575759"],
                 "Targa commemorativa": ["Q721747"],
+                "Arco di trionfo": ["Q200688"],
                 "Statua": ["Q179700"],
                 "Fontana": ["Q483453"],
                 "Elemento architettonico": ["Q391414"]
@@ -354,7 +381,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/10.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/11.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text

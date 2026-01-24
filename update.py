@@ -122,8 +122,8 @@ def main():
     if not os.path.exists(OSM_DIR): os.makedirs(OSM_DIR)
     if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
 
-    with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
-        regions = json.load(f)
+    with open(CATEGORY_CONFIG_FILE, "r", encoding="utf-8") as f:
+        CATEGORY_CONFIG = json.load(f)
 
     blacklist = set()
     if os.path.exists(BLACKLIST_FILE):

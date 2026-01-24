@@ -11,26 +11,25 @@ REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
-DATA_DIR = "data_overpass" 
+DATA_DIR = "data_overpass"
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 HISTORY_FILE = "history.json"
 CATEGORY_CONFIG_FILE = "category_config.json"
 
-with open(CATEGORY_CONFIG_FILE, "r", encoding="utf-8") as f:
-    CATEGORY_CONFIG = json.load(f)
-
-QID_LOOKUP = {}
-for group_name, group_data in CATEGORY_CONFIG.items():
-    for subgroup_name, types_dict in group_data["subgroups"].items():
-        for type_name, qids in types_dict.items():
-            for qid in qids:
-                QID_LOOKUP[qid] = {
-                    "group": group_name,
-                    "subgroup": subgroup_name,
-                    "type": type_name
-                }
+def build_qid_lookup(category_config):
+    qid_lookup = {}
+    for group_name, group_data in category_config.items():
+        for subgroup_name, types_dict in group_data["subgroups"].items():
+            for type_name, qids in types_dict.items():
+                for qid in qids:
+                    qid_lookup[qid] = {
+                        "group": group_name,
+                        "subgroup": subgroup_name,
+                        "type": type_name
+                    }
+    return qid_lookup
 
 def get_bbox_from_feature(feature):
     all_coords = []
@@ -44,7 +43,7 @@ def get_bbox_from_feature(feature):
     if not all_coords: return None
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
-    pad = 0.02 
+    pad = 0.02
     return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
 
 def fetch_osm_bbox(bbox, retries=3):
@@ -90,21 +89,21 @@ def fetch_osm_area_fallback(area_id, retries=2):
 def get_wikidata_clean(qid):
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
-       
+
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
-       FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }} 
-       FILTER NOT EXISTS {{ ?item wdt:P5816 wd:Q56556915 }} 
+       FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }}
+       FILTER NOT EXISTS {{ ?item wdt:P5816 wd:Q56556915 }}
        FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q11639308 }}
 
        MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
-       
+
        OPTIONAL {{ ?item wdt:P31 ?type. }}
 
-       BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
-       BIND(geof:latitude(?loc) as ?lat) 
-       BIND(geof:longitude(?loc) as ?lon) 
-       
+       BIND(STRAFTER(STR(?item), '/entity/') as ?qid)
+       BIND(geof:latitude(?loc) as ?lat)
+       BIND(geof:longitude(?loc) as ?lon)
+
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
@@ -119,14 +118,19 @@ def main():
     parser.add_argument("--region", default="all", help="Region key")
     args = parser.parse_args()
 
-    if not os.path.exists(REGIONS_FILE): 
+    if not os.path.exists(REGIONS_FILE):
         print(f"Error: {REGIONS_FILE} not found.")
         return
     if not os.path.exists(OSM_DIR): os.makedirs(OSM_DIR)
     if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
 
+    with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
+        regions = json.load(f)
+
     with open(CATEGORY_CONFIG_FILE, "r", encoding="utf-8") as f:
-        CATEGORY_CONFIG = json.load(f)
+        category_config = json.load(f)
+
+    qid_lookup = build_qid_lookup(category_config)
 
     blacklist = set()
     if os.path.exists(BLACKLIST_FILE):
@@ -158,7 +162,7 @@ def main():
     target_regions = regions.keys() if args.region == 'all' else [args.region]
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     now_str = utc_now.isoformat()
-    
+
     new_meta = old_meta.copy()
     processed_count = 0
 
@@ -166,14 +170,14 @@ def main():
         if key not in regions: continue
         config = regions[key]
         print(f"\nProcessing {config['name']}...")
-        
+
         file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
         osm_data = None
         current_osm_date = now_str
-        
+
         rel_id_str = str(int(config['osm']) - 3600000000)
         bbox = get_bbox_from_feature(boundary_features[rel_id_str]) if rel_id_str in boundary_features else None
-        
+
         if bbox:
             print("   -> Fetching OSM via BBox")
             new_data = fetch_osm_bbox(bbox)
@@ -210,12 +214,12 @@ def main():
             try:
                 lat, lon = float(row.get('lat') or row.get('?lat')), float(row.get('lon') or row.get('?lon'))
             except: continue
-            
+
             type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
             label_val = row.get('itemLabel') or row.get('?itemLabel') or qid
 
-            if type_qid in QID_LOOKUP:
-                match = QID_LOOKUP[type_qid]
+            if type_qid in qid_lookup:
+                match = qid_lookup[type_qid]
                 group = match["group"]
                 subgroup = match["subgroup"]
                 type_name = match["type"]
@@ -225,17 +229,17 @@ def main():
                 type_name = "Altro"
 
             status = "done" if qid in osm_ids else "missing"
-            
+
             features.append({
                 "type": "Feature",
-                "properties": { 
-                    "wikidata": qid, 
-                    "name": label_val, 
-                    "status": status, 
+                "properties": {
+                    "wikidata": qid,
+                    "name": label_val,
+                    "status": status,
                     "osm_id": osm_ids.get(qid),
                     "group": group,
-                    "subgroup": subgroup, 
-                    "subcategory": type_name 
+                    "subgroup": subgroup,
+                    "subcategory": type_name
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })
@@ -247,28 +251,27 @@ def main():
 
         with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
-        
+
         print(f"   -> Saved {total} items ({done} matched)")
         processed_count += 1
         time.sleep(1)
 
     if processed_count > 0:
-        
+
         with open(METADATA_FILE, 'w') as f:
             json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_meta }, f)
-        
 
         history = []
         if os.path.exists(HISTORY_FILE):
             try:
                 with open(HISTORY_FILE, 'r') as f: history = json.load(f)
             except: pass
-        
+
         today_str = datetime.datetime.now().strftime("%Y-%m-%d")
         history = [h for h in history if h.get("date") != today_str]
         history.append({ "date": today_str, "data": new_meta })
         history.sort(key=lambda x: x['date'])
-        
+
         with open(HISTORY_FILE, 'w') as f:
             json.dump(history, f)
             print(f"   -> History updated for {today_str}")

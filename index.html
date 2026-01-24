@@ -28,13 +28,6 @@
 
         /* SIDEBAR */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
-        
-        /* SEARCH BAR */
-        #search-container { padding: 10px; border-bottom: 1px solid #34495e; display: none; }
-        #catSearch { width: 90%; padding: 5px; border-radius: 4px; border: none; font-size: 12px; background: #34495e; color: white; }
-        #catSearch::placeholder { color: #95a5a6; }
-        #catSearch:focus { outline: none; background: #3e5871; }
-
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
         #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
 
@@ -53,9 +46,14 @@
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
-        /* LEVEL 2: SUBGROUPS */
-        .subgroup-header { padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #95a5a6; background-color: #233140; border-bottom: 1px solid #2c3e50; letter-spacing: 0.5px; }
+        /* LEVEL 2: SUBGROUPS (CLICKABLE) */
+        .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
+        .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
+        .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
         
+        .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
+        .subgroup-dl-btn:hover { background: #27ae60; color: white; }
+
         /* LEVEL 3: TYPES */
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
@@ -92,7 +90,7 @@
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
             #btnDownload { display: none !important; } 
-            .subcat-dl-btn { display: none; } 
+            .subcat-dl-btn, .subgroup-dl-btn { display: none; } 
             .desktop-msg { display: none; }
             .mobile-msg { display: inline; }
             .leaflet-control-zoom { display: none !important; }
@@ -123,9 +121,6 @@
 </header>
 <div id="main-container">
     <div id="sidebar">
-        <div id="search-container">
-            <input type="text" id="catSearch" placeholder="Cerca categoria..." oninput="filterCategories()">
-        </div>
         <div id="sidebar-content"></div>
         <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
     </div>
@@ -218,22 +213,30 @@
         return `<span style="${style}; font-size:11px; margin-right:5px;">${prefix}${diff}%</span>`;
     }
 
+    // --- FIX FOR MAP INTERACTION BUG ---
     function toggleViewMode() {
         if (viewMode === 'categories') {
             viewMode = 'regions';
             activeCategoryFilters.clear();
             expandedGroups.clear();
+            
+            // Clean UI
             document.body.classList.remove('region-loaded');
             document.getElementById('controls').style.display = 'none'; 
             document.getElementById('cat-toggle-btn').style.display = 'none'; 
             document.getElementById('map-placeholder').style.display = 'block';
-            document.getElementById('search-container').style.display = 'none'; // Hide search
-            document.getElementById('catSearch').value = ""; // Clear search
             
+            // HARD RESET MAP LAYERS
             layers.activeBorder.clearLayers();
             layers.missing.clearLayers(); 
             layers.done.clearLayers();
+            map.closePopup();
             map.setView([42.0, 12.5], 6);
+            
+            // Ensure regions layer is visible and clickable
+            if(!map.hasLayer(layers.regions)) map.addLayer(layers.regions);
+            layers.regions.bringToFront(); 
+            
             renderSidebar();
         }
     }
@@ -253,24 +256,23 @@
         renderMarkers(currentData);
     }
 
+    // NEW: Middle Category (Subgroup) Selection
+    function toggleSubgroupSelection(subgroup, types) {
+        var allSelected = types.every(t => activeCategoryFilters.has(t));
+        if (allSelected) {
+            types.forEach(t => activeCategoryFilters.delete(t));
+        } else {
+            types.forEach(t => activeCategoryFilters.add(t));
+        }
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
     function toggleCategoryFilter(subcat) {
         if (activeCategoryFilters.has(subcat)) activeCategoryFilters.delete(subcat);
         else activeCategoryFilters.add(subcat);
         renderSidebar();
         renderMarkers(currentData);
-    }
-
-    function filterCategories() {
-        var input = document.getElementById('catSearch').value.toLowerCase();
-        var items = document.querySelectorAll('.subcat-item');
-        items.forEach(item => {
-            var text = item.innerText.toLowerCase();
-            if (text.includes(input)) item.style.display = "flex";
-            else item.style.display = "none";
-        });
-        
-        // Also expand groups if search matches? Optional. 
-        // Simple visibility toggle is often enough for lists.
     }
 
     function renderSidebar() {
@@ -322,15 +324,13 @@
                 var isExpanded = expandedGroups.has(group);
                 var color = groupColors[group];
                 
-                // Create Header
+                // HEADER LEVEL 1 (GROUP)
                 var headerDiv = document.createElement('div');
                 headerDiv.className = "group-header";
                 
                 var labelDiv = document.createElement('div');
                 labelDiv.className = "group-label";
                 labelDiv.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${group} <span style="font-weight:normal; font-size:11px; margin-left:5px; opacity:0.8">(${groupTotal})</span>`;
-                
-                // Select All in Group logic is complex with 3 levels, simplified to toggle expand
                 labelDiv.onclick = () => toggleGroupExpand(group); 
                 
                 var toggleDiv = document.createElement('div');
@@ -345,19 +345,34 @@
                 var content = document.createElement('div');
                 content.className = "group-content" + (isExpanded ? " expanded" : "");
                 
-                // Subgroups
+                // LEVEL 2 (SUBGROUPS)
                 Object.keys(hierarchy[group]).sort().forEach(subgroup => {
+                    var typesInSubgroup = Object.keys(hierarchy[group][subgroup]);
+                    
                     if(subgroup !== "Altro" && subgroup !== group) {
                         var sgHeader = document.createElement('div');
                         sgHeader.className = "subgroup-header";
-                        sgHeader.innerText = subgroup;
+                        
+                        var sgLabel = document.createElement('div');
+                        sgLabel.className = "subgroup-label";
+                        sgLabel.innerText = subgroup;
+                        // Click to select all types in this subgroup
+                        sgLabel.onclick = () => toggleSubgroupSelection(subgroup, typesInSubgroup);
+                        
+                        var sgDlBtn = document.createElement('button');
+                        sgDlBtn.className = "subgroup-dl-btn";
+                        sgDlBtn.innerHTML = "⬇";
+                        sgDlBtn.title = "Scarica " + subgroup;
+                        sgDlBtn.onclick = (e) => { e.stopPropagation(); downloadSubgroup(subgroup); };
+
+                        sgHeader.appendChild(sgLabel);
+                        sgHeader.appendChild(sgDlBtn);
                         content.appendChild(sgHeader);
                     }
 
-                    // Types inside Subgroup
-                    var types = hierarchy[group][subgroup];
-                    Object.keys(types).sort((a,b) => types[b] - types[a]).forEach(type => {
-                        var count = types[type];
+                    // LEVEL 3 (TYPES)
+                    typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
+                        var count = hierarchy[group][subgroup][type];
                         var item = document.createElement('div');
                         item.className = "subcat-item" + (activeCategoryFilters.has(type) ? " selected" : "");
                         
@@ -426,7 +441,6 @@
         document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
         document.getElementById('cat-toggle-btn').style.display = 'block'; 
         document.getElementById('controls').style.display = 'flex';
-        document.getElementById('search-container').style.display = 'block'; // Show search
 
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
@@ -508,6 +522,17 @@
         var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         var catName = cat.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
+    }
+
+    // NEW: Download whole subgroup
+    function downloadSubgroup(subgroup) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare per questo gruppo."); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var sgName = subgroup.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${sgName}.geojson`);
     }
 
     function downloadJSON(features, filename) {

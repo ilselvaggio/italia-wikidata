@@ -6,10 +6,10 @@
     <title>Panoramica OpenStreetMap-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* --- CORE LAYOUT --- */
+        /* CORE LAYOUT */
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
         
-        /* --- HEADER --- */
+        /* HEADER */
         #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0; }
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
@@ -21,29 +21,30 @@
         #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
         
-        /* --- PLACEHOLDER --- */
+        /* PLACEHOLDER */
         #map-placeholder { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
         .desktop-msg { display: inline; }
         .mobile-msg { display: none; }
 
-        /* --- SIDEBAR --- */
+        /* SIDEBAR */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
+        
+        #search-container { padding: 10px; border-bottom: 1px solid #34495e; display: none; }
+        #catSearch { width: 90%; padding: 5px; border-radius: 4px; border: none; font-size: 12px; background: #34495e; color: white; }
+        #catSearch::placeholder { color: #95a5a6; }
+        #catSearch:focus { outline: none; background: #3e5871; }
+
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
         #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
 
         #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
-        /* List Item (Regions) */
         .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
         
-        /* --- ACCORDION STYLES (THE IMPORTANT PART) --- */
-        
-        /* Level 1: Main Groups */
+        /* LEVEL 1: GROUPS */
         .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; transition: background 0.2s; }
-        
-        /* Visual Feedback for Selected Groups */
         .group-header.fully-selected { background-color: #2980b9 !important; border-left: 4px solid #fff; }
         .group-header.partially-selected { border-left: 4px solid #f39c12; background-color: #3e5871; }
 
@@ -56,18 +57,16 @@
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
-        /* Level 2: Subgroups */
+        /* LEVEL 2: SUBGROUPS */
         .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
         .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
         .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
-        
-        /* Subgroup selection feedback */
         .subgroup-header.fully-selected .subgroup-label { color: #3498db; }
 
         .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
         .subgroup-dl-btn:hover { background: #27ae60; color: white; }
 
-        /* Level 3: Types */
+        /* LEVEL 3: TYPES */
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
@@ -77,7 +76,6 @@
         .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
         .subcat-dl-btn:hover { background: #27ae60; color: white; }
 
-        /* Dots & Stats */
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
         
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
@@ -92,7 +90,6 @@
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE */
         @media (max-width: 700px) {
             #header { padding-left: 0; } 
             #menu-toggle { display: block; }
@@ -136,6 +133,9 @@
 </header>
 <div id="main-container">
     <div id="sidebar">
+        <div id="search-container">
+            <input type="text" id="catSearch" placeholder="Cerca categoria..." oninput="filterCategories()">
+        </div>
         <div id="sidebar-content"></div>
         <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
     </div>
@@ -261,6 +261,16 @@
         renderMarkers(currentData);
     }
 
+    function filterCategories() {
+        var input = document.getElementById('catSearch').value.toLowerCase();
+        var items = document.querySelectorAll('.subcat-item');
+        items.forEach(item => {
+            var text = item.innerText.toLowerCase();
+            if (text.includes(input)) item.style.display = "flex";
+            else item.style.display = "none";
+        });
+    }
+
     function renderSidebar() {
         var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
         
@@ -284,7 +294,7 @@
             });
         } 
         else {
-            // SHOW CATEGORIES (3 Levels)
+            // SHOW CATEGORIES
             var hierarchy = {};
             currentData.features.forEach(f => {
                 var g = f.properties.group || 'Altro';
@@ -300,7 +310,6 @@
             Object.keys(groupColors).forEach(group => {
                 if (!hierarchy[group]) return; 
                 
-                // 1. Gather all types in this group for selection logic
                 var allTypesInGroup = [];
                 var groupTotal = 0;
                 Object.values(hierarchy[group]).forEach(sg => {
@@ -308,7 +317,6 @@
                     Object.keys(sg).forEach(t => allTypesInGroup.push(t));
                 });
 
-                // 2. Check Selection State
                 var selectedCount = allTypesInGroup.filter(s => activeCategoryFilters.has(s)).length;
                 var selectionClass = "";
                 if (selectedCount === allTypesInGroup.length && allTypesInGroup.length > 0) selectionClass = "fully-selected";
@@ -317,7 +325,7 @@
                 var isExpanded = expandedGroups.has(group);
                 var color = groupColors[group];
                 
-                // HEADER LEVEL 1
+                // HEADER (Level 1)
                 var headerDiv = document.createElement('div');
                 headerDiv.className = `group-header ${selectionClass}`; 
                 
@@ -338,12 +346,11 @@
                 var content = document.createElement('div');
                 content.className = "group-content" + (isExpanded ? " expanded" : "");
                 
-                // LEVEL 2
+                // SUBGROUPS (Level 2)
                 Object.keys(hierarchy[group]).sort().forEach(subgroup => {
                     var typesInSubgroup = Object.keys(hierarchy[group][subgroup]);
                     
                     if(subgroup !== "Altro" && subgroup !== group) {
-                        // Check if all types in subgroup are selected
                         var subSelectedCount = typesInSubgroup.filter(t => activeCategoryFilters.has(t)).length;
                         var subClass = (subSelectedCount === typesInSubgroup.length) ? "fully-selected" : "";
 
@@ -366,7 +373,7 @@
                         content.appendChild(sgHeader);
                     }
 
-                    // LEVEL 3
+                    // TYPES (Level 3)
                     typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
                         var count = hierarchy[group][subgroup][type];
                         var item = document.createElement('div');
@@ -402,6 +409,22 @@
         return null;
     }
 
+    // --- HOVER & CLICK HIGHLIGHT LOGIC ---
+    
+    function highlightFeature(e) {
+        var layer = e.target;
+        layer.setStyle({
+            weight: 3,
+            color: '#0044ff', // HOVER: Blue border
+            // We keep the fill settings from original to show heatmap color
+        });
+        layer.bringToFront();
+    }
+
+    function resetHighlight(e) {
+        layers.regions.resetStyle(e.target);
+    }
+
     function loadRegionsShape() {
         L.geoJSON(boundariesGeoJSON, {
             pane: 'regionsPane',
@@ -409,16 +432,20 @@
                 var k = getKeyFromFeature(f);
                 var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
                 var color = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
-                return { color: color, weight: 1.5, fillOpacity: 0.6 };
+                return { color: color, weight: 1.5, fillOpacity: 0.6, fillColor: color }; 
             },
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
                 if (k) { 
-                    l.on('click', (e) => { 
-                        if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
-                        L.DomEvent.stopPropagation(e);
-                        changeRegion(k); 
-                    }); 
+                    l.on({
+                        mouseover: highlightFeature,
+                        mouseout: resetHighlight,
+                        click: (e) => { 
+                            if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
+                            L.DomEvent.stopPropagation(e);
+                            changeRegion(k); 
+                        }
+                    });
                     l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
             }
@@ -437,13 +464,18 @@
         document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
         document.getElementById('cat-toggle-btn').style.display = 'block'; 
         document.getElementById('controls').style.display = 'flex';
+        document.getElementById('search-container').style.display = 'block'; 
 
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
-            var b = L.geoJSON(target, { pane: 'regionsPane', style: { color: "#3498db", weight: 3, fillOpacity: 0.05 } }).addTo(layers.activeBorder);
+            // SELECTION STYLE: Blue Border, Transparent Fill
+            var b = L.geoJSON(target, { 
+                pane: 'regionsPane', 
+                style: { color: "#0044ff", weight: 3, fillOpacity: 0 } 
+            }).addTo(layers.activeBorder);
             map.fitBounds(b.getBounds());
         }
         
@@ -520,7 +552,6 @@
         downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
     }
 
-    // NEW: Download whole subgroup
     function downloadSubgroup(subgroup) {
         if (!currentData) return;
         var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);

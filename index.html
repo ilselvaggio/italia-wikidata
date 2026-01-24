@@ -135,9 +135,8 @@
     // STATE
     var viewMode = 'regions'; 
     var selectedRegionKey = null;
-    var activeCategoryFilters = new Set(); // MULTI-SELECT
+    var activeCategoryFilters = new Set();
 
-    // --- 30 KATEGORIEN + LOCALITÀ ---
     var categoryColors = {
         "chiesa": "#FF0000", "insediamento": "#0000FF", "frazione": "#008000", "cimitero": "#808080",
         "palazzo_comunale": "#FFA500", "municipality_seat": "#FFD700", "biblio_pubblica": "#00CED1",
@@ -148,7 +147,7 @@
         "biblio_spec": "#20B2AA", "biblio_univ": "#5F9EA0", "capitello": "#DA70D6", "torre": "#000080",
         "museo": "#DDA0DD", "biblio_privata": "#BC8F8F", "strada_urbana": "#696969",
         "biblio_scolastica": "#F0E68C", 
-        "localita": "#A0522D", // LOCALITÀ
+        "localita": "#A0522D",
         "other": "#000000"
     };
 
@@ -170,16 +169,11 @@
         document.getElementById('sidebar').classList.toggle('open');
     }
 
-    // --- FIX MOBILE SPERRE ---
-    // Auf Mobile macht ein Klick auf die leere Karte (nicht Region) nichts,
-    // um versehentliches Schließen der Sidebar zu verhindern.
     map.on('click', function() {
-        // Nur auf Desktop schließt Klick auf Hintergrund die Sidebar
-        if (window.innerWidth > 700) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
-    });
-
+    if (window.innerWidth > 700) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
+});
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({})),

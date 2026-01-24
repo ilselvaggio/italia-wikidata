@@ -8,14 +8,11 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
         
-        /* HEADER */
         #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 1000; position: relative; }
-        
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* TOGGLE BUTTON */
         #cat-toggle-btn { 
             display: none; 
             background: #e67e22; border: none; color: white; 
@@ -24,15 +21,14 @@
             flex-shrink: 0; 
         }
         #cat-toggle-btn:hover { background: #d35400; }
-        #cat-toggle-btn.active { background: #c0392b; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
-
-        /* CONTROLS - Startseite versteckt */
+        
+        /* CONTROLS */
         #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         
-        /* SIDEBAR */
-        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
+        /* META INFO (Datenstand) - Muss sichtbar bleiben */
+        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; display: block; margin-left: auto; margin-right: 5px;}
         
-        /* MAIN LAYOUT */
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
         #main-container { display: flex; height: calc(100vh - 50px); width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
@@ -40,51 +36,39 @@
         .list-item:hover { background-color: #34495e; }
         .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
-        /* CATEGORY ITEM STYLE */
-        .cat-item { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .cat-info { display: flex; align-items: center; gap: 5px; overflow: hidden; pointer-events: none; }
-        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
-        .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 12px; padding: 2px 6px; z-index: 10; }
-        .cat-dl-btn:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
+        /* ACCORDION STYLES */
+        .group-header { padding: 10px; background-color: #34495e; cursor: pointer; border-bottom: 1px solid #2c3e50; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .group-header:hover { background-color: #3e5871; }
+        .group-content { display: none; background-color: #2c3e50; }
+        .group-content.expanded { display: block; }
+        .subcat-item { padding: 8px 10px 8px 25px; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; }
+        .subcat-item:hover { background-color: #3e5871; }
+        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; padding-left: 21px; }
 
+        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 5px; }
+        .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 1px 4px; }
+        
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        .btn-download { 
-            background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; 
-            padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; 
-            display: none; 
-        }
-        .btn-download:hover { background-color: #aab7b8; }
-        
-        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
+        .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
         #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
-        /* LOGOS IN POPUP */
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
-        .logo-link:hover { transform: scale(1.1); }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
             #menu-toggle { display: block; }
-            #sidebar { 
-                position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; 
-                transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5);
-            }
+            #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5); }
             #sidebar.open { transform: translateX(0); }
-            
-            /* Titolo nascosto su mobile */
             #title { display: none; }
             #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
-            
-            /* Text labels hidden on mobile controls */
             .stat-item span:nth-child(3) { display: none; } 
-            #meta-info { display: none; }
+            /* Meta info stays visible but smaller if needed, or moved */
         }
     </style>
 </head>
@@ -93,7 +77,7 @@
     <div id="left-col">
         <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
         <div id="title" onclick="location.reload()">Panoramica OpenStreetMap-Wikidata Italia</div>
-        <button id="cat-toggle-btn" onclick="toggleViewMode()">Vista Categorie</button>
+        <button id="cat-toggle-btn" onclick="toggleViewMode()">Torna a panoramica</button>
     </div>
     <div id="controls">
         <div id="loading">Loading...</div>
@@ -104,10 +88,10 @@
         <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="OSM+Wikidata">
             <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
-        <div id="meta-info">
-            <div>OSM: <span id="date-osm">--</span></div>
-            <div>WD: <span id="date-wiki">--</span></div>
-        </div>
+    </div>
+    <div id="meta-info">
+        <div>OSM: <span id="date-osm">--</span></div>
+        <div>WD: <span id="date-wiki">--</span></div>
     </div>
 </header>
 <div id="main-container">
@@ -118,11 +102,7 @@
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        maxZoom: 19,
-        attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
 
     map.createPane('regionsPane'); map.getPane('regionsPane').style.zIndex = 400;
     map.createPane('markersPane'); map.getPane('markersPane').style.zIndex = 600;
@@ -132,48 +112,36 @@
     var currentMissingFeatures = [];
     var currentData = null; 
     
-    // STATE
     var viewMode = 'regions'; 
     var selectedRegionKey = null;
-    var activeCategoryFilters = new Set();
+    var activeCategoryFilters = new Set(); 
+    var expandedGroups = new Set(); // For accordion state
 
-    var categoryColors = {
-        "chiesa": "#FF0000", "insediamento": "#0000FF", "frazione": "#008000", "cimitero": "#808080",
-        "palazzo_comunale": "#FFA500", "municipality_seat": "#FFD700", "biblio_pubblica": "#00CED1",
-        "cappella": "#800080", "nuraghe": "#8B4513", "oratorio": "#FF69B4", "villa": "#4B0082",
-        "casa": "#A52A2A", "natura_2000": "#32CD32", "struttura_arch": "#708090", "palazzo": "#DC143C",
-        "cascina": "#D2691E", "edificio": "#C0C0C0", "pianta_monum": "#006400", "archivio": "#4682B4",
-        "palazzo_italiano": "#B22222", "castello": "#800000", "montagna": "#2F4F4F",
-        "biblio_spec": "#20B2AA", "biblio_univ": "#5F9EA0", "capitello": "#DA70D6", "torre": "#000080",
-        "museo": "#DDA0DD", "biblio_privata": "#BC8F8F", "strada_urbana": "#696969",
-        "biblio_scolastica": "#F0E68C", 
-        "localita": "#A0522D",
-        "other": "#000000"
+    // --- GRUPPI & FARBEN ---
+    var groupColors = {
+        "Religione": "#E63946", 
+        "Archeologia": "#8D6E63", 
+        "Cultura": "#FFB703", 
+        "Istruzione": "#FFD166", 
+        "Amministrazione": "#F4A261", 
+        "Fortificazioni": "#606C38", 
+        "Dimore ed Edifici": "#A53860", 
+        "Natura": "#2A9D8F", 
+        "Insediamenti": "#457B9D", 
+        "Infrastrutture": "#7D8597", 
+        "Monumenti e Spazi": "#9D4EDD",
+        "Altro": "#000000"
     };
 
-    var categoryLabels = {
-        "chiesa": "Chiesa", "insediamento": "Insediamento Umano", "frazione": "Frazione", "cimitero": "Cimitero",
-        "palazzo_comunale": "Palazzo Comunale", "municipality_seat": "Sede Municipio", "biblio_pubblica": "Biblioteca Pubblica",
-        "cappella": "Cappella", "nuraghe": "Nuraghe", "oratorio": "Oratorio", "villa": "Villa",
-        "casa": "Casa", "natura_2000": "Natura 2000", "struttura_arch": "Struttura Arch.", "palazzo": "Palazzo",
-        "cascina": "Cascina", "edificio": "Edificio", "pianta_monum": "Pianta Monumentale", "archivio": "Archivio",
-        "palazzo_italiano": "Palazzo Italiano", "castello": "Castello", "montagna": "Montagna",
-        "biblio_spec": "Biblio. Specializzata", "biblio_univ": "Biblio. Universitaria", "capitello": "Capitello Votivo",
-        "torre": "Torre", "museo": "Museo", "biblio_privata": "Biblio. Privata", "strada_urbana": "Strada Urbana",
-        "biblio_scolastica": "Biblio. Scolastica", 
-        "localita": "Località", 
-        "other": "Altro"
-    };
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('open');
-    }
-
+    // MOBILE FIX: Prevent closing when clicking map on mobile to avoid frustration
     map.on('click', function() {
-    if (window.innerWidth > 700) {
-        document.getElementById('sidebar').classList.remove('open');
-    }
-});
+        if (window.innerWidth > 700) {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+    });
+
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({})),
@@ -208,26 +176,35 @@
     }
 
     function toggleViewMode() {
-        viewMode = (viewMode === 'regions') ? 'categories' : 'regions';
-        var btn = document.getElementById('cat-toggle-btn');
-        btn.innerText = (viewMode === 'categories') ? "Torna a Regioni" : "Vista Categorie";
-        if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
-        
-        activeCategoryFilters.clear();
-        
-        renderSidebar();
-        if (currentData) renderMarkers(currentData);
+        // "Torna a panoramica" Logic
+        if (viewMode === 'categories') {
+            viewMode = 'regions';
+            activeCategoryFilters.clear();
+            expandedGroups.clear();
+            document.getElementById('controls').style.display = 'none'; // Hide controls on home
+            document.getElementById('cat-toggle-btn').style.display = 'none'; // Hide button itself
+            
+            // Reset Map
+            layers.activeBorder.clearLayers();
+            layers.missing.clearLayers(); 
+            layers.done.clearLayers();
+            map.setView([42.0, 12.5], 6);
+            
+            renderSidebar();
+        }
     }
     
-    // --- MULTI-SELECT LOGIC ---
-    function toggleCategoryFilter(cat) {
-        if (activeCategoryFilters.has(cat)) {
-            activeCategoryFilters.delete(cat);
-        } else {
-            activeCategoryFilters.add(cat);
-        }
-        renderSidebar(); // Update UI highlights
-        renderMarkers(currentData); // Filter map
+    function toggleGroup(group) {
+        if (expandedGroups.has(group)) expandedGroups.delete(group);
+        else expandedGroups.add(group);
+        renderSidebar();
+    }
+
+    function toggleCategoryFilter(subcat) {
+        if (activeCategoryFilters.has(subcat)) activeCategoryFilters.delete(subcat);
+        else activeCategoryFilters.add(subcat);
+        renderSidebar();
+        renderMarkers(currentData);
     }
 
     function renderSidebar() {
@@ -237,75 +214,64 @@
             var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
                 var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
                 var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
-                var pctA = (metaA.done / metaA.total);
-                var pctB = (metaB.done / metaB.total);
-                if (pctB !== pctA) return pctB - pctA;
-                return regionConfig[a].name.localeCompare(regionConfig[b].name);
+                return (metaB.done / metaB.total) - (metaA.done / metaA.total);
             });
 
             sortedKeys.forEach(key => {
-                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) ? metaDataGlobal.regions[key] : null;
-                var pct = (meta && meta.total > 0) ? Math.round((meta.done / meta.total) * 100) : null;
-                var color = pct !== null ? getHeatColor(pct) : "#fff";
+                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
+                var pct = Math.round((meta.done / meta.total) * 100);
+                var color = getHeatColor(pct);
                 
                 var div = document.createElement('div');
                 div.className = "list-item"; 
-                if (key === selectedRegionKey) div.classList.add('active');
-                div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
-                div.onclick = () => { changeRegion(key); if(window.innerWidth<=700) toggleSidebar(); };
+                div.innerHTML = `<span>${regionConfig[key].name}</span><span style="color:${color};font-weight:bold">${pct}%</span>`;
+                div.onclick = () => { changeRegion(key); };
                 sb.appendChild(div);
             });
         } 
         else {
-            if (!currentData) {
-                sb.innerHTML = "<div style='padding:10px;color:orange'>Seleziona prima una regione!</div>";
-                return;
-            }
+            if (!currentData) return;
             
-            var missing = currentData.features.filter(f => f.properties.status === 'missing');
-            var totalMissing = missing.length;
-            var counts = {};
-            
-            Object.keys(categoryColors).forEach(k => counts[k] = 0);
-            
-            missing.forEach(f => {
-                var cat = f.properties.category || 'other';
-                if(counts[cat] !== undefined) counts[cat]++; else counts['other']++;
+            // Group Data Structure
+            var hierarchy = {};
+            currentData.features.forEach(f => {
+                if (f.properties.status === 'missing') {
+                    var g = f.properties.group || 'Altro';
+                    var s = f.properties.subcategory || 'Altro';
+                    if (!hierarchy[g]) hierarchy[g] = {};
+                    if (!hierarchy[g][s]) hierarchy[g][s] = 0;
+                    hierarchy[g][s]++;
+                }
             });
 
-            var sortedCats = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+            // Render Accordion
+            Object.keys(groupColors).forEach(group => {
+                if (!hierarchy[group]) return; // Skip empty groups
+                
+                var groupCount = Object.values(hierarchy[group]).reduce((a, b) => a + b, 0);
+                var isExpanded = expandedGroups.has(group);
+                var color = groupColors[group];
 
-            sortedCats.forEach(cat => {
-                if (counts[cat] === 0) return;
+                // Header
+                var header = document.createElement('div');
+                header.className = "group-header";
+                header.innerHTML = `<span><span class="cat-dot" style="background:${color}"></span>${group}</span><span>(${groupCount}) ${isExpanded ? '▼' : '▶'}</span>`;
+                header.onclick = () => toggleGroup(group);
+                sb.appendChild(header);
 
-                var percent = (totalMissing > 0) ? ((counts[cat] / totalMissing) * 100).toFixed(1) : 0;
+                // Content
+                var content = document.createElement('div');
+                content.className = "group-content" + (isExpanded ? " expanded" : "");
                 
-                var div = document.createElement('div');
-                div.className = "list-item";
-                
-                // Highlight logic for multi-select
-                if (activeCategoryFilters.has(cat)) {
-                    div.style.backgroundColor = "#2980b9"; 
-                    div.style.borderLeft = "4px solid white";
-                }
-                
-                div.onclick = (e) => {
-                    if(e.target.tagName !== 'BUTTON') {
-                        toggleCategoryFilter(cat);
-                    }
-                };
-                
-                div.innerHTML = `
-                    <div class="cat-item">
-                        <div class="cat-info">
-                            <span class="cat-dot" style="background:${categoryColors[cat]}"></span>
-                            <span>${categoryLabels[cat] || cat}</span>
-                            <small style="color:#aaa;margin-left:4px"> ${percent}% (${counts[cat]})</small>
-                        </div>
-                        <button class="cat-dl-btn" onclick="downloadCategory('${cat}')" title="Scarica JSON">⬇</button>
-                    </div>
-                `;
-                sb.appendChild(div);
+                Object.keys(hierarchy[group]).sort().forEach(subcat => {
+                    var count = hierarchy[group][subcat];
+                    var item = document.createElement('div');
+                    item.className = "subcat-item" + (activeCategoryFilters.has(subcat) ? " selected" : "");
+                    item.innerHTML = `<span>${subcat}</span> <span>(${count})</span>`;
+                    item.onclick = () => toggleCategoryFilter(subcat);
+                    content.appendChild(item);
+                });
+                sb.appendChild(content);
             });
         }
     }
@@ -315,7 +281,7 @@
         var found = Object.keys(regionConfig).find(k => String(parseInt(regionConfig[k].osm) - 3600000000) === id);
         if (found) return found;
         var name = f.properties.name || f.properties['name:en'] || "";
-        if (name.includes("Sardegna") || name.includes("Sardinia")) return "sardegna";
+        if (name.includes("Sardegna")) return "sardegna";
         return null;
     }
 
@@ -324,24 +290,15 @@
             pane: 'regionsPane',
             style: function(f) {
                 var k = getKeyFromFeature(f);
-                var color = "#3498db", opacity = 0.1;
-                if (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) {
-                    var m = metaDataGlobal.regions[k];
-                    if (m.total > 0) { color = getHeatColor((m.done / m.total) * 100); opacity = 0.6; }
-                }
-                return { color: color, weight: 1.5, fillOpacity: opacity };
+                var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+                var color = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+                return { color: color, weight: 1.5, fillOpacity: 0.6 };
             },
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
                 if (k) { 
                     l.on('click', (e) => { 
-                        // --- FIX MOBILE NAVIGATION ---
-                        // Auf Mobile ist das Tippen auf die Karte verboten für Navigation
-                        if (window.innerWidth <= 700) {
-                            L.DomEvent.stopPropagation(e);
-                            return; // Abbruch, keine Aktion
-                        }
-                        
+                        if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
                         L.DomEvent.stopPropagation(e);
                         changeRegion(k); 
                     }); 
@@ -354,36 +311,30 @@
 
     function changeRegion(key) {
         selectedRegionKey = key;
-        
-        viewMode = 'regions'; 
+        viewMode = 'categories'; 
         activeCategoryFilters.clear(); 
+        expandedGroups.clear();
         
-        document.getElementById('cat-toggle-btn').innerText = "Vista Categorie";
-        document.getElementById('cat-toggle-btn').classList.remove('active');
+        document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
         document.getElementById('cat-toggle-btn').style.display = 'block'; 
-        
-        // SHOW CONTROLS NOW
         document.getElementById('controls').style.display = 'flex';
 
-        renderSidebar(); 
-        
-        // Auto-Open Sidebar on Mobile if triggered (via menu/list)
+        // Fix Mobile Sidebar Open
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
-            var b = L.geoJSON(target, { 
-                pane: 'regionsPane', 
-                style: { color: "#3498db", weight: 3, fillOpacity: 0.05 } 
-            }).addTo(layers.activeBorder);
-            map.addLayer(layers.activeBorder); map.fitBounds(b.getBounds());
+            var b = L.geoJSON(target, { pane: 'regionsPane', style: { color: "#3498db", weight: 3, fillOpacity: 0.05 } }).addTo(layers.activeBorder);
+            map.fitBounds(b.getBounds());
         }
+        
         document.getElementById('loading').style.display = 'block';
         document.getElementById('btnDownload').style.display = 'none';
         
         fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
             currentData = data; 
+            renderSidebar();
             renderMarkers(data);
             document.getElementById('loading').style.display = 'none';
         });
@@ -391,61 +342,36 @@
 
     function renderMarkers(data) {
         layers.missing.clearLayers(); layers.done.clearLayers();
-        currentMissingFeatures = [];
-
         var cM = 0, cD = 0;
+        var hasSelection = activeCategoryFilters.size > 0;
+
         data.features.forEach(f => {
             var isD = f.properties.status === 'done';
-            var cat = f.properties.category || 'other';
+            var subcat = f.properties.subcategory || 'Altro';
+            var group = f.properties.group || 'Altro';
 
-            // MULTI-SELECT FILTER LOGIC
-            if (activeCategoryFilters.size > 0) {
-                if (!isD && !activeCategoryFilters.has(cat)) return; // Skip unmatched missing items
-            }
+            // FILTER: If selection exists, item must match subcategory
+            if (hasSelection && !activeCategoryFilters.has(subcat)) return;
 
-            if(isD) {
-                cD++;
-            } else {
-                cM++;
-                currentMissingFeatures.push(f);
-            }
+            if(isD) cD++; else cM++;
 
             var p = f.properties;
-            // FIX POPUP LABEL (Name first)
-            var pop = `<div style="text-align:center">
-                <b>${p.name}</b><br><small>${p.wikidata}</small><br>
-                <div class="logo-row">
-                    <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
-                    </a>`;
-            if(p.osm_id) {
-                pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
-                    </a>`;
-            }
+            var pop = `<div style="text-align:center"><b>${p.name}</b><br><small>${p.wikidata}</small>
+            <div class="logo-row"><a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg"></a>`;
+            if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg"></a>`;
             pop += `</div></div>`;
 
-            var color;
-            if (isD) {
-                color = "#2ecc71"; 
-            } else {
-                if (viewMode === 'categories') {
-                    color = categoryColors[cat] || "#000000";
-                } else {
-                    color = "#e74c3c"; 
-                }
-            }
-
+            var color = isD ? "#2ecc71" : (groupColors[group] || "#000000");
+            
             L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
-                pane: 'markersPane',
-                radius: 4.5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.8 
+                pane: 'markersPane', radius: 4.5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.8 
             }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
         });
 
         document.getElementById('count-missing').innerText = `(${cM})`;
         document.getElementById('count-done').innerText = `(${cD})`;
         
-        if (currentMissingFeatures.length > 0) document.getElementById('btnDownload').style.display = 'block';
+        if (cM > 0) document.getElementById('btnDownload').style.display = 'block';
         else document.getElementById('btnDownload').style.display = 'none';
         
         if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
@@ -453,19 +379,19 @@
     }
 
     function downloadCurrentMissing() {
-        if (!currentMissingFeatures.length) return;
-        var suffix = activeCategoryFilters.size > 0 ? "_selection" : "_all";
-        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        downloadJSON(currentMissingFeatures, `missing_${regionName}${suffix}.geojson`);
-    }
-
-    function downloadCategory(cat) {
-        if (!currentData) return;
-        var feats = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat);
-        if (feats.length === 0) { alert("Nessun elemento in questa categoria"); return; }
+        if (!currentMissingFeatures.length && !currentData) return;
+        // Re-filter for download
+        var feats = [];
+        var hasSelection = activeCategoryFilters.size > 0;
+        currentData.features.forEach(f => {
+            if (f.properties.status === 'missing') {
+                if (!hasSelection || activeCategoryFilters.has(f.properties.subcategory)) feats.push(f);
+            }
+        });
         
         var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        downloadJSON(feats, `missing_${regionName}_${cat}.geojson`);
+        var suffix = hasSelection ? "_selection" : "_all";
+        downloadJSON(feats, `missing_${regionName}${suffix}.geojson`);
     }
 
     function downloadJSON(features, filename) {

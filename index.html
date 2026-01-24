@@ -9,7 +9,19 @@
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
         
         /* HEADER */
-        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 3000; /* ÄNDERUNG: Erhöht auf 3000, damit er immer oben bleibt */position: relative; }
+        #header { 
+            background-color: #333; 
+            color: #fff; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 5px; 
+            height: 50px; 
+            z-index: 3000; /* CHANGE: Increased to 3000 to keep it always on top */
+            position: relative; 
+            flex-shrink: 0; /* Ensures header never shrinks */
+        }
+        
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -42,7 +54,7 @@
         #sidebar { 
             width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; 
             flex-shrink: 0; transition: transform 0.3s ease; 
-            display: flex; flex-direction: column; /* Flex Column für Footer */
+            display: flex; flex-direction: column; /* Flex Column for footer */
             height: 100%; 
         }
         
@@ -86,6 +98,8 @@
         .dot-green { background: #2ecc71; }
         
         .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
+        
+        /* Updated: Text is now Italian */
         #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
@@ -93,25 +107,27 @@
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
         /* MOBILE RESPONSIVE */
-        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
+            /* Fix: Alignment of the menu button */
+            #header { padding-left: 0; } 
+            
             #menu-toggle { display: block; }
             
             #sidebar { 
                 position: absolute; 
                 left: 0; 
-                top: 50px; /* WICHTIG: Startet erst unter dem Header (50px Höhe) */
+                top: 50px; /* IMPORTANT: Starts below the header (50px height) */
                 bottom: 0; 
                 z-index: 2000; 
                 transform: translateX(-100%); 
                 width: 250px; 
                 box-shadow: 2px 0 5px rgba(0,0,0,0.5);
-                border-top: 1px solid #1a252f; /* Trennlinie zum Header */
+                border-top: 1px solid #1a252f; /* Separator line to header */
             }
             
             #sidebar.open { transform: translateX(0); }
             
-            /* ... (Rest der Mobile Styles bleibt gleich) ... */
+            /* ... (Rest of mobile styles remains the same) ... */
             #title { display: none; }
             body:not(.region-loaded) #title { display: block; max-width: 200px; } 
 
@@ -124,6 +140,9 @@
             
             .desktop-msg { display: none; }
             .mobile-msg { display: inline; }
+
+            /* Fix: Hide Zoom Controls on Mobile */
+            .leaflet-control-zoom { display: none !important; }
         }
     </style>
 </head>
@@ -135,7 +154,7 @@
         <button id="cat-toggle-btn" onclick="toggleViewMode()">Torna a panoramica</button>
     </div>
     <div id="controls">
-        <div id="loading">Loading...</div>
+        <div id="loading">Caricamento...</div>
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Solo Wikidata">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Solo Wikidata</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
@@ -182,7 +201,7 @@
     var activeCategoryFilters = new Set(); 
     var expandedGroups = new Set(); 
 
-    // --- GRUPPI & FARBEN ---
+    // --- GROUPS & COLORS ---
     var groupColors = {
         "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura": "#FFB703", 
         "Istruzione": "#FFD166", "Amministrazione": "#F4A261", "Fortificazioni": "#606C38", 

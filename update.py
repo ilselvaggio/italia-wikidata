@@ -12,7 +12,7 @@ REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
-DATA_DIR = "data_overpass" # Ensure matches your folder
+DATA_DIR = "data_overpass" # Ensure this matches your local folder name
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
@@ -331,7 +331,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/8.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/9.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text

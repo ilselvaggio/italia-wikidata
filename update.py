@@ -107,7 +107,6 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Recupera Label, Type Label e Type QID
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?typeLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        

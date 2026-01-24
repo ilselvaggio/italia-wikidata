@@ -16,8 +16,9 @@ DATA_DIR = "data_overpass"
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
+HISTORY_FILE = "history.json"
 
-# --- CATEGORY HIERARCHY (Basierend auf deinem Scan) ---
+# --- CATEGORY HIERARCHY ---
 CATEGORY_CONFIG = {
     "Religione": {
         "color": "#E63946", 
@@ -69,7 +70,7 @@ CATEGORY_CONFIG = {
             "Castello": ["Q23413", "Q1408475", "Q1195705"],
             "Torre": ["Q12518", "Q200334"],
             "Mura/Porta": ["Q16748868", "Q82117", "Q57821", "Q1785071", "Q57346", "Q81851"],
-            "Militare/Bunker": ["Q131263", "Q91122", "Q1785071", "Q81851"] # Bunker & Caserma
+            "Militare/Bunker": ["Q131263", "Q91122", "Q1785071", "Q81851"]
         }
     },
     "Dimore ed Edifici": {
@@ -86,7 +87,7 @@ CATEGORY_CONFIG = {
         "color": "#2A9D8F",
         "subcats": {
             "Montagna/Valle": ["Q8502", "Q39816", "Q46831", "Q207326", "Q133056", "Q54050", "Q123705"],
-            "Acqua (Lago/Fiume/Mare)": ["Q4735538", "Q23397", "Q4022", "Q34038", "Q40080", "Q12284", "Q185113", "Q23442", "Q39594"], # Isola & Baia
+            "Acqua (Lago/Fiume/Mare)": ["Q4735538", "Q23397", "Q4022", "Q34038", "Q40080", "Q12284", "Q185113", "Q23442", "Q39594"], 
             "Area Protetta/Parco": ["Q15069452", "Q473972", "Q179049", "Q3936950", "Q3936952", "Q22698", "Q22746", "Q1107656", "Q167346", "Q4421"],
             "Albero/Grotta": ["Q811534", "Q35509"]
         }
@@ -103,6 +104,7 @@ CATEGORY_CONFIG = {
             "Cimitero": ["Q39614", "Q381885", "Q200141", "Q56055312", "Q1457501"],
             "Trasporti": ["Q55488", "Q55678", "Q2175765", "Q12280", "Q537127", "Q181348", "Q2354973", "Q79007", "Q34442", "Q44782", "Q39715", "Q181348"],
             "Sanità/Ospedale": ["Q16917", "Q4287745"],
+            "Meteo/Scienza": ["Q190107", "Q1254933"], # ADDED: Wetterstation (Q190107), Sternwarte (Q1254933)
             "Ospitalità": ["Q27686", "Q182676"],
             "Industria": ["Q1662011", "Q329683", "Q44494", "Q13226383", "Q1076486", "Q3973051"]
         }
@@ -200,7 +202,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/7.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/7.5', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -341,8 +343,32 @@ def main():
         time.sleep(1)
 
     if processed_count > 0:
+        # 1. Save Metadata
         with open(METADATA_FILE, 'w') as f:
             json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_meta }, f)
+        
+        # 2. History Logic
+        history = []
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, 'r') as f:
+                    history = json.load(f)
+            except: pass
+        
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+        # Keep entries that are NOT today (we replace today's entry if it exists)
+        history = [h for h in history if h.get("date") != today_str]
+        
+        # Add current state
+        history.append({ "date": today_str, "data": new_meta })
+        
+        # Sort by date
+        history.sort(key=lambda x: x['date'])
+        
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history, f)
+            print(f"   -> History updated for {today_str}")
 
 if __name__ == "__main__":
     main()

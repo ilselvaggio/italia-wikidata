@@ -17,25 +17,27 @@ METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 
-# --- KATEGORIE-HIERARCHIE ---
-# Diese Struktur erlaubt Gruppen-Auswahl UND Detail-Filter
+# --- CATEGORY HIERARCHY (Basierend auf deinem Scan) ---
 CATEGORY_CONFIG = {
     "Religione": {
         "color": "#E63946", 
         "subcats": {
-            "Chiesa": ["Q16970", "Q317557", "Q55876909", "Q1088552", "Q19899465", "Q57644089", "Q96352496", "Q24398318", "Q96352496", "Q1128397", "Q44613", "Q160742", "Q513550"],
+            "Chiesa": ["Q16970", "Q317557", "Q55876909", "Q1088552", "Q19899465", "Q57644089", "Q96352496", "Q24398318", "Q607241"],
             "Cappella": ["Q108325", "Q1457501"],
             "Oratorio": ["Q1064047", "Q580499"],
-            "Santuario": ["Q697295"]
+            "Monastero/Convento": ["Q44613", "Q1128397", "Q160742", "Q513550", "Q233324", "Q1430154"],
+            "Santuario/Tempio": ["Q697295", "Q44539", "Q44539"],
+            "Edificio Religioso": ["Q24398318", "Q96352496"]
         }
     },
     "Archeologia": {
         "color": "#8D6E63", 
         "subcats": {
             "Nuraghe": ["Q688326", "Q688292", "Q2002347", "Q3924307", "Q1385277"],
-            "Tomba dei Giganti": ["Q1523627"],
+            "Tomba dei Giganti": ["Q1523627", "Q381885"],
             "Domus de Janas": ["Q782970"],
-            "Sito Archeologico": ["Q839954", "Q109607", "Q15661340", "Q3363945", "Q200141", "Q14752696", "Q15661340"]
+            "Sito Archeologico": ["Q839954", "Q109607", "Q15661340", "Q3363945", "Q200141", "Q14752696", "Q1341387", "Q200141"],
+            "Rovine": ["Q109607"]
         }
     },
     "Cultura": {
@@ -43,20 +45,22 @@ CATEGORY_CONFIG = {
         "subcats": {
             "Museo": ["Q33506", "Q124830213", "Q12104174", "Q614316", "Q207694", "Q16735822", "Q135713224", "Q3329412", "Q92755865", "Q108860593", "Q1970365", "Q2087181", "Q2398990", "Q1662089", "Q3867560", "Q124830411", "Q112132534", "Q112132542", "Q1231888", "Q112132527", "Q740437"],
             "Biblioteca": ["Q28564", "Q124750618", "Q385994", "Q380829", "Q1622062", "Q1076099", "Q7075", "Q105763925", "Q124750593", "Q124750614", "Q124750711", "Q2326815"],
-            "Archivio": ["Q166118", "Q604177", "Q3621673", "Q17620767", "Q2877653"],
+            "Archivio": ["Q166118", "Q604177", "Q3621673", "Q17620767", "Q2877653", "Q17620767"],
             "Teatro/Cinema": ["Q24354", "Q41253"]
         }
     },
     "Istruzione": {
         "color": "#FFD166",
         "subcats": {
-            "Scuola": ["Q126807", "Q9842", "Q149566", "Q57775518", "Q9826", "Q1244442", "Q3831968", "Q3803834", "Q3803808", "Q56177191", "Q233324"]
+            "Scuola": ["Q126807", "Q9842", "Q149566", "Q57775518", "Q9826", "Q1244442", "Q3831968", "Q3803834", "Q3803808", "Q56177191", "Q3914"],
+            "Istituto": ["Q3803834", "Q3803808", "Q56177191"]
         }
     },
     "Amministrazione": {
         "color": "#F4A261",
         "subcats": {
-            "Municipio": ["Q25550691", "Q15303838", "Q543654", "Q1137809"]
+            "Municipio": ["Q25550691", "Q15303838", "Q543654", "Q1137809"],
+            "Giustizia": ["Q1137809"]
         }
     },
     "Fortificazioni": {
@@ -64,7 +68,8 @@ CATEGORY_CONFIG = {
         "subcats": {
             "Castello": ["Q23413", "Q1408475", "Q1195705"],
             "Torre": ["Q12518", "Q200334"],
-            "Mura/Porta": ["Q16748868", "Q82117", "Q57821", "Q1785071", "Q57346", "Q81851", "Q131263"]
+            "Mura/Porta": ["Q16748868", "Q82117", "Q57821", "Q1785071", "Q57346", "Q81851"],
+            "Militare/Bunker": ["Q131263", "Q91122", "Q1785071", "Q81851"] # Bunker & Caserma
         }
     },
     "Dimore ed Edifici": {
@@ -72,41 +77,42 @@ CATEGORY_CONFIG = {
         "subcats": {
             "Palazzo": ["Q16560", "Q2651004"],
             "Villa": ["Q80966", "Q3950", "Q111189432", "Q3558938"],
-            "Casa": ["Q3947", "Q16884952"],
-            "Edificio/Cascina": ["Q41176", "Q1169748", "Q1497375", "Q1662011", "Q35112127", "Q3694735", "Q3044808", "Q1303167", "Q3973051", "Q811979"]
+            "Casa": ["Q3947", "Q16884952", "Q1497375", "Q2087181"],
+            "Cascina/Fattoria": ["Q1169748", "Q16884952", "Q1303167", "Q1207909"],
+            "Edificio Generico": ["Q41176", "Q1497375", "Q35112127", "Q3694735", "Q3044808", "Q811979"]
         }
     },
     "Natura": {
         "color": "#2A9D8F",
         "subcats": {
-            "Montagna/Valle": ["Q8502", "Q39816", "Q46831", "Q207326", "Q133056", "Q54050"],
-            "Acqua": ["Q4735538", "Q23397", "Q4022", "Q34038", "Q40080", "Q12284", "Q185113"],
-            "Area Protetta": ["Q15069452", "Q473972", "Q179049", "Q3936950", "Q3936952", "Q22698", "Q22746", "Q1107656", "Q167346", "Q4421"],
+            "Montagna/Valle": ["Q8502", "Q39816", "Q46831", "Q207326", "Q133056", "Q54050", "Q123705"],
+            "Acqua (Lago/Fiume/Mare)": ["Q4735538", "Q23397", "Q4022", "Q34038", "Q40080", "Q12284", "Q185113", "Q23442", "Q39594"], # Isola & Baia
+            "Area Protetta/Parco": ["Q15069452", "Q473972", "Q179049", "Q3936950", "Q3936952", "Q22698", "Q22746", "Q1107656", "Q167346", "Q4421"],
             "Albero/Grotta": ["Q811534", "Q35509"]
         }
     },
     "Insediamenti": {
         "color": "#457B9D",
         "subcats": {
-            "Insediamento": ["Q486972", "Q1134686", "Q3835961", "Q3257686", "Q123705", "Q676050"]
+            "Insediamento": ["Q486972", "Q1134686", "Q3835961", "Q3257686", "Q676050", "Q15661340"]
         }
     },
     "Infrastrutture": {
         "color": "#7D8597",
         "subcats": {
-            "Cimitero": ["Q39614", "Q381885", "Q200141", "Q56055312"],
+            "Cimitero": ["Q39614", "Q381885", "Q200141", "Q56055312", "Q1457501"],
             "Trasporti": ["Q55488", "Q55678", "Q2175765", "Q12280", "Q537127", "Q181348", "Q2354973", "Q79007", "Q34442", "Q44782", "Q39715", "Q181348"],
-            "Ospedale/Salute": ["Q16917", "Q4287745"],
-            "Albergo": ["Q27686", "Q182676"],
-            "Industria": ["Q1662011", "Q329683", "Q44494", "Q13226383", "Q1076486"]
+            "Sanità/Ospedale": ["Q16917", "Q4287745"],
+            "Ospitalità": ["Q27686", "Q182676"],
+            "Industria": ["Q1662011", "Q329683", "Q44494", "Q13226383", "Q1076486", "Q3973051"]
         }
     },
-    "Monumenti": {
+    "Monumenti e Spazi": {
         "color": "#9D4EDD",
         "subcats": {
-            "Monumento": ["Q4989906", "Q5003624", "Q1885014", "Q56055312", "Q114124381", "Q721747", "Q11734477", "Q26703203", "Q575759", "Q3238324", "Q75762"],
+            "Monumento": ["Q4989906", "Q5003624", "Q1885014", "Q56055312", "Q114124381", "Q721747", "Q11734477", "Q26703203", "Q575759", "Q3238324", "Q75762", "Q241045", "Q860861", "Q179700", "Q3395121"],
             "Fontana": ["Q483453", "Q1690211"],
-            "Piazza": ["Q174782", "Q185600", "Q391414", "Q179700", "Q860861", "Q241045", "Q16887380", "Q3305213", "Q281460", "Q3395121", "Q750656"]
+            "Piazza": ["Q174782", "Q185600", "Q391414", "Q16887380", "Q3305213", "Q281460", "Q3395121", "Q750656"]
         }
     }
 }
@@ -130,7 +136,7 @@ def get_bbox_from_feature(feature):
     if not all_coords: return None
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
-    pad = 0.02 # Puffer für Grenz-Relationen
+    pad = 0.02 
     return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
 
 def fetch_osm_bbox(bbox, retries=3):
@@ -194,7 +200,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/6.5', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/7.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text

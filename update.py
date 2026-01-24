@@ -17,42 +17,108 @@ METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 
-# --- CATEGORY MAPPING (30 Items + Località) ---
-# Enthält erweiterte IDs (z.B. Nuraghe Varianten), um "Altro" zu minimieren.
-CATEGORY_MAPPING = {
-    "chiesa":               {"ids": ["Q16970"], "color": "#FF0000"},       # 1. Kirche
-    "insediamento":         {"ids": ["Q486972"], "color": "#0000FF"},      # 2. Siedlung
-    "frazione":             {"ids": ["Q1134686"], "color": "#008000"},     # 3. Frazione
-    "cimitero":             {"ids": ["Q39614"], "color": "#808080"},       # 4. Friedhof
-    "palazzo_comunale":     {"ids": ["Q25550691", "Q543654"], "color": "#FFA500"}, # 5. Rathaus (IT + General)
-    "municipality_seat":    {"ids": ["Q193055"], "color": "#FFD700"},      # 6. Verwaltungssitz
-    "biblio_pubblica":      {"ids": ["Q28564"], "color": "#00CED1"},       # 7. Öffentl. Bib.
-    "cappella":             {"ids": ["Q108325"], "color": "#800080"},      # 8. Kapelle
-    "nuraghe":              {"ids": ["Q688326", "Q688292", "Q2002347", "Q3924307"], "color": "#8B4513"}, # 9. Nuraghe (+Komplexe)
-    "oratorio":             {"ids": ["Q1064047"], "color": "#FF69B4"},     # 10. Oratorium
-    "villa":                {"ids": ["Q80966"], "color": "#4B0082"},       # 11. Villa
-    "casa":                 {"ids": ["Q3947"], "color": "#A52A2A"},        # 12. Haus
-    "natura_2000":          {"ids": ["Q2683204"], "color": "#32CD32"},     # 13. Natura 2000
-    "struttura_arch":       {"ids": ["Q811979"], "color": "#708090"},      # 14. Arch. Struktur
-    "palazzo":              {"ids": ["Q16560"], "color": "#DC143C"},       # 15. Palast/Palazzo
-    "cascina":              {"ids": ["Q1046969"], "color": "#D2691E"},     # 16. Cascina
-    "edificio":             {"ids": ["Q41176"], "color": "#C0C0C0"},       # 17. Gebäude
-    "pianta_monum":         {"ids": ["Q811534"], "color": "#006400"},      # 18. Monumentalbaum
-    "archivio":             {"ids": ["Q166118"], "color": "#4682B4"},      # 19. Archiv
-    "palazzo_italiano":     {"ids": ["Q16560"], "color": "#B22222"},       # 20. (Mapping auf Palazzo Q16560 fallback)
-    "castello":             {"ids": ["Q23413"], "color": "#800000"},       # 21. Schloss
-    "montagna":             {"ids": ["Q8502"], "color": "#2F4F4F"},        # 22. Berg
-    "biblio_spec":          {"ids": ["Q622549"], "color": "#20B2AA"},      # 23. Spez. Bib.
-    "biblio_univ":          {"ids": ["Q856584"], "color": "#5F9EA0"},      # 24. Uni Bib.
-    "capitello":            {"ids": ["Q750656"], "color": "#DA70D6"},      # 25. Bildstock
-    "torre":                {"ids": ["Q12518"], "color": "#000080"},       # 26. Turm
-    "museo":                {"ids": ["Q33506"], "color": "#DDA0DD"},       # 27. Museum
-    "biblio_privata":       {"ids": ["Q7246255"], "color": "#BC8F8F"},     # 28. Privatbib.
-    "strada_urbana":        {"ids": ["Q7944"], "color": "#696969"},        # 29. Stadtstraße
-    "biblio_scolastica":    {"ids": ["Q193896"], "color": "#F0E68C"},      # 30. Schulbib.
-    "localita":             {"ids": ["Q3257686"], "color": "#A0522D"},     # ZUSATZ: Località
-    "other":                {"ids": [], "color": "#000000"}                # Fallback
+# --- KATEGORIE-HIERARCHIE ---
+# Format: "Gruppe": { "color": "HEX", "subcats": { "Label": ["QID", ...] } }
+CATEGORY_CONFIG = {
+    "Religione": {
+        "color": "#E63946", # Rot
+        "subcats": {
+            "Chiesa": ["Q16970", "Q317557", "Q55876909", "Q1088552", "Q19899465", "Q57644089", "Q96352496", "Q24398318"],
+            "Cappella": ["Q108325", "Q1457501"],
+            "Oratorio": ["Q1064047", "Q580499"],
+            "Monastero/Convento": ["Q44613", "Q1128397", "Q160742", "Q513550"],
+            "Santuario": ["Q697295"]
+        }
+    },
+    "Archeologia": {
+        "color": "#8D6E63", # Braun
+        "subcats": {
+            "Nuraghe": ["Q688326", "Q688292", "Q2002347", "Q3924307", "Q1385277"],
+            "Tomba dei Giganti": ["Q1523627"],
+            "Domus de Janas": ["Q782970"],
+            "Sito Archeologico": ["Q839954", "Q109607", "Q15661340", "Q3363945", "Q200141", "Q14752696"]
+        }
+    },
+    "Cultura": {
+        "color": "#FFB703", # Gelb/Gold
+        "subcats": {
+            "Museo": ["Q33506", "Q124830213", "Q12104174", "Q614316", "Q207694", "Q16735822", "Q135713224", "Q3329412", "Q92755865", "Q108860593", "Q1970365", "Q2087181", "Q2398990", "Q1662089", "Q3867560", "Q124830411", "Q112132534", "Q112132542", "Q1231888", "Q112132527", "Q740437"],
+            "Biblioteca": ["Q28564", "Q124750618", "Q385994", "Q380829", "Q1622062", "Q1076099", "Q7075", "Q105763925", "Q124750593", "Q124750614", "Q124750711", "Q2326815"],
+            "Archivio": ["Q166118", "Q604177", "Q3621673", "Q17620767", "Q2877653"],
+            "Teatro/Cinema": ["Q24354", "Q41253"]
+        }
+    },
+    "Istruzione": {
+        "color": "#FFD166", # Hellgelb
+        "subcats": {
+            "Scuola": ["Q126807", "Q9842", "Q149566", "Q57775518", "Q9826", "Q1244442", "Q3831968", "Q3803834", "Q3803808", "Q56177191", "Q233324"]
+        }
+    },
+    "Amministrazione": {
+        "color": "#F4A261", # Orange
+        "subcats": {
+            "Municipio": ["Q25550691", "Q15303838", "Q543654", "Q1137809"]
+        }
+    },
+    "Fortificazioni": {
+        "color": "#606C38", # Olivgrün
+        "subcats": {
+            "Castello": ["Q23413", "Q1408475", "Q1195705"],
+            "Torre": ["Q12518", "Q200334"],
+            "Mura/Porta/Forte": ["Q16748868", "Q82117", "Q57821", "Q1785071", "Q57346", "Q81851", "Q131263"]
+        }
+    },
+    "Dimore ed Edifici": {
+        "color": "#A53860", # Weinrot
+        "subcats": {
+            "Palazzo": ["Q16560", "Q2651004"],
+            "Villa": ["Q80966", "Q3950", "Q111189432", "Q3558938"],
+            "Casa": ["Q3947", "Q16884952"],
+            "Edificio/Cascina": ["Q41176", "Q1169748", "Q1497375", "Q1662011", "Q35112127", "Q3694735", "Q3044808", "Q1303167", "Q3973051", "Q811979"]
+        }
+    },
+    "Natura": {
+        "color": "#2A9D8F", # Türkis
+        "subcats": {
+            "Montagna/Valle": ["Q8502", "Q39816", "Q46831", "Q207326", "Q133056", "Q54050"],
+            "Acqua (Lago/Fiume/Spiaggia)": ["Q4735538", "Q23397", "Q4022", "Q34038", "Q40080", "Q12284", "Q185113"],
+            "Parco/Area Protetta": ["Q15069452", "Q473972", "Q179049", "Q3936950", "Q3936952", "Q22698", "Q22746", "Q1107656", "Q167346", "Q4421"],
+            "Albero Monumentale": ["Q811534"],
+            "Grotta": ["Q35509"]
+        }
+    },
+    "Insediamenti": {
+        "color": "#457B9D", # Blau
+        "subcats": {
+            "Insediamento/Frazione": ["Q486972", "Q1134686", "Q3835961", "Q3257686", "Q123705", "Q676050"]
+        }
+    },
+    "Infrastrutture": {
+        "color": "#7D8597", # Grau-Blau
+        "subcats": {
+            "Cimitero": ["Q39614", "Q381885", "Q200141", "Q56055312"],
+            "Trasporti": ["Q55488", "Q55678", "Q2175765", "Q12280", "Q537127", "Q181348", "Q2354973", "Q79007", "Q34442", "Q44782", "Q39715", "Q181348"],
+            "Ospedale/Salute": ["Q16917", "Q4287745"],
+            "Albergo/Rifugio": ["Q27686", "Q182676"],
+            "Industria/Servizi": ["Q1662011", "Q329683", "Q44494", "Q13226383", "Q1076486"]
+        }
+    },
+    "Monumenti e Spazi": {
+        "color": "#9D4EDD", # Lila
+        "subcats": {
+            "Monumento": ["Q4989906", "Q5003624", "Q1885014", "Q56055312", "Q114124381", "Q721747", "Q11734477", "Q26703203", "Q575759", "Q3238324", "Q75762"],
+            "Fontana/Lavatoio": ["Q483453", "Q1690211"],
+            "Piazza/Elementi": ["Q174782", "Q185600", "Q391414", "Q179700", "Q860861", "Q241045", "Q16887380", "Q3305213", "Q281460", "Q3395121", "Q750656"]
+        }
+    }
 }
+
+# Lookup-Map für schnelle Zuweisung generieren
+QID_LOOKUP = {}
+for group, g_data in CATEGORY_CONFIG.items():
+    for subcat, qids in g_data["subcats"].items():
+        for qid in qids:
+            QID_LOOKUP[qid] = {"group": group, "subcat": subcat}
 
 def get_bbox_from_feature(feature):
     all_coords = []
@@ -66,7 +132,9 @@ def get_bbox_from_feature(feature):
     if not all_coords: return None
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
-    return (min(lats), min(lons), max(lats), max(lons))
+    # FIX: Puffer hinzufügen, um Grenzüberschreitende Relationen besser zu finden
+    pad = 0.02
+    return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
 
 def fetch_osm_bbox(bbox, retries=3):
     query = f"""
@@ -109,7 +177,7 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Holt explizit das Label (?itemLabel) via Service
+    # Holt ?itemLabel für korrekte Namen
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
@@ -130,7 +198,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/5.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/6.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -234,26 +302,28 @@ def main():
             except: continue
             
             type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
-            
-            # WICHTIG: Nutzt das echte Label aus SPARQL
             label_val = row.get('itemLabel') or row.get('?itemLabel') or qid
 
-            # Mapping Logic
-            category_slug = "other"
-            for cat_key, cat_val in CATEGORY_MAPPING.items():
-                if type_qid in cat_val["ids"]:
-                    category_slug = cat_key
-                    break
+            # --- ZUWEISUNG LOGIK ---
+            if type_qid in QID_LOOKUP:
+                match = QID_LOOKUP[type_qid]
+                group = match["group"]
+                subcat = match["subcat"]
+            else:
+                group = "Altro"
+                subcat = "Altro"
 
             status = "done" if qid in osm_ids else "missing"
+            
             features.append({
                 "type": "Feature",
                 "properties": { 
                     "wikidata": qid, 
-                    "name": label_val, # Korrektes Label
+                    "name": label_val, 
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
-                    "category": category_slug # Nur Slug, kein 'type' mehr
+                    "group": group,       # Hauptgruppe (Accordion)
+                    "subcategory": subcat # Unterkategorie (Filter)
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })

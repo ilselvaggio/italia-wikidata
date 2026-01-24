@@ -17,39 +17,40 @@ METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 
-# --- 30 CATEGORIE ESATTE + OTHER ---
+# --- 30 KATEGORIEN + LOCALITÀ + OTHER ---
 CATEGORY_MAPPING = {
-    "chiesa":               {"ids": ["Q16970"], "color": "#FF0000"},       # Rosso acceso
-    "insediamento":         {"ids": ["Q486972"], "color": "#0000FF"},      # Blu
-    "frazione":             {"ids": ["Q1134686"], "color": "#008000"},     # Verde
-    "cimitero":             {"ids": ["Q39614"], "color": "#808080"},       # Grigio
-    "palazzo_comunale":     {"ids": ["Q25550691"], "color": "#FFA500"},    # Arancione
-    "municipality_seat":    {"ids": ["Q193055"], "color": "#FFD700"},      # Oro
-    "biblio_pubblica":      {"ids": ["Q28564"], "color": "#00CED1"},       # Turchese scuro
-    "cappella":             {"ids": ["Q108325"], "color": "#800080"},      # Viola
-    "nuraghe":              {"ids": ["Q688326"], "color": "#8B4513"},      # Marrone scuro
-    "oratorio":             {"ids": ["Q1064047"], "color": "#FF69B4"},     # Rosa caldo
-    "villa":                {"ids": ["Q80966"], "color": "#4B0082"},       # Indaco
-    "casa":                 {"ids": ["Q3947"], "color": "#A52A2A"},        # Marrone
-    "natura_2000":          {"ids": ["Q2683204"], "color": "#32CD32"},     # Lime Green
-    "struttura_arch":       {"ids": ["Q811979"], "color": "#708090"},      # Slate Gray
-    "palazzo":              {"ids": ["Q16560"], "color": "#DC143C"},       # Crimson
-    "cascina":              {"ids": ["Q1046969"], "color": "#D2691E"},     # Cioccolato
-    "edificio":             {"ids": ["Q41176"], "color": "#C0C0C0"},       # Argento
-    "pianta_monum":         {"ids": ["Q811534"], "color": "#006400"},      # Verde scuro
-    "archivio":             {"ids": ["Q166118"], "color": "#4682B4"},      # Steel Blue
-    "palazzo_italiano":     {"ids": ["Q1767"], "color": "#B22222"},        # Firebrick
-    "castello":             {"ids": ["Q23413"], "color": "#800000"},       # Maroon
-    "montagna":             {"ids": ["Q8502"], "color": "#2F4F4F"},        # Dark Slate Gray
-    "biblio_spec":          {"ids": ["Q622549"], "color": "#20B2AA"},      # Light Sea Green
-    "biblio_univ":          {"ids": ["Q856584"], "color": "#5F9EA0"},      # Cadet Blue
-    "capitello":            {"ids": ["Q750656"], "color": "#DA70D6"},      # Orchid
-    "torre":                {"ids": ["Q12518"], "color": "#000080"},       # Navy
-    "museo":                {"ids": ["Q33506"], "color": "#DDA0DD"},       # Plum
-    "biblio_privata":       {"ids": ["Q7246255"], "color": "#BC8F8F"},     # Rosy Brown
-    "strada_urbana":        {"ids": ["Q7944"], "color": "#696969"},        # Dim Gray
-    "biblio_scolastica":    {"ids": ["Q193896"], "color": "#F0E68C"},      # Khaki
-    "other":                {"ids": [], "color": "#000000"}                # Nero (fallback)
+    "chiesa":               {"ids": ["Q16970"], "color": "#FF0000"},       # 1
+    "insediamento":         {"ids": ["Q486972"], "color": "#0000FF"},      # 2
+    "frazione":             {"ids": ["Q1134686"], "color": "#008000"},     # 3
+    "cimitero":             {"ids": ["Q39614"], "color": "#808080"},       # 4
+    "palazzo_comunale":     {"ids": ["Q25550691"], "color": "#FFA500"},    # 5
+    "municipality_seat":    {"ids": ["Q193055"], "color": "#FFD700"},      # 6
+    "biblio_pubblica":      {"ids": ["Q28564"], "color": "#00CED1"},       # 7
+    "cappella":             {"ids": ["Q108325"], "color": "#800080"},      # 8
+    "nuraghe":              {"ids": ["Q688326"], "color": "#8B4513"},      # 9
+    "oratorio":             {"ids": ["Q1064047"], "color": "#FF69B4"},     # 10
+    "villa":                {"ids": ["Q80966"], "color": "#4B0082"},       # 11
+    "casa":                 {"ids": ["Q3947"], "color": "#A52A2A"},        # 12
+    "natura_2000":          {"ids": ["Q2683204"], "color": "#32CD32"},     # 13
+    "struttura_arch":       {"ids": ["Q811979"], "color": "#708090"},      # 14
+    "palazzo":              {"ids": ["Q16560"], "color": "#DC143C"},       # 15
+    "cascina":              {"ids": ["Q1046969"], "color": "#D2691E"},     # 16
+    "edificio":             {"ids": ["Q41176"], "color": "#C0C0C0"},       # 17
+    "pianta_monum":         {"ids": ["Q811534"], "color": "#006400"},      # 18
+    "archivio":             {"ids": ["Q166118"], "color": "#4682B4"},      # 19
+    "palazzo_italiano":     {"ids": ["Q1767"], "color": "#B22222"},        # 20
+    "castello":             {"ids": ["Q23413"], "color": "#800000"},       # 21
+    "montagna":             {"ids": ["Q8502"], "color": "#2F4F4F"},        # 22
+    "biblio_spec":          {"ids": ["Q622549"], "color": "#20B2AA"},      # 23
+    "biblio_univ":          {"ids": ["Q856584"], "color": "#5F9EA0"},      # 24
+    "capitello":            {"ids": ["Q750656"], "color": "#DA70D6"},      # 25
+    "torre":                {"ids": ["Q12518"], "color": "#000080"},       # 26
+    "museo":                {"ids": ["Q33506"], "color": "#DDA0DD"},       # 27
+    "biblio_privata":       {"ids": ["Q7246255"], "color": "#BC8F8F"},     # 28
+    "strada_urbana":        {"ids": ["Q7944"], "color": "#696969"},        # 29
+    "biblio_scolastica":    {"ids": ["Q193896"], "color": "#F0E68C"},      # 30
+    "localita":             {"ids": ["Q3257686"], "color": "#A0522D"},     # ZUSATZ
+    "other":                {"ids": [], "color": "#000000"}
 }
 
 def get_bbox_from_feature(feature):
@@ -107,8 +108,8 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Retrieve Label, Type Label and Type QID
-    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?typeLabel ?type WHERE {{
+    # Retrieve ?itemLabel instead of ?label to use the Service correctly (IT -> EN -> ID)
+    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
@@ -128,7 +129,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/3.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/4.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -232,9 +233,11 @@ def main():
             except: continue
             
             type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
-            # type_label = row.get('typeLabel') or row.get('?typeLabel') or "" # REMOVED to avoid duplicates
+            
+            # Use ?itemLabel from SPARQL Service (Correct Name)
+            label_val = row.get('itemLabel') or row.get('?itemLabel') or qid
 
-            # Mapping Logic per le 30 categorie
+            # Mapping Logic
             category_slug = "other"
             for cat_key, cat_val in CATEGORY_MAPPING.items():
                 if type_qid in cat_val["ids"]:
@@ -246,10 +249,9 @@ def main():
                 "type": "Feature",
                 "properties": { 
                     "wikidata": qid, 
-                    "name": row.get('label') or row.get('?label') or qid, 
+                    "name": label_val, 
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
-                    # "type": type_label, # REMOVED
                     "category": category_slug
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }

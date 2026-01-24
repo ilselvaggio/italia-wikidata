@@ -23,8 +23,12 @@
         
         /* --- PLACEHOLDER --- */
         #map-placeholder { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
-        .desktop-msg { display: inline; }
+        .desktop-msg { display: none; }
         .mobile-msg { display: none; }
+
+        @media (max-width: 768px) {
+        .mobile-msg { display: inline; }
+        }
 
         /* --- SIDEBAR --- */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }

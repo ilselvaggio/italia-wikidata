@@ -17,6 +17,41 @@ METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 
+# --- 30 CATEGORIE ESATTE + OTHER ---
+CATEGORY_MAPPING = {
+    "chiesa":               {"ids": ["Q16970"], "color": "#FF0000"},       # Rosso acceso
+    "insediamento":         {"ids": ["Q486972"], "color": "#0000FF"},      # Blu
+    "frazione":             {"ids": ["Q1134686"], "color": "#008000"},     # Verde
+    "cimitero":             {"ids": ["Q39614"], "color": "#808080"},       # Grigio
+    "palazzo_comunale":     {"ids": ["Q25550691"], "color": "#FFA500"},    # Arancione
+    "municipality_seat":    {"ids": ["Q193055"], "color": "#FFD700"},      # Oro
+    "biblio_pubblica":      {"ids": ["Q28564"], "color": "#00CED1"},       # Turchese scuro
+    "cappella":             {"ids": ["Q108325"], "color": "#800080"},      # Viola
+    "nuraghe":              {"ids": ["Q688326"], "color": "#8B4513"},      # Marrone scuro
+    "oratorio":             {"ids": ["Q1064047"], "color": "#FF69B4"},     # Rosa caldo
+    "villa":                {"ids": ["Q80966"], "color": "#4B0082"},       # Indaco
+    "casa":                 {"ids": ["Q3947"], "color": "#A52A2A"},        # Marrone
+    "natura_2000":          {"ids": ["Q2683204"], "color": "#32CD32"},     # Lime Green
+    "struttura_arch":       {"ids": ["Q811979"], "color": "#708090"},      # Slate Gray
+    "palazzo":              {"ids": ["Q16560"], "color": "#DC143C"},       # Crimson
+    "cascina":              {"ids": ["Q1046969"], "color": "#D2691E"},     # Cioccolato
+    "edificio":             {"ids": ["Q41176"], "color": "#C0C0C0"},       # Argento
+    "pianta_monum":         {"ids": ["Q811534"], "color": "#006400"},      # Verde scuro
+    "archivio":             {"ids": ["Q166118"], "color": "#4682B4"},      # Steel Blue
+    "palazzo_italiano":     {"ids": ["Q1767"], "color": "#B22222"},        # Firebrick
+    "castello":             {"ids": ["Q23413"], "color": "#800000"},       # Maroon
+    "montagna":             {"ids": ["Q8502"], "color": "#2F4F4F"},        # Dark Slate Gray
+    "biblio_spec":          {"ids": ["Q622549"], "color": "#20B2AA"},      # Light Sea Green
+    "biblio_univ":          {"ids": ["Q856584"], "color": "#5F9EA0"},      # Cadet Blue
+    "capitello":            {"ids": ["Q750656"], "color": "#DA70D6"},      # Orchid
+    "torre":                {"ids": ["Q12518"], "color": "#000080"},       # Navy
+    "museo":                {"ids": ["Q33506"], "color": "#DDA0DD"},       # Plum
+    "biblio_privata":       {"ids": ["Q7246255"], "color": "#BC8F8F"},     # Rosy Brown
+    "strada_urbana":        {"ids": ["Q7944"], "color": "#696969"},        # Dim Gray
+    "biblio_scolastica":    {"ids": ["Q193896"], "color": "#F0E68C"},      # Khaki
+    "other":                {"ids": [], "color": "#000000"}                # Nero (fallback)
+}
+
 def get_bbox_from_feature(feature):
     all_coords = []
     def extract(coords_list):
@@ -72,12 +107,10 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Added filters for destroyed locations (P5817 and P5816) and P5817=Q11639308
-    # Added ?typeLabel selector and P31 optional match
-    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?typeLabel WHERE {{
+    # Recupera Label, Type Label e Type QID
+    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?typeLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
-       # Exclude destroyed/dissolved objects
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }} 
@@ -86,18 +119,16 @@ def get_wikidata_clean(qid):
 
        MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
        
-       # Fetch Type (P31)
        OPTIONAL {{ ?item wdt:P31 ?type. }}
 
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
        BIND(geof:latitude(?loc) as ?lat) 
        BIND(geof:longitude(?loc) as ?lon) 
        
-       # Label Service (handles fallback IT -> EN and ?typeLabel)
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/2.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/3.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -145,8 +176,6 @@ def main():
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
-    
-    # Timezone handling
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     now_str = utc_now.isoformat()
     
@@ -202,8 +231,15 @@ def main():
                 lat, lon = float(row.get('lat') or row.get('?lat')), float(row.get('lon') or row.get('?lon'))
             except: continue
             
-            # Retrieve Type Label
+            type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
             type_label = row.get('typeLabel') or row.get('?typeLabel') or ""
+
+            # Mapping Logic per le 30 categorie
+            category_slug = "other"
+            for cat_key, cat_val in CATEGORY_MAPPING.items():
+                if type_qid in cat_val["ids"]:
+                    category_slug = cat_key
+                    break
 
             status = "done" if qid in osm_ids else "missing"
             features.append({
@@ -213,7 +249,8 @@ def main():
                     "name": row.get('label') or row.get('?label') or qid, 
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
-                    "type": type_label  # Save Type
+                    "type": type_label,
+                    "category": category_slug
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })

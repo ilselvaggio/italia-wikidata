@@ -31,11 +31,12 @@
         "Biblioteca privata": ["Q380829"],
         "Biblioteca specializzata": ["Q385994"],
         "Biblioteca di ente": ["Q124750618"],
-        "Biblioteca": ["Q7075"]
+        "Biblioteca": ["Q7075", "Q124750618"]
       },
       "Musei": {
-        "Museo": ["Q33506"],
+        "Museo": ["Q33506", "Q124830213", "Q124830411"],
         "Museo d'arte": ["Q207694", "Q108860593"],
+        "Pinacoteca": ["Q740437"],
         "Museo archeologico": ["Q3329412"],
         "Museo storico": ["Q16735822"],
         "Museo etnografico": ["Q12104174"],
@@ -45,10 +46,11 @@
         "Casa museo": ["Q2087181"]
       },
       "Archivi": {
-        "Archivio": ["Q166118"],
+        "Archivio": ["Q166118", "Q604177"],
         "Archivio comunale": ["Q604177"],
         "Archivio di Stato": ["Q17620767"],
-        "Archivio accademico": ["Q27032435"]
+        "Archivio accademico": ["Q27032435"],
+        "Archivio storico": ["Q3621673"]
       },
       "Spettacolo": {
         "Teatro": ["Q24354"],
@@ -63,25 +65,31 @@
     "color": "#E63946",
     "subgroups": {
       "Luoghi di Culto": {
-        "Chiesa": ["Q16970", "Q317557"],
+        "Chiesa": ["Q16970", "Q317557", "Q55876909", "Q1088552"],
         "Chiesa parrocchiale": ["Q55876909", "Q317557"],
         "Basilica minore": ["Q120560"],
         "Cappella": ["Q108325"],
+        "Cappella cimiteriale": ["Q1457501"],
         "Oratorio": ["Q580499"],
         "Santuario": ["Q697295"],
+        "Tempio": ["Q44539"],
         "Capitello votivo": ["Q3395121"],
         "Via Crucis": ["Q231685"],
-        "Ex chiesa": ["Q19899465"]
+        "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496"]
       },
       "Vita Monastica": {
         "Monastero": ["Q44613"],
         "Abbazia": ["Q160742"],
+        "Convento": ["Q1128397"],
         "Canonica": ["Q607241"],
         "Eremo": ["Q513550"]
       },
       "Cimiteri": {
         "Cimitero": ["Q39614"],
-        "Cimitero di guerra": ["Q1241568"]
+        "Cimitero di guerra": ["Q1241568"],
+        "Necropoli": ["Q200141"],
+        "Tomba": ["Q381885"],
+        "Monumento funebre": ["Q56055312"]
       },
       "Amministrazione Religiosa": {
         "Parrocchia": ["Q102496"]
@@ -113,11 +121,13 @@
       "Fortificazioni": {
         "Castello": ["Q23413"],
         "Castello in rovina": ["Q17715832"],
+        "Rocca": ["Q1195705"],
         "Forte": ["Q1785071"],
         "Fortezza": ["Q57831"],
         "Fortificazione": ["Q57821"],
         "Mura cittadine": ["Q16748868"],
         "Porta cittadina": ["Q82117"],
+        "Baluardo": ["Q81851"],
         "Torre": ["Q12518"],
         "Torre campanaria": ["Q200334"]
       },
@@ -132,26 +142,32 @@
     "color": "#2A9D8F",
     "subgroups": {
       "Acqua": {
-        "Lago": ["Q23397"],
+        "Lago": ["Q23397", "Q4735538"],
         "Bacino artificiale": ["Q131681"],
-        "Sorgente": ["Q124714"]
+        "Fiume": ["Q4022"],
+        "Sorgente": ["Q124714"],
+        "Cascata": ["Q34038"]
       },
       "Mare e Costa": {
         "Spiaggia": ["Q40080"],
         "Baia": ["Q39594"],
+        "Capo": ["Q185113"],
         "Isola": ["Q23442"]
       },
       "Montagna": {
         "Montagna": ["Q8502"],
+        "Vetta": ["Q207326"],
         "Valle": ["Q39816"],
-        "Passo": ["Q2231510"],
+        "Passo": ["Q2231510", "Q133056"],
         "Sella": ["Q10862618"],
-        "Gap": ["Q16887036"]
+        "Gap": ["Q16887036"],
+        "Grotta": ["Q35509"]
       },
       "Verde": {
         "Parco": ["Q22698"],
         "Parco cittadino": ["Q22746"],
         "Giardino": ["Q1107656"],
+        "Orto botanico": ["Q167346"],
         "Albero monumentale": ["Q811534"],
         "Area protetta": ["Q473972", "Q15069452", "Q3936950"]
       }
@@ -163,16 +179,18 @@
       "Residenze": {
         "Palazzo": ["Q16560"],
         "Palazzo italiano": ["Q2651004"],
-        "Villa": ["Q3950"],
-        "Casa": ["Q3947"],
+        "Villa": ["Q3950", "Q111189432"],
+        "Casa": ["Q3947", "Q16884952"],
         "Cascina": ["Q1169748"],
-        "Grangia": ["Q1098590"]
+        "Grangia": ["Q1098590"],
+        "Fattoria": ["Q1098590"]
       },
       "Ospitalità": {
         "Albergo": ["Q27686"],
         "Guest house": ["Q2460422"],
         "Rifugio di montagna": ["Q182676"],
-        "Bivacco alpino": ["Q20743510"]
+        "Bivacco alpino": ["Q20743510"],
+        "Bivacco": ["Q20743510"]
       },
       "Strutture Varie": {
         "Edificio": ["Q41176"],
@@ -187,7 +205,7 @@
     "color": "#7D8597",
     "subgroups": {
       "Trasporti": {
-        "Stazione ferroviaria": ["Q55488"],
+        "Stazione ferroviaria": ["Q55488", "Q928830"],
         "Fermata ferroviaria": ["Q55678"],
         "Fermata dismessa": ["Q65464941"],
         "Stazione metropolitana": ["Q928830"],
@@ -198,8 +216,11 @@
         "Aerodromo": ["Q94993988"],
         "Porto": ["Q44782"],
         "Valico di confine": ["Q55599109"],
-        "Galleria": ["Q44377"],
-        "Strada urbana": ["Q79007"]
+        "Galleria": ["Q44377", "Q2354973"],
+        "Strada urbana": ["Q79007"],
+        "Ponte": ["Q12280"],
+        "Viadotto": ["Q181348"],
+        "Faro": ["Q39715"]
       },
       "Industria e Tecnica": {
         "Edificio industriale": ["Q1662011"],
@@ -208,7 +229,9 @@
         "Centrale elettrica": ["Q339353"],
         "Lavatoio": ["Q1690211"],
         "Stazione meteorologica": ["Q190107"],
-        "Società scientifica": ["Q955824"]
+        "Società scientifica": ["Q955824"],
+        "Osservatorio astronomico": ["Q1254933"],
+        "Fabbrica": ["Q3973051"]
       },
       "Servizi": {
         "Servizio": ["Q13226383"],
@@ -221,11 +244,17 @@
     "color": "#8D6E63",
     "subgroups": {
       "Siti": {
-        "Sito archeologico": ["Q839954"],
+        "Sito archeologico": ["Q839954", "Q3363945"],
         "Parco archeologico": ["Q3363945"],
-        "Nuraghe": ["Q688292"],
+        "Nuraghe": ["Q688292", "Q1385277"],
         "Domus": ["Q782970"],
-        "Rovine": ["Q109607"]
+        "Domus de Janas": ["Q782970"],
+        "Tomba dei giganti": ["Q1523627"],
+        "Rovine": ["Q109607"],
+        "Città antica": ["Q15661340"],
+        "Anfiteatro": ["Q41735"],
+        "Teatro romano": ["Q3243464"],
+        "Terme": ["Q1341387"]
       }
     }
   },
@@ -235,6 +264,8 @@
       "Monumenti": {
         "Monumento": ["Q4989906"],
         "Memoriale di guerra": ["Q575759"],
+        "Monumento ai caduti": ["Q575759", "Q114124381"],
+        "Arco di trionfo": ["Q200688"],
         "Targa commemorativa": ["Q721747"],
         "Statua": ["Q179700"],
         "Fontana": ["Q483453"],

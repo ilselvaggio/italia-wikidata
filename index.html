@@ -198,7 +198,7 @@
     function toggleViewMode() {
         viewMode = (viewMode === 'regions') ? 'categories' : 'regions';
         var btn = document.getElementById('cat-toggle-btn');
-        btn.innerText = (viewMode === 'categories') ? "Torna a Regioni" : "Vista Categorie";
+        btn.innerText = (viewMode === 'categories') ? "Torna a Vista Regioni" : "Vista Categorie";
         if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
         
         renderSidebar();

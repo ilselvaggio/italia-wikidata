@@ -15,6 +15,7 @@
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
+        /* FIXED: Button now fully reloads the page to clear all states */
         #cat-toggle-btn { display: none; background: #e67e22; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; }
         #cat-toggle-btn:hover { background: #d35400; }
         
@@ -29,10 +30,9 @@
         /* SIDEBAR */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         
+        /* Search Hidden but CSS kept for layout stability */
         #search-container { padding: 10px; border-bottom: 1px solid #34495e; display: none; }
         #catSearch { width: 90%; padding: 5px; border-radius: 4px; border: none; font-size: 12px; background: #34495e; color: white; }
-        #catSearch::placeholder { color: #95a5a6; }
-        #catSearch:focus { outline: none; background: #3e5871; }
 
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
         #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
@@ -40,10 +40,13 @@
         #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
+        /* List Item (Regions) */
         .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
         
-        /* LEVEL 1: GROUPS */
+        /* --- ACCORDION STYLES --- */
+        
+        /* Level 1: Main Groups */
         .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; transition: background 0.2s; }
         .group-header.fully-selected { background-color: #2980b9 !important; border-left: 4px solid #fff; }
         .group-header.partially-selected { border-left: 4px solid #f39c12; background-color: #3e5871; }
@@ -57,7 +60,7 @@
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
-        /* LEVEL 2: SUBGROUPS */
+        /* Level 2: Subgroups */
         .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
         .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
         .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
@@ -66,13 +69,18 @@
         .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
         .subgroup-dl-btn:hover { background: #27ae60; color: white; }
 
-        /* LEVEL 3: TYPES */
+        /* Level 3: Types */
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
-        .subcat-label { flex-grow: 1; padding: 8px 5px 8px 25px; display: flex; justify-content: space-between; align-items: center;}
-        .subcat-item.selected .subcat-label { padding-left: 21px; } 
         
+        /* Layout for Type Label and Dot */
+        .subcat-label { flex-grow: 1; padding: 8px 5px 8px 15px; display: flex; align-items: center; } 
+        .subcat-item.selected .subcat-label { padding-left: 11px; } 
+        
+        /* DYNAMIC COLORED DOT IN MENU */
+        .subcat-dot { min-width: 8px; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid rgba(255,255,255,0.3); }
+
         .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
         .subcat-dl-btn:hover { background: #27ae60; color: white; }
 
@@ -167,13 +175,14 @@
     var selectedRegionKey = null;
     var activeCategoryFilters = new Set(); 
     var expandedGroups = new Set(); 
+    var typeColorCache = {};
 
     // --- GROUPS & COLORS ---
     var groupColors = {
         "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura e tempo libero": "#FFB703", 
         "Amministrazione": "#F4A261", "Fortificazioni e militare": "#606C38", 
         "Dimore ed edifici": "#A53860", "Natura e paesaggio": "#2A9D8F", "Insediamenti": "#457B9D", 
-        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#000000"
+        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#777777"
     };
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
@@ -181,6 +190,62 @@
     map.on('click', function() {
         if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
     });
+
+    // --- COLOR UTILS ---
+    function hexToHSL(H) {
+        let r = 0, g = 0, b = 0;
+        if (H.length == 4) {
+            r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3];
+        } else if (H.length == 7) {
+            r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6];
+        }
+        r /= 255; g /= 255; b /= 255;
+        let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
+        let h = 0, s = 0, l = 0;
+        if (delta == 0) h = 0;
+        else if (cmax == r) h = ((g - b) / delta) % 6;
+        else if (cmax == g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+        l = (cmax + cmin) / 2;
+        s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+        s = +(s * 100).toFixed(1);
+        l = +(l * 100).toFixed(1);
+        return {h, s, l};
+    }
+
+    function HSLToHex(h, s, l) {
+        s /= 100; l /= 100;
+        let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
+        if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+        else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+        else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+        else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+        else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+        else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+        r = Math.round((r + m) * 255).toString(16);
+        g = Math.round((g + m) * 255).toString(16);
+        b = Math.round((b + m) * 255).toString(16);
+        if (r.length == 1) r = "0" + r;
+        if (g.length == 1) g = "0" + g;
+        if (b.length == 1) b = "0" + b;
+        return "#" + r + g + b;
+    }
+
+    function generateVariant(baseHex, seedString) {
+        if (typeColorCache[seedString]) return typeColorCache[seedString];
+        let hash = 0;
+        for (let i = 0; i < seedString.length; i++) hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
+        let hsl = hexToHSL(baseHex);
+        let hueShift = (hash % 50) - 25; 
+        let newH = (hsl.h + hueShift + 360) % 360;
+        let lightShift = (hash % 30) - 15;
+        let newL = Math.max(30, Math.min(75, hsl.l + lightShift)); 
+        let finalColor = HSLToHex(newH, hsl.s, newL);
+        typeColorCache[seedString] = finalColor;
+        return finalColor;
+    }
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
@@ -275,7 +340,6 @@
         var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
         
         if (!currentData || viewMode === 'regions') { 
-            // SHOW REGIONS LIST
             var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
                 var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
                 var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
@@ -294,13 +358,11 @@
             });
         } 
         else {
-            // SHOW CATEGORIES
             var hierarchy = {};
             currentData.features.forEach(f => {
                 var g = f.properties.group || 'Altro';
                 var sg = f.properties.subgroup || 'Altro';
                 var t = f.properties.subcategory || 'Altro';
-                
                 if (!hierarchy[g]) hierarchy[g] = {};
                 if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
                 if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
@@ -325,7 +387,6 @@
                 var isExpanded = expandedGroups.has(group);
                 var color = groupColors[group];
                 
-                // HEADER (Level 1)
                 var headerDiv = document.createElement('div');
                 headerDiv.className = `group-header ${selectionClass}`; 
                 
@@ -346,7 +407,6 @@
                 var content = document.createElement('div');
                 content.className = "group-content" + (isExpanded ? " expanded" : "");
                 
-                // SUBGROUPS (Level 2)
                 Object.keys(hierarchy[group]).sort().forEach(subgroup => {
                     var typesInSubgroup = Object.keys(hierarchy[group][subgroup]);
                     
@@ -373,15 +433,20 @@
                         content.appendChild(sgHeader);
                     }
 
-                    // TYPES (Level 3)
                     typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
                         var count = hierarchy[group][subgroup][type];
+                        
+                        // DYNAMIC COLOR
+                        var dynColor = generateVariant(color, type);
+
                         var item = document.createElement('div');
                         item.className = "subcat-item" + (activeCategoryFilters.has(type) ? " selected" : "");
                         
                         var labelPart = document.createElement('div');
                         labelPart.className = "subcat-label";
-                        labelPart.innerHTML = `<span>${type}</span> <span>(${count})</span>`;
+                        
+                        // Dot with dynamic color
+                        labelPart.innerHTML = `<span class="subcat-dot" style="background:${dynColor}"></span> <span>${type}</span> <span style="margin-left:auto; font-size:10px; opacity:0.7">(${count})</span>`;
                         labelPart.onclick = () => toggleCategoryFilter(type);
                         
                         var btnPart = document.createElement('button');
@@ -409,20 +474,16 @@
         return null;
     }
 
-    // --- HOVER & CLICK HIGHLIGHT LOGIC ---
-    
+    // --- FIXED HOVER & CLICK LOGIC ---
     function highlightFeature(e) {
+        if (viewMode !== 'regions') return; 
         var layer = e.target;
-        layer.setStyle({
-            weight: 3,
-            color: '#0044ff', // HOVER: Blue border
-            // We keep the fill settings from original to show heatmap color
-        });
-        layer.bringToFront();
+        layer.setStyle({ weight: 3, color: '#0044ff' });
+        // DO NOT use bringToFront() here to avoid stuttering
     }
 
     function resetHighlight(e) {
-        layers.regions.resetStyle(e.target);
+        if (viewMode === 'regions') { layers.regions.resetStyle(e.target); }
     }
 
     function loadRegionsShape() {
@@ -468,13 +529,22 @@
 
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
+        // 1. MAKE SELECTED REGION TRANSPARENT (Hide Fill)
+        layers.regions.eachLayer(layer => {
+            if(getKeyFromFeature(layer.feature) === key) {
+                layer.setStyle({ fillOpacity: 0, stroke: false }); 
+            } else {
+                layers.regions.resetStyle(layer); 
+            }
+        });
+
+        // 2. ADD BLUE BORDER
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
-            // SELECTION STYLE: Blue Border, Transparent Fill
             var b = L.geoJSON(target, { 
                 pane: 'regionsPane', 
-                style: { color: "#0044ff", weight: 3, fillOpacity: 0 } 
+                style: { color: "#0044ff", weight: 3, fillOpacity: 0, interactive: false } 
             }).addTo(layers.activeBorder);
             map.fitBounds(b.getBounds());
         }
@@ -510,7 +580,14 @@
             if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg"></a>`;
             pop += `</div></div>`;
 
-            var color = isD ? "#2ecc71" : (groupColors[group] || "#000000");
+            // DYNAMIC COLOR ON MAP
+            var color;
+            if (isD) {
+                color = "#2ecc71"; // Green for Done
+            } else {
+                var baseColor = groupColors[group] || "#000000";
+                color = typeColorCache[subcat] || generateVariant(baseColor, subcat);
+            }
             
             L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
                 pane: 'markersPane', radius: 4.5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.8 

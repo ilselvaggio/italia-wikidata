@@ -3,70 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSM-Wikidata Italia Overview</title>
+    <title>Panoramica OpenStreetMap-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
+        /* CORE LAYOUT */
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
         
         /* HEADER */
-        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; height: 50px; z-index: 1000; position: relative; }
-        #left-col { display: flex; align-items: center; gap: 10px; }
-        #menu-toggle { display: none; background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
-        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; }
+        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0; }
+        #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+        #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
+        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* CONTROLS */
-        #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
+        #cat-toggle-btn { display: none; background: #e67e22; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; }
+        #cat-toggle-btn:hover { background: #d35400; }
         
-        /* SIDEBAR */
-        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; overflow-y: auto; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; }
+        #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
+        #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
         
-        /* MOBILE HINT (Standardmäßig aus) */
-        .mobile-hint { display: none; background-color: #233140; padding: 12px; text-align: center; color: #bdc3c7; font-weight: bold; border-bottom: 1px solid #1a252f; font-size: 13px; }
+        /* PLACEHOLDER */
+        #map-placeholder { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
+        .desktop-msg { display: inline; }
+        .mobile-msg { display: none; }
 
-        /* MAIN LAYOUT */
-        #main-container { display: flex; height: calc(100% - 50px); width: 100%; position: relative; }
+        /* SIDEBAR */
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
+        
+        #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
+        #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
+
+        #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
-        .region-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; }
-        .region-item:hover { background-color: #34495e; }
-        .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
+        /* LIST ITEM */
+        .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .list-item:hover { background-color: #34495e; }
         
-        .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; }
+        /* ACCORDION - Level 1 */
+        .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; transition: background 0.2s; }
+        .group-header.fully-selected { background-color: #2980b9 !important; border-left: 4px solid #fff; }
+        .group-header.partially-selected { border-left: 4px solid #f39c12; background-color: #3e5871; }
+
+        .group-label { flex-grow: 1; padding: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; }
+        .group-label:hover { background-color: rgba(255,255,255,0.1); }
+        
+        .group-toggle-icon { padding: 10px; cursor: pointer; border-left: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; width: 30px; }
+        .group-toggle-icon:hover { background-color: rgba(255,255,255,0.2); }
+        
+        .group-content { display: none; background-color: #2c3e50; }
+        .group-content.expanded { display: block; }
+        
+        /* ACCORDION - Level 2 */
+        .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
+        .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
+        .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
+        .subgroup-header.fully-selected .subgroup-label { color: #3498db; }
+
+        .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
+        .subgroup-dl-btn:hover { background: #27ae60; color: white; }
+
+        /* ACCORDION - Level 3 */
+        .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
+        .subcat-item:hover { background-color: #3e5871; }
+        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
+        
+        .subcat-label { flex-grow: 1; padding: 8px 5px 8px 15px; display: flex; align-items: center; } 
+        .subcat-item.selected .subcat-label { padding-left: 11px; } 
+        
+        /* Dynamic Dot */
+        .subcat-dot { min-width: 8px; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid rgba(255,255,255,0.3); }
+        
+        .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
+        .subcat-dl-btn:hover { background: #27ae60; color: white; }
+
+        /* Dots & Stats */
+        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
+        
+        .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
         
-        .btn-download { 
-            background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; 
-            padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; 
-            display: none; 
-        }
-        .btn-download:hover { background-color: #aab7b8; }
-        
-        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
+        .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
         #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
-        /* LOGOS IN POPUP */
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
-        .logo-link:hover { transform: scale(1.1); }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
+            #header { padding-left: 0; } 
             #menu-toggle { display: block; }
-            #sidebar { 
-                position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; 
-                transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5);
-            }
+            #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5); border-top: 1px solid #1a252f; }
             #sidebar.open { transform: translateX(0); }
-            #title { font-size: 14px; }
+            #title { display: none; }
+            body:not(.region-loaded) #title { display: block; max-width: 200px; } 
+            #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
-            .stat-item span:nth-child(3) { display: none; }
+            .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
-            
-            /* Zeige Hinweis nur auf Mobile */
-            .mobile-hint { display: block; }
+            #btnDownload { display: none !important; } 
+            .subcat-dl-btn, .subgroup-dl-btn { display: none; } 
+            .desktop-msg { display: none; }
+            .mobile-msg { display: inline; }
+            .leaflet-control-zoom { display: none !important; }
         }
     </style>
 </head>
@@ -74,126 +114,349 @@
 <header id="header">
     <div id="left-col">
         <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
+        <div id="title" onclick="location.reload()">Panoramica OpenStreetMap-Wikidata Italia</div>
+        <button id="cat-toggle-btn" onclick="location.reload()">Torna a panoramica</button>
     </div>
     <div id="controls">
-        <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
-        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Wikidata only">
-            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Wikidata only</span> <span id="count-missing" style="font-weight:bold"></span>
+        <div id="loading">Caricamento...</div>
+        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Solo Wikidata">
+            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Solo Wikidata</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
-        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="Done">
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()" title="Scarica selezione">⬇</button>
+        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="OSM+Wikidata">
             <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
-        <div id="meta-info">
-            <div>OSM: <span id="date-osm">--</span></div>
-            <div>Wikidata: <span id="date-wiki">--</span></div>
-        </div>
+    </div>
+    <div id="meta-info">
+        <div>OSM: <span id="date-osm">--</span></div>
+        <div>WD: <span id="date-wiki">--</span></div>
     </div>
 </header>
 <div id="main-container">
-    <div id="sidebar"></div>
-    <div id="map"></div>
+    <div id="sidebar">
+        <div id="sidebar-content"></div>
+        <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
+    </div>
+    <div id="map">
+        <div id="map-placeholder">
+            <span class="desktop-msg">Seleziona una regione</span>
+            <span class="mobile-msg">↖ Toccare il menu (☰) per scegliere una regione</span>
+        </div>
+    </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        maxZoom: 19,
-        attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
+    maxZoom: 19, 
+    attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>' 
     }).addTo(map);
-
     map.createPane('regionsPane'); map.getPane('regionsPane').style.zIndex = 400;
     map.createPane('markersPane'); map.getPane('markersPane').style.zIndex = 600;
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
     var currentMissingFeatures = [];
+    var currentData = null; 
+    var historyData = [];
+    
+    var viewMode = 'regions'; 
+    var selectedRegionKey = null;
+    var activeCategoryFilters = new Set(); 
+    var expandedGroups = new Set(); 
+    var typeColorCache = {};
 
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('open');
-    }
+    // --- GROUPS & COLORS ---
+    var groupColors = {
+        "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura e tempo libero": "#FFB703", 
+        "Amministrazione": "#F4A261", "Fortificazioni e militare": "#606C38", 
+        "Dimore ed edifici": "#A53860", "Natura e paesaggio": "#2A9D8F", "Insediamenti": "#457B9D", 
+        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#777777"
+    };
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
     map.on('click', function() {
-        if (window.innerWidth <= 700) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
+        if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
     });
+
+    // --- COLOR UTILS ---
+    function hexToHSL(H) {
+        let r = 0, g = 0, b = 0;
+        if (H.length == 4) { r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3]; } 
+        else if (H.length == 7) { r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6]; }
+        r /= 255; g /= 255; b /= 255;
+        let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
+        let h = 0, s = 0, l = 0;
+        if (delta == 0) h = 0;
+        else if (cmax == r) h = ((g - b) / delta) % 6;
+        else if (cmax == g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+        l = (cmax + cmin) / 2;
+        s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+        s = +(s * 100).toFixed(1);
+        l = +(l * 100).toFixed(1);
+        return {h, s, l};
+    }
+
+    function HSLToHex(h, s, l) {
+        s /= 100; l /= 100;
+        let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
+        if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+        else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+        else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+        else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+        else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+        else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+        r = Math.round((r + m) * 255).toString(16);
+        g = Math.round((g + m) * 255).toString(16);
+        b = Math.round((b + m) * 255).toString(16);
+        if (r.length == 1) r = "0" + r;
+        if (g.length == 1) g = "0" + g;
+        if (b.length == 1) b = "0" + b;
+        return "#" + r + g + b;
+    }
+
+    function generateVariant(baseHex, seedString) {
+        if (typeColorCache[seedString]) return typeColorCache[seedString];
+        let hash = 0;
+        for (let i = 0; i < seedString.length; i++) hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
+        let hsl = hexToHSL(baseHex);
+        let hueShift = (hash % 50) - 25; 
+        let newH = (hsl.h + hueShift + 360) % 360;
+        let lightShift = (hash % 30) - 15;
+        let newL = Math.max(30, Math.min(75, hsl.l + lightShift)); 
+        let finalColor = HSLToHex(newH, hsl.s, newL);
+        typeColorCache[seedString] = finalColor;
+        return finalColor;
+    }
 
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({})),
-        fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null)
-    ]).then(([regions, metadata, bounds]) => {
+        fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null),
+        fetch('history.json').then(r => r.json()).catch(() => []) 
+    ]).then(([regions, metadata, bounds, history]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
-        if(metadata.global_osm_date) document.getElementById('date-osm').innerText = new Date(metadata.global_osm_date).toLocaleString();
-        if(metadata.global_wiki_date) document.getElementById('date-wiki').innerText = new Date(metadata.global_wiki_date).toLocaleString();
-        initNavigation();
+        historyData = history;
+
+        var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+        
+        if(metadata.global_osm_date) {
+             let d = new Date(metadata.global_osm_date);
+             document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_osm_date;
+        }
+        if(metadata.global_wiki_date) {
+             let d = new Date(metadata.global_wiki_date);
+             document.getElementById('date-wiki').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_wiki_date;
+        }
+
+        renderSidebar();
         if (boundariesGeoJSON) loadRegionsShape();
     });
 
     function getHeatColor(p) {
-        if (p >= 90) return '#006400';
-        if (p >= 80) return '#228B22';
-        if (p >= 70) return '#32CD32';
-        if (p >= 60) return '#ADFF2F';
-        if (p >= 50) return '#FFFF00';
-        if (p >= 40) return '#FFA500';
-        if (p >= 30) return '#FF8C00';
-        if (p >= 20) return '#FF4500';
-        if (p >= 10) return '#FF0000';
+        if (p >= 90) return '#006400'; if (p >= 80) return '#228B22'; if (p >= 70) return '#32CD32';
+        if (p >= 60) return '#ADFF2F'; if (p >= 50) return '#FFFF00'; if (p >= 40) return '#FFA500';
+        if (p >= 30) return '#FF8C00'; if (p >= 20) return '#FF4500'; if (p >= 10) return '#FF0000';
         return '#8B0000';
     }
 
-    function initNavigation() {
-        var sb = document.getElementById('sidebar'); sb.innerHTML = "";
+    function getTrend(regionKey, currentPct) {
+        if (!historyData || historyData.length < 2) return "";
+        var lastEntry = historyData[historyData.length - 2]; 
+        if (!lastEntry || !lastEntry.data[regionKey]) return "";
+        var oldMeta = lastEntry.data[regionKey];
+        if (oldMeta.total === 0) return "";
+        var oldPct = Math.round((oldMeta.done / oldMeta.total) * 100);
+        var diff = currentPct - oldPct;
+        var style = ""; var prefix = "";
+        if (diff > 0) { prefix = "+"; if (diff >= 3) style = "color:#006400; font-weight:bold"; else style = "color:#4cd137"; } 
+        else if (diff < 0) { style = "color:#e74c3c"; } 
+        else { style = "color:#f39c12"; prefix = "+"; }
+        return `<span style="${style}; font-size:11px; margin-right:5px;">${prefix}${diff}%</span>`;
+    }
+    
+    function toggleGroupExpand(group, event) {
+        if (event) event.stopPropagation();
+        if (expandedGroups.has(group)) expandedGroups.delete(group);
+        else expandedGroups.add(group);
+        renderSidebar();
+    }
+
+    function toggleGroupSelection(group, availableSubcats) {
+        var allSelected = availableSubcats.every(s => activeCategoryFilters.has(s));
+        if (allSelected) availableSubcats.forEach(s => activeCategoryFilters.delete(s));
+        else availableSubcats.forEach(s => activeCategoryFilters.add(s));
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
+    function toggleSubgroupSelection(subgroup, types) {
+        var allSelected = types.every(t => activeCategoryFilters.has(t));
+        if (allSelected) {
+            types.forEach(t => activeCategoryFilters.delete(t));
+        } else {
+            types.forEach(t => activeCategoryFilters.add(t));
+        }
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
+    function toggleCategoryFilter(subcat) {
+        if (activeCategoryFilters.has(subcat)) activeCategoryFilters.delete(subcat);
+        else activeCategoryFilters.add(subcat);
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
+    function renderSidebar() {
+        var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
         
-        // Mobile Hint einfuegen
-        var hint = document.createElement('div');
-        hint.className = "mobile-hint";
-        hint.innerText = "Seleziona una regione";
-        sb.appendChild(hint);
+        if (!currentData || viewMode === 'regions') { 
+            var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
+                var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
+                var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
+                return (metaB.done / metaB.total) - (metaA.done / metaA.total);
+            });
+            sortedKeys.forEach(key => {
+                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
+                var pct = Math.round((meta.done / meta.total) * 100);
+                var color = getHeatColor(pct);
+                var trendHtml = getTrend(key, pct);
+                var div = document.createElement('div');
+                div.className = "list-item"; 
+                div.innerHTML = `<span>${regionConfig[key].name}</span><div>${trendHtml}<span style="color:${color};font-weight:bold">${pct}%</span></div>`;
+                div.onclick = () => { changeRegion(key); };
+                sb.appendChild(div);
+            });
+        } 
+        else {
+            var hierarchy = {};
+            currentData.features.forEach(f => {
+                var g = f.properties.group || 'Altro';
+                var sg = f.properties.subgroup || 'Altro';
+                var t = f.properties.subcategory || 'Altro';
+                
+                if (!hierarchy[g]) hierarchy[g] = {};
+                if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
+                if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
+                hierarchy[g][sg][t]++;
+            });
 
-        var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
-            var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
-            var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
-            var pctA = (metaA.done / metaA.total);
-            var pctB = (metaB.done / metaB.total);
-            if (pctB !== pctA) return pctB - pctA;
-            return regionConfig[a].name.localeCompare(regionConfig[b].name);
-        });
+            Object.keys(groupColors).forEach(group => {
+                if (!hierarchy[group]) return; 
+                
+                var allTypesInGroup = [];
+                var groupTotal = 0;
+                Object.values(hierarchy[group]).forEach(sg => {
+                    Object.values(sg).forEach(cnt => groupTotal += cnt);
+                    Object.keys(sg).forEach(t => allTypesInGroup.push(t));
+                });
 
-        sortedKeys.forEach(key => {
-            var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) ? metaDataGlobal.regions[key] : null;
-            var pct = (meta && meta.total > 0) ? Math.round((meta.done / meta.total) * 100) : null;
-            var color = pct !== null ? getHeatColor(pct) : "#fff";
-            
-            var div = document.createElement('div');
-            div.className = "region-item"; div.id = "sb-item-" + key;
-            div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
-            div.onclick = () => { changeRegion(key); if(window.innerWidth<=700) toggleSidebar(); };
-            sb.appendChild(div);
-        });
+                var selectedCount = allTypesInGroup.filter(s => activeCategoryFilters.has(s)).length;
+                var selectionClass = "";
+                if (selectedCount === allTypesInGroup.length && allTypesInGroup.length > 0) selectionClass = "fully-selected";
+                else if (selectedCount > 0) selectionClass = "partially-selected";
+
+                var isExpanded = expandedGroups.has(group);
+                var color = groupColors[group];
+                
+                var headerDiv = document.createElement('div');
+                headerDiv.className = `group-header ${selectionClass}`; 
+                
+                var labelDiv = document.createElement('div');
+                labelDiv.className = "group-label";
+                labelDiv.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${group} <span style="font-weight:normal; font-size:11px; margin-left:5px; opacity:0.8">(${groupTotal})</span>`;
+                labelDiv.onclick = () => toggleGroupSelection(group, allTypesInGroup); 
+                
+                var toggleDiv = document.createElement('div');
+                toggleDiv.className = "group-toggle-icon";
+                toggleDiv.innerText = isExpanded ? '▼' : '▶';
+                toggleDiv.onclick = (e) => toggleGroupExpand(group, e);
+
+                headerDiv.appendChild(labelDiv);
+                headerDiv.appendChild(toggleDiv);
+                sb.appendChild(headerDiv);
+
+                var content = document.createElement('div');
+                content.className = "group-content" + (isExpanded ? " expanded" : "");
+                
+                Object.keys(hierarchy[group]).sort().forEach(subgroup => {
+                    var typesInSubgroup = Object.keys(hierarchy[group][subgroup]);
+                    
+                    if(subgroup !== "Altro" && subgroup !== group) {
+                        var subSelectedCount = typesInSubgroup.filter(t => activeCategoryFilters.has(t)).length;
+                        var subClass = (subSelectedCount === typesInSubgroup.length) ? "fully-selected" : "";
+
+                        var sgHeader = document.createElement('div');
+                        sgHeader.className = `subgroup-header ${subClass}`;
+                        
+                        var sgLabel = document.createElement('div');
+                        sgLabel.className = "subgroup-label";
+                        sgLabel.innerText = subgroup;
+                        sgLabel.onclick = () => toggleSubgroupSelection(subgroup, typesInSubgroup);
+                        
+                        var sgDlBtn = document.createElement('button');
+                        sgDlBtn.className = "subgroup-dl-btn";
+                        sgDlBtn.innerHTML = "⬇";
+                        sgDlBtn.title = "Scarica " + subgroup;
+                        sgDlBtn.onclick = (e) => { e.stopPropagation(); downloadSubgroup(subgroup); };
+
+                        sgHeader.appendChild(sgLabel);
+                        sgHeader.appendChild(sgDlBtn);
+                        content.appendChild(sgHeader);
+                    }
+
+                    typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
+                        var count = hierarchy[group][subgroup][type];
+                        var dynColor = generateVariant(color, type);
+
+                        var item = document.createElement('div');
+                        item.className = "subcat-item" + (activeCategoryFilters.has(type) ? " selected" : "");
+                        
+                        var labelPart = document.createElement('div');
+                        labelPart.className = "subcat-label";
+                        labelPart.innerHTML = `<span class="subcat-dot" style="background:${dynColor}"></span> <span>${type}</span> <span style="margin-left:auto; font-size:10px; opacity:0.7">(${count})</span>`;
+                        labelPart.onclick = () => toggleCategoryFilter(type);
+                        
+                        var btnPart = document.createElement('button');
+                        btnPart.className = "subcat-dl-btn";
+                        btnPart.innerHTML = "⬇";
+                        btnPart.title = "Scarica JSON";
+                        btnPart.onclick = (e) => { e.stopPropagation(); downloadSubcategory(type); };
+
+                        item.appendChild(labelPart);
+                        item.appendChild(btnPart);
+                        content.appendChild(item);
+                    });
+                });
+                sb.appendChild(content);
+            });
+        }
     }
 
     function getKeyFromFeature(f) {
-        // 1. ID Check (OSM ID oder Relation ID)
-        var featId = String(f.id || f.properties.id || f.properties['@id'] || f.properties.osm_id || "").replace("relation/", "");
-        var idMatch = Object.keys(regionConfig).find(k => {
-            var configOsm = String(regionConfig[k].osm);
-            // Prueft exakte ID oder die Subtraktions-Logik
-            return configOsm === featId || String(parseInt(configOsm) - 3600000000) === featId;
-        });
-        if (idMatch) return idMatch;
+        var id = String(f.id || f.properties.id || f.properties['@id'] || "").replace("relation/", "");
+        var found = Object.keys(regionConfig).find(k => String(parseInt(regionConfig[k].osm) - 3600000000) === id);
+        if (found) return found;
+        var name = f.properties.name || f.properties['name:en'] || "";
+        if (name.includes("Sardegna")) return "sardegna";
+        return null;
+    }
 
-        // 2. Fallback: Name Check (unscharf)
-        var name = (f.properties.name || f.properties['name:en'] || f.properties['name:it'] || "").toLowerCase();
-        return Object.keys(regionConfig).find(k => {
-            var configName = (regionConfig[k].name || "").toLowerCase();
-            return name && configName && (name.includes(configName) || configName.includes(name));
-        });
+    function highlightFeature(e) {
+        if (viewMode !== 'regions') return; 
+        var layer = e.target;
+        layer.setStyle({ weight: 3, color: '#55AAFF' }); 
+        // No bringToFront() to prevent blocking
+    }
+
+    function resetHighlight(e) {
+        if (viewMode === 'regions') { layers.regions.resetStyle(e.target); }
     }
 
     function loadRegionsShape() {
@@ -201,17 +464,22 @@
             pane: 'regionsPane',
             style: function(f) {
                 var k = getKeyFromFeature(f);
-                var color = "#3498db", opacity = 0.1;
-                if (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) {
-                    var m = metaDataGlobal.regions[k];
-                    if (m.total > 0) { color = getHeatColor((m.done / m.total) * 100); opacity = 0.6; }
-                }
-                return { color: color, weight: 1.5, fillOpacity: opacity };
+                var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+                var color = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+                return { color: color, weight: 1.5, fillOpacity: 0.6, fillColor: color }; 
             },
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
                 if (k) { 
-                    l.on('click', () => changeRegion(k)); 
+                    l.on({
+                        mouseover: highlightFeature,
+                        mouseout: resetHighlight,
+                        click: (e) => { 
+                            if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
+                            L.DomEvent.stopPropagation(e);
+                            changeRegion(k); 
+                        }
+                    });
                     l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
             }
@@ -220,65 +488,126 @@
     }
 
     function changeRegion(key) {
-        document.querySelectorAll('.region-item').forEach(el => el.classList.remove('active'));
-        if(document.getElementById("sb-item-" + key)) document.getElementById("sb-item-" + key).classList.add('active');
-        layers.activeBorder.clearLayers();
+        selectedRegionKey = key;
+        viewMode = 'categories'; 
+        activeCategoryFilters.clear(); 
+        expandedGroups.clear();
         
+        document.body.classList.add('region-loaded');
+        document.getElementById('map-placeholder').style.display = 'none';
+        document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
+        document.getElementById('cat-toggle-btn').style.display = 'block'; 
+        document.getElementById('controls').style.display = 'flex';
+
+        if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
+
+        // REMOVE THE REGIONS LAYER SO IT DOESN'T BLOCK MARKERS
+        if(map.hasLayer(layers.regions)) map.removeLayer(layers.regions);
+
+        layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
             var b = L.geoJSON(target, { 
                 pane: 'regionsPane', 
-                style: { color: "#3498db", weight: 3, fillOpacity: 0.05 } 
+                style: { color: "#0044ff", weight: 3, fillOpacity: 0, interactive: false } 
             }).addTo(layers.activeBorder);
-            map.addLayer(layers.activeBorder); map.fitBounds(b.getBounds());
+            map.fitBounds(b.getBounds());
         }
         
         document.getElementById('loading').style.display = 'block';
         document.getElementById('btnDownload').style.display = 'none';
-        layers.missing.clearLayers(); layers.done.clearLayers();
-        currentMissingFeatures = [];
-
+        
         fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
-            var cM = 0, cD = 0;
-            data.features.forEach(f => {
-                var isD = f.properties.status === 'done';
-                if(isD) cD++; else { cM++; currentMissingFeatures.push(f); }
-                var p = f.properties;
-                var pop = `<div style="text-align:center">
-                    <b>${p.name}</b><br><small>${p.wikidata}</small>
-                    <div class="logo-row">
-                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
-                        </a>`;
-                if(p.osm_id) {
-                    pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
-                        </a>`;
-                }
-                pop += `</div></div>`;
-
-                L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
-                    pane: 'markersPane',
-                    radius: 4.5, fillColor: isD ? "#2ecc71" : "#e74c3c", color: "#fff", weight: 1, fillOpacity: 0.8 
-                }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
-            });
-            document.getElementById('count-missing').innerText = `(${cM})`;
-            document.getElementById('count-done').innerText = `(${cD})`;
+            currentData = data; 
+            renderSidebar();
+            renderMarkers(data);
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('stat-missing').style.display = 'flex';
-            document.getElementById('stat-done').style.display = 'flex';
-            if (cM > 0) document.getElementById('btnDownload').style.display = 'block';
-            if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
-            if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
         });
     }
 
+    function renderMarkers(data) {
+        layers.missing.clearLayers(); layers.done.clearLayers();
+        var cM = 0, cD = 0;
+        var hasSelection = activeCategoryFilters.size > 0;
+
+        data.features.forEach(f => {
+            var isD = f.properties.status === 'done';
+            var subcat = f.properties.subcategory || 'Altro';
+            var group = f.properties.group || 'Altro';
+
+            if (hasSelection && !activeCategoryFilters.has(subcat)) return;
+
+            if(isD) cD++; else cM++;
+
+            var p = f.properties;
+            var pop = `<div style="text-align:center"><b>${p.name}</b><br><small>${p.wikidata}</small>
+            <div class="logo-row"><a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg"></a>`;
+            if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg"></a>`;
+            pop += `</div></div>`;
+
+            var color;
+            if (isD) {
+                color = "#2ecc71"; 
+            } else {
+                var baseColor = groupColors[group] || "#000000";
+                color = typeColorCache[subcat] || generateVariant(baseColor, subcat);
+            }
+            
+            L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
+                pane: 'markersPane', radius: 4.5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.8 
+            }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
+        });
+
+        document.getElementById('count-missing').innerText = `(${cM})`;
+        document.getElementById('count-done').innerText = `(${cD})`;
+        
+        if (cM > 0) document.getElementById('btnDownload').style.display = 'block';
+        else document.getElementById('btnDownload').style.display = 'none';
+        
+        if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+        if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
+    }
+
     function downloadCurrentMissing() {
-        if (!currentMissingFeatures.length) return;
-        var blob = new Blob([JSON.stringify({ "type": "FeatureCollection", "features": currentMissingFeatures })], {type: "application/json"});
+        if (!currentMissingFeatures.length && !currentData) return;
+        var feats = [];
+        var hasSelection = activeCategoryFilters.size > 0;
+        currentData.features.forEach(f => {
+            if (f.properties.status === 'missing') {
+                if (!hasSelection || activeCategoryFilters.has(f.properties.subcategory)) feats.push(f);
+            }
+        });
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var suffix = hasSelection ? "_selection" : "_all";
+        downloadJSON(feats, `missing_${regionName}${suffix}.geojson`);
+    }
+
+    function downloadSubcategory(cat) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subcategory === cat);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare."); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var catName = cat.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
+    }
+
+    function downloadSubgroup(subgroup) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare per questo gruppo."); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var sgName = subgroup.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${sgName}.geojson`);
+    }
+
+    function downloadJSON(features, filename) {
+        var blob = new Blob([JSON.stringify({ "type": "FeatureCollection", "features": features })], {type: "application/json"});
         var a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "missing_items.geojson";
+        a.download = filename;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 

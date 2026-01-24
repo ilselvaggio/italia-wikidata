@@ -72,22 +72,32 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Added filters for destroyed locations (P5817 and P5816)
-    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
+    # Added filters for destroyed locations (P5817 and P5816) and P5817=Q11639308
+    # Added ?typeLabel selector and P31 optional match
+    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?typeLabel WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
+       
+       # Exclude destroyed/dissolved objects
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }} 
        FILTER NOT EXISTS {{ ?item wdt:P5816 wd:Q56556915 }} 
+       FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q11639308 }}
+
        MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
+       
+       # Fetch Type (P31)
+       OPTIONAL {{ ?item wdt:P31 ?type. }}
+
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
        BIND(geof:latitude(?loc) as ?lat) 
        BIND(geof:longitude(?loc) as ?lon) 
-       OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='en') }} 
-       OPTIONAL {{ ?item rdfs:label ?label. FILTER(lang(?label)='it') }}
+       
+       # Label Service (handles fallback IT -> EN and ?typeLabel)
+       SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/1.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/2.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -135,7 +145,8 @@ def main():
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
-    # Fixed timezone usage for Python 3.12+ compatibility / general correctness
+    
+    # Timezone handling
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     now_str = utc_now.isoformat()
     
@@ -191,10 +202,19 @@ def main():
                 lat, lon = float(row.get('lat') or row.get('?lat')), float(row.get('lon') or row.get('?lon'))
             except: continue
             
+            # Retrieve Type Label
+            type_label = row.get('typeLabel') or row.get('?typeLabel') or ""
+
             status = "done" if qid in osm_ids else "missing"
             features.append({
                 "type": "Feature",
-                "properties": { "wikidata": qid, "name": row.get('label') or row.get('?label') or qid, "status": status, "osm_id": osm_ids.get(qid) },
+                "properties": { 
+                    "wikidata": qid, 
+                    "name": row.get('label') or row.get('?label') or qid, 
+                    "status": status, 
+                    "osm_id": osm_ids.get(qid),
+                    "type": type_label  # Save Type
+                },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })
             seen.add(qid)

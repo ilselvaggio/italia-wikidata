@@ -7,124 +7,239 @@ import sys
 import datetime
 import argparse
 
-# --- CONFIGURATION ---
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
-DATA_DIR = "data_overpass"
+DATA_DIR = "data_overpass" # Oder "data", je nachdem was du nutzt
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 HISTORY_FILE = "history.json"
 
-# --- CATEGORY HIERARCHY ---
 CATEGORY_CONFIG = {
     "Religione": {
-        "color": "#E63946", 
-        "subcats": {
-            "Chiesa": ["Q16970", "Q317557", "Q55876909", "Q1088552", "Q19899465", "Q57644089", "Q96352496", "Q24398318", "Q607241"],
-            "Cappella": ["Q108325", "Q1457501"],
-            "Oratorio": ["Q1064047", "Q580499"],
-            "Monastero/Convento": ["Q44613", "Q1128397", "Q160742", "Q513550", "Q233324", "Q1430154"],
-            "Santuario/Tempio": ["Q697295", "Q44539", "Q44539"],
-            "Edificio Religioso": ["Q24398318", "Q96352496"]
+        "color": "#E63946",
+        "subgroups": {
+            "Luoghi di Culto": {
+                "Chiesa": ["Q16970", "Q317557", "Q55876909", "Q1088552"],
+                "Cappella": ["Q108325"],
+                "Cappella cimiteriale": ["Q1457501"],
+                "Oratorio": ["Q580499"],
+                "Santuario": ["Q697295"],
+                "Tempio": ["Q44539"],
+                "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496"]
+            },
+            "Vita Monastica": {
+                "Monastero": ["Q44613"],
+                "Abbazia": ["Q160742"],
+                "Convento": ["Q1128397"],
+                "Eremo": ["Q513550"],
+                "Canonica": ["Q607241"]
+            },
+            "Luoghi di Sepoltura": {
+                "Cimitero": ["Q39614"],
+                "Cimitero di guerra": ["Q1241568"],
+                "Necropoli": ["Q200141"],
+                "Tomba": ["Q381885"],
+                "Monumento funebre": ["Q56055312"]
+            }
+        }
+    },
+    "Fortificazioni e militare": {
+        "color": "#606C38",
+        "subgroups": {
+            "Castelli e Fortezze": {
+                "Castello": ["Q23413"],
+                "Rocca": ["Q1195705"],
+                "Forte": ["Q1785071"],
+                "Fortificazione": ["Q57821"]
+            },
+            "Strutture Difensive": {
+                "Torre": ["Q12518"],
+                "Torre campanaria": ["Q200334"],
+                "Mura cittadine": ["Q16748868"],
+                "Porta cittadina": ["Q82117"],
+                "Baluardo": ["Q81851"]
+            },
+            "Militare Moderno": {
+                "Caserma": ["Q131263"],
+                "Bunker": ["Q91122"],
+                "Campo di concentramento": ["Q152081"]
+            }
+        }
+    },
+    "Cultura e tempo libero": {
+        "color": "#FFB703",
+        "subgroups": {
+            "Musei": {
+                "Museo": ["Q33506", "Q124830213", "Q124830411"],
+                "Museo d'arte": ["Q207694", "Q108860593"],
+                "Pinacoteca": ["Q740437"],
+                "Museo archeologico": ["Q3329412"],
+                "Museo storico": ["Q16735822"],
+                "Museo etnografico": ["Q12104174"],
+                "Casa museo": ["Q2087181"]
+            },
+            "Biblioteche e Archivi": {
+                "Biblioteca pubblica": ["Q28564"],
+                "Biblioteca": ["Q7075", "Q124750618"],
+                "Archivio storico": ["Q3621673"],
+                "Archivio": ["Q166118", "Q604177"]
+            },
+            "Spettacolo": {
+                "Teatro": ["Q24354"],
+                "Teatro d'opera": ["Q153562"],
+                "Cinema": ["Q41253"]
+            }
+        }
+    },
+    "Natura e paesaggio": {
+        "color": "#2A9D8F",
+        "subgroups": {
+            "Verde Pubblico": {
+                "Parco": ["Q22698"],
+                "Parco cittadino": ["Q22746"],
+                "Giardino": ["Q1107656"],
+                "Orto botanico": ["Q167346"]
+            },
+            "Acqua": {
+                "Lago": ["Q23397", "Q4735538", "Q131681"],
+                "Fiume": ["Q4022"],
+                "Sorgente": ["Q124714"],
+                "Cascata": ["Q34038"]
+            },
+            "Mare e Costa": {
+                "Spiaggia": ["Q40080"],
+                "Capo": ["Q185113"],
+                "Isola": ["Q23442"]
+            },
+            "Montagna": {
+                "Montagna": ["Q8502"],
+                "Vetta": ["Q207326"],
+                "Valle": ["Q39816"],
+                "Passo di montagna": ["Q133056", "Q2231510"],
+                "Grotta": ["Q35509"]
+            },
+            "Aree Protette": {
+                "Area protetta": ["Q473972", "Q15069452", "Q3936950"],
+                "Albero monumentale": ["Q811534"]
+            }
         }
     },
     "Archeologia": {
-        "color": "#8D6E63", 
-        "subcats": {
-            "Nuraghe": ["Q688326", "Q688292", "Q2002347", "Q3924307", "Q1385277"],
-            "Tomba dei Giganti": ["Q1523627", "Q381885"],
-            "Domus de Janas": ["Q782970"],
-            "Sito Archeologico": ["Q839954", "Q109607", "Q15661340", "Q3363945", "Q200141", "Q14752696", "Q1341387", "Q200141"],
-            "Rovine": ["Q109607"]
-        }
-    },
-    "Cultura": {
-        "color": "#FFB703", 
-        "subcats": {
-            "Museo": ["Q33506", "Q124830213", "Q12104174", "Q614316", "Q207694", "Q16735822", "Q135713224", "Q3329412", "Q92755865", "Q108860593", "Q1970365", "Q2087181", "Q2398990", "Q1662089", "Q3867560", "Q124830411", "Q112132534", "Q112132542", "Q1231888", "Q112132527", "Q740437"],
-            "Biblioteca": ["Q28564", "Q124750618", "Q385994", "Q380829", "Q1622062", "Q1076099", "Q7075", "Q105763925", "Q124750593", "Q124750614", "Q124750711", "Q2326815"],
-            "Archivio": ["Q166118", "Q604177", "Q3621673", "Q17620767", "Q2877653", "Q17620767"],
-            "Teatro/Cinema": ["Q24354", "Q41253"]
-        }
-    },
-    "Istruzione": {
-        "color": "#FFD166",
-        "subcats": {
-            "Scuola": ["Q126807", "Q9842", "Q149566", "Q57775518", "Q9826", "Q1244442", "Q3831968", "Q3803834", "Q3803808", "Q56177191", "Q3914"],
-            "Istituto": ["Q3803834", "Q3803808", "Q56177191"]
-        }
-    },
-    "Amministrazione": {
-        "color": "#F4A261",
-        "subcats": {
-            "Municipio": ["Q25550691", "Q15303838", "Q543654", "Q1137809"],
-            "Giustizia": ["Q1137809"]
-        }
-    },
-    "Fortificazioni": {
-        "color": "#606C38",
-        "subcats": {
-            "Castello": ["Q23413", "Q1408475", "Q1195705"],
-            "Torre": ["Q12518", "Q200334"],
-            "Mura/Porta": ["Q16748868", "Q82117", "Q57821", "Q1785071", "Q57346", "Q81851"],
-            "Militare/Bunker": ["Q131263", "Q91122", "Q1785071", "Q81851"]
-        }
-    },
-    "Dimore ed Edifici": {
-        "color": "#A53860",
-        "subcats": {
-            "Palazzo": ["Q16560", "Q2651004"],
-            "Villa": ["Q80966", "Q3950", "Q111189432", "Q3558938"],
-            "Casa": ["Q3947", "Q16884952", "Q1497375", "Q2087181"],
-            "Cascina/Fattoria": ["Q1169748", "Q16884952", "Q1303167", "Q1207909"],
-            "Edificio Generico": ["Q41176", "Q1497375", "Q35112127", "Q3694735", "Q3044808", "Q811979"]
-        }
-    },
-    "Natura": {
-        "color": "#2A9D8F",
-        "subcats": {
-            "Montagna/Valle": ["Q8502", "Q39816", "Q46831", "Q207326", "Q133056", "Q54050", "Q123705"],
-            "Acqua (Lago/Fiume/Mare)": ["Q4735538", "Q23397", "Q4022", "Q34038", "Q40080", "Q12284", "Q185113", "Q23442", "Q39594"], 
-            "Area Protetta/Parco": ["Q15069452", "Q473972", "Q179049", "Q3936950", "Q3936952", "Q22698", "Q22746", "Q1107656", "Q167346", "Q4421"],
-            "Albero/Grotta": ["Q811534", "Q35509"]
+        "color": "#8D6E63",
+        "subgroups": {
+            "Siti Preistorici": {
+                "Nuraghe": ["Q688292", "Q1385277"],
+                "Tomba dei giganti": ["Q1523627"],
+                "Domus de Janas": ["Q782970"]
+            },
+            "Antichità Classica": {
+                "Sito archeologico": ["Q839954", "Q3363945"],
+                "Città antica": ["Q15661340"],
+                "Anfiteatro": ["Q41735"],
+                "Teatro romano": ["Q3243464"],
+                "Terme": ["Q1341387"],
+                "Rovine": ["Q109607"]
+            }
         }
     },
     "Insediamenti": {
         "color": "#457B9D",
-        "subcats": {
-            "Insediamento": ["Q486972", "Q1134686", "Q3835961", "Q3257686", "Q676050", "Q15661340"]
+        "subgroups": {
+            "Centri Abitati": {
+                "Frazione": ["Q1134686"],
+                "Insediamento umano": ["Q486972"],
+                "Località abitata": ["Q3835961"],
+                "Cittadina": ["Q3957"]
+            },
+            "Zone Urbane": {
+                "Centro storico": ["Q676050"],
+                "Quartiere": ["Q123705"],
+                "Piazza": ["Q174782"]
+            }
+        }
+    },
+    "Amministrazione": {
+        "color": "#F4A261",
+        "subgroups": {
+            "Enti Pubblici": {
+                "Municipio": ["Q25550691", "Q15303838"],
+                "Comune italiano": ["Q747074"],
+                "Palazzo di giustizia": ["Q1137809"],
+                "Ufficio postale": ["Q35054"]
+            }
+        }
+    },
+    "Dimore ed edifici": {
+        "color": "#A53860",
+        "subgroups": {
+            "Residenze Nobiliari": {
+                "Palazzo": ["Q16560", "Q2651004"],
+                "Villa": ["Q3950", "Q80966", "Q111189432"]
+            },
+            "Edifici Civili e Rurali": {
+                "Casa": ["Q3947", "Q16884952"],
+                "Cascina": ["Q1169748"],
+                "Fattoria": ["Q1098590"],
+                "Rifugio di montagna": ["Q182676"],
+                "Bivacco": ["Q20743510"],
+                "Edificio": ["Q41176"]
+            }
         }
     },
     "Infrastrutture": {
         "color": "#7D8597",
-        "subcats": {
-            "Cimitero": ["Q39614", "Q381885", "Q200141", "Q56055312", "Q1457501"],
-            "Trasporti": ["Q55488", "Q55678", "Q2175765", "Q12280", "Q537127", "Q181348", "Q2354973", "Q79007", "Q34442", "Q44782", "Q39715", "Q181348"],
-            "Sanità/Ospedale": ["Q16917", "Q4287745"],
-            "Meteo/Scienza": ["Q190107", "Q1254933"], # ADDED: Wetterstation (Q190107), Sternwarte (Q1254933)
-            "Ospitalità": ["Q27686", "Q182676"],
-            "Industria": ["Q1662011", "Q329683", "Q44494", "Q13226383", "Q1076486", "Q3973051"]
+        "subgroups": {
+            "Trasporti": {
+                "Stazione ferroviaria": ["Q55488", "Q928830"],
+                "Fermata ferroviaria": ["Q55678"],
+                "Aeroporto": ["Q1248784"],
+                "Porto": ["Q44782"]
+            },
+            "Opere Ingegneristiche": {
+                "Ponte": ["Q12280"],
+                "Viadotto": ["Q181348"],
+                "Galleria": ["Q44377", "Q2354973"],
+                "Faro": ["Q39715"],
+                "Lavatoio": ["Q1690211"]
+            },
+            "Scienza e Industria": {
+                "Stazione meteorologica": ["Q190107"],
+                "Osservatorio astronomico": ["Q1254933"],
+                "Edificio industriale": ["Q1662011"],
+                "Fabbrica": ["Q3973051"],
+                "Centrale elettrica": ["Q339353"]
+            }
         }
     },
-    "Monumenti e Spazi": {
+    "Monumenti": {
         "color": "#9D4EDD",
-        "subcats": {
-            "Monumento": ["Q4989906", "Q5003624", "Q1885014", "Q56055312", "Q114124381", "Q721747", "Q11734477", "Q26703203", "Q575759", "Q3238324", "Q75762", "Q241045", "Q860861", "Q179700", "Q3395121"],
-            "Fontana": ["Q483453", "Q1690211"],
-            "Piazza": ["Q174782", "Q185600", "Q391414", "Q16887380", "Q3305213", "Q281460", "Q3395121", "Q750656"]
+        "subgroups": {
+            "Opere Commemorative": {
+                "Monumento": ["Q4989906"],
+                "Monumento ai caduti": ["Q575759", "Q114124381"],
+                "Arco di trionfo": ["Q200688"]
+            },
+            "Fontane e Sculture": {
+                "Fontana": ["Q483453"],
+                "Statua": ["Q179700"]
+            }
         }
     }
 }
 
-# Lookup-Map generieren
 QID_LOOKUP = {}
-for group, g_data in CATEGORY_CONFIG.items():
-    for subcat, qids in g_data["subcats"].items():
-        for qid in qids:
-            QID_LOOKUP[qid] = {"group": group, "subcat": subcat}
+for group_name, group_data in CATEGORY_CONFIG.items():
+    for subgroup_name, types_dict in group_data["subgroups"].items():
+        for type_name, qids in types_dict.items():
+            for qid in qids:
+                QID_LOOKUP[qid] = {
+                    "group": group_name,
+                    "subgroup": subgroup_name,
+                    "type": type_name
+                }
 
 def get_bbox_from_feature(feature):
     all_coords = []
@@ -202,7 +317,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/7.5', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/8.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -311,12 +426,15 @@ def main():
             if type_qid in QID_LOOKUP:
                 match = QID_LOOKUP[type_qid]
                 group = match["group"]
-                subcat = match["subcat"]
+                subgroup = match["subgroup"]
+                type_name = match["type"]
             else:
                 group = "Altro"
-                subcat = "Altro"
+                subgroup = "Altro"
+                type_name = "Altro"
 
             status = "done" if qid in osm_ids else "missing"
+            
             features.append({
                 "type": "Feature",
                 "properties": { 
@@ -325,7 +443,8 @@ def main():
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
                     "group": group,
-                    "subcategory": subcat
+                    "subgroup": subgroup,
+                    "subcategory": type_name
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })
@@ -343,27 +462,20 @@ def main():
         time.sleep(1)
 
     if processed_count > 0:
-        # 1. Save Metadata
+        # Save Metadata
         with open(METADATA_FILE, 'w') as f:
             json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_meta }, f)
         
-        # 2. History Logic
+        # Save History
         history = []
         if os.path.exists(HISTORY_FILE):
             try:
-                with open(HISTORY_FILE, 'r') as f:
-                    history = json.load(f)
+                with open(HISTORY_FILE, 'r') as f: history = json.load(f)
             except: pass
         
         today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-        
-        # Keep entries that are NOT today (we replace today's entry if it exists)
         history = [h for h in history if h.get("date") != today_str]
-        
-        # Add current state
         history.append({ "date": today_str, "data": new_meta })
-        
-        # Sort by date
         history.sort(key=lambda x: x['date'])
         
         with open(HISTORY_FILE, 'w') as f:

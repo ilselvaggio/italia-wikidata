@@ -8,14 +8,12 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
         
-        /* HEADER */
         #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 1000; position: relative; }
         
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* TOGGLE BUTTON */
         #cat-toggle-btn { 
             display: none; 
             background: #e67e22; border: none; color: white; 
@@ -26,13 +24,10 @@
         #cat-toggle-btn:hover { background: #d35400; }
         #cat-toggle-btn.active { background: #c0392b; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
 
-        /* CONTROLS */
         #controls { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         
-        /* SIDEBAR */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
         
-        /* MAIN LAYOUT */
         #main-container { display: flex; height: calc(100vh - 50px); width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
@@ -40,7 +35,6 @@
         .list-item:hover { background-color: #34495e; }
         .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
-        /* CATEGORY ITEM STYLE */
         .cat-item { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .cat-info { display: flex; align-items: center; gap: 5px; overflow: hidden; pointer-events: none; }
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
@@ -62,13 +56,11 @@
         #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; }
         #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
-        /* LOGOS IN POPUP */
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link:hover { transform: scale(1.1); }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
             #menu-toggle { display: block; }
             #sidebar { 
@@ -76,13 +68,9 @@
                 transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5);
             }
             #sidebar.open { transform: translateX(0); }
-            
-            /* Titolo nascosto su mobile per dare spazio ai controlli */
             #title { display: none; }
             #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
-            
-            /* Nascondi testo lungo controlli */
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
         }
@@ -100,7 +88,7 @@
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Solo Wikidata">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Solo Wikidata</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()" title="Scarica solo Wikidata">⬇</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()" title="Scarica selezione">⬇</button>
         <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="OSM+Wikidata">
             <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
@@ -133,11 +121,11 @@
     var currentData = null; 
     
     // STATE
-    var viewMode = 'regions'; // 'regions' or 'categories'
+    var viewMode = 'regions'; 
     var selectedRegionKey = null;
-    var activeCategoryFilter = null; 
+    var activeCategoryFilters = new Set(); // MULTI-SELECT
 
-    // --- CONFIGURAZIONE COLORI ESATTI (30 Categorie) ---
+    // --- 30 KATEGORIEN + LOCALITÀ ---
     var categoryColors = {
         "chiesa": "#FF0000", "insediamento": "#0000FF", "frazione": "#008000", "cimitero": "#808080",
         "palazzo_comunale": "#FFA500", "municipality_seat": "#FFD700", "biblio_pubblica": "#00CED1",
@@ -147,7 +135,9 @@
         "palazzo_italiano": "#B22222", "castello": "#800000", "montagna": "#2F4F4F",
         "biblio_spec": "#20B2AA", "biblio_univ": "#5F9EA0", "capitello": "#DA70D6", "torre": "#000080",
         "museo": "#DDA0DD", "biblio_privata": "#BC8F8F", "strada_urbana": "#696969",
-        "biblio_scolastica": "#F0E68C", "other": "#000000"
+        "biblio_scolastica": "#F0E68C", 
+        "localita": "#A0522D", // LOCALITÀ
+        "other": "#000000"
     };
 
     var categoryLabels = {
@@ -159,14 +149,16 @@
         "palazzo_italiano": "Palazzo Italiano", "castello": "Castello", "montagna": "Montagna",
         "biblio_spec": "Biblio. Specializzata", "biblio_univ": "Biblio. Universitaria", "capitello": "Capitello Votivo",
         "torre": "Torre", "museo": "Museo", "biblio_privata": "Biblio. Privata", "strada_urbana": "Strada Urbana",
-        "biblio_scolastica": "Biblio. Scolastica", "other": "Altro"
+        "biblio_scolastica": "Biblio. Scolastica", 
+        "localita": "Località", 
+        "other": "Altro"
     };
 
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
     }
 
-    // CLICK MAPPA: Chiude sidebar solo se click sullo sfondo (non sulla regione)
+    // --- MOBILE SPERRE ---
     map.on('click', function() {
         if (window.innerWidth <= 700) document.getElementById('sidebar').classList.remove('open');
     });
@@ -210,26 +202,26 @@
         btn.innerText = (viewMode === 'categories') ? "Torna a Regioni" : "Vista Categorie";
         if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
         
-        activeCategoryFilter = null;
+        activeCategoryFilters.clear();
         
         renderSidebar();
         if (currentData) renderMarkers(currentData);
     }
     
-    function filterByCategory(cat) {
-        if (activeCategoryFilter === cat) {
-            activeCategoryFilter = null; 
+    // --- MULTI-SELECT LOGIC ---
+    function toggleCategoryFilter(cat) {
+        if (activeCategoryFilters.has(cat)) {
+            activeCategoryFilters.delete(cat);
         } else {
-            activeCategoryFilter = cat; 
+            activeCategoryFilters.add(cat);
         }
-        renderSidebar(); 
-        renderMarkers(currentData); 
+        renderSidebar(); // Update UI highlights
+        renderMarkers(currentData); // Filter map
     }
 
     function renderSidebar() {
         var sb = document.getElementById('sidebar'); sb.innerHTML = "";
         
-        // --- MODE 1: REGIONS LIST (Default) ---
         if (viewMode === 'regions') {
             var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
                 var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
@@ -253,7 +245,6 @@
                 sb.appendChild(div);
             });
         } 
-        // --- MODE 2: CATEGORY LIST (Only active inside a region) ---
         else {
             if (!currentData) {
                 sb.innerHTML = "<div style='padding:10px;color:orange'>Seleziona prima una regione!</div>";
@@ -281,14 +272,15 @@
                 var div = document.createElement('div');
                 div.className = "list-item";
                 
-                if (activeCategoryFilter === cat) {
+                // Highlight logic for multi-select
+                if (activeCategoryFilters.has(cat)) {
                     div.style.backgroundColor = "#2980b9"; 
                     div.style.borderLeft = "4px solid white";
                 }
                 
                 div.onclick = (e) => {
                     if(e.target.tagName !== 'BUTTON') {
-                        filterByCategory(cat);
+                        toggleCategoryFilter(cat);
                     }
                 };
                 
@@ -332,7 +324,12 @@
                 var k = getKeyFromFeature(f); 
                 if (k) { 
                     l.on('click', (e) => { 
-                        // FIX CRITICO MOBILE: Ferma la propagazione per NON chiudere la sidebar!
+                        // UX RESTRIKTION: Keine Aktion auf Mobile beim Klick auf Karte
+                        if (window.innerWidth <= 700) {
+                            L.DomEvent.stopPropagation(e);
+                            return; 
+                        }
+                        
                         L.DomEvent.stopPropagation(e);
                         changeRegion(k); 
                     }); 
@@ -347,7 +344,7 @@
         selectedRegionKey = key;
         
         viewMode = 'regions'; 
-        activeCategoryFilter = null; 
+        activeCategoryFilters.clear(); 
         
         document.getElementById('cat-toggle-btn').innerText = "Vista Categorie";
         document.getElementById('cat-toggle-btn').classList.remove('active');
@@ -355,7 +352,7 @@
 
         renderSidebar(); 
         
-        // FIX MOBILE: Apri la sidebar se chiusa
+        // Auto-Open Sidebar on Mobile if triggered (via menu)
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
         layers.activeBorder.clearLayers();
@@ -386,8 +383,9 @@
             var isD = f.properties.status === 'done';
             var cat = f.properties.category || 'other';
 
-            if (activeCategoryFilter) {
-                if (cat !== activeCategoryFilter) return; 
+            // MULTI-SELECT FILTER LOGIC
+            if (activeCategoryFilters.size > 0) {
+                if (!isD && !activeCategoryFilters.has(cat)) return; // Skip unmatched missing items
             }
 
             if(isD) {
@@ -440,7 +438,7 @@
 
     function downloadCurrentMissing() {
         if (!currentMissingFeatures.length) return;
-        var suffix = activeCategoryFilter ? `_${activeCategoryFilter}` : "_all";
+        var suffix = activeCategoryFilters.size > 0 ? "_selection" : "_all";
         var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         downloadJSON(currentMissingFeatures, `missing_${regionName}${suffix}.geojson`);
     }

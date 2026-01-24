@@ -6,86 +6,64 @@
     <title>Panoramica OpenStreetMap-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* CORE LAYOUT: Flexbox for correct mobile height */
-        body, html { 
-            margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden;
-            display: flex; flex-direction: column;
-        }
+        /* CORE LAYOUT */
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
         
         /* HEADER */
-        #header { 
-            background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; 
-            padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0;
-        }
-        
+        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0; }
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        #cat-toggle-btn { 
-            display: none; background: #e67e22; border: none; color: white; 
-            padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; 
-        }
+        #cat-toggle-btn { display: none; background: #e67e22; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; }
         #cat-toggle-btn:hover { background: #d35400; }
         
         #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
-        
         #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
         
         /* PLACEHOLDER */
-        #map-placeholder {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px;
-            border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px);
-        }
+        #map-placeholder { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
         .desktop-msg { display: inline; }
         .mobile-msg { display: none; }
 
         /* SIDEBAR */
-        #sidebar { 
-            width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; 
-            flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; 
-        }
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         
+        /* SEARCH BAR */
+        #search-container { padding: 10px; border-bottom: 1px solid #34495e; display: none; }
+        #catSearch { width: 90%; padding: 5px; border-radius: 4px; border: none; font-size: 12px; background: #34495e; color: white; }
+        #catSearch::placeholder { color: #95a5a6; }
+        #catSearch:focus { outline: none; background: #3e5871; }
+
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
-        
-        #sidebar-footer {
-            padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d;
-            border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0;
-        }
+        #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
 
         #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
         .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
-        .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
-        /* ACCORDION */
+        /* LEVEL 1: GROUPS */
         .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; }
         .group-label { flex-grow: 1; padding: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; }
         .group-label:hover { background-color: #3e5871; }
         .group-toggle-icon { padding: 10px; cursor: pointer; border-left: 1px solid #2c3e50; display: flex; align-items: center; justify-content: center; width: 30px; }
-        .group-toggle-icon:hover { background-color: #3e5871; }
         
-        .group-header.fully-selected .group-label { background-color: #2980b9; border-left: 4px solid #fff; padding-left: 6px; }
-        .group-header.partially-selected .group-label { border-left: 4px solid #f39c12; padding-left: 6px; }
-
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
+        /* LEVEL 2: SUBGROUPS */
+        .subgroup-header { padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #95a5a6; background-color: #233140; border-bottom: 1px solid #2c3e50; letter-spacing: 0.5px; }
+        
+        /* LEVEL 3: TYPES */
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
-
         .subcat-label { flex-grow: 1; padding: 8px 5px 8px 25px; display: flex; justify-content: space-between; align-items: center;}
         .subcat-item.selected .subcat-label { padding-left: 21px; } 
         
-        .subcat-dl-btn { 
-            width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; 
-            display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e;
-        }
+        .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
         .subcat-dl-btn:hover { background: #27ae60; color: white; }
 
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
@@ -102,29 +80,19 @@
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
             #header { padding-left: 0; } 
             #menu-toggle { display: block; }
-            
-            #sidebar { 
-                position: absolute; left: 0; top: 0; bottom: 0; 
-                z-index: 2000; transform: translateX(-100%); width: 250px; 
-                box-shadow: 2px 0 5px rgba(0,0,0,0.5); border-top: 1px solid #1a252f;
-            }
+            #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5); border-top: 1px solid #1a252f; }
             #sidebar.open { transform: translateX(0); }
-            
             #title { display: none; }
             body:not(.region-loaded) #title { display: block; max-width: 200px; } 
-
             #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
-            
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
             #btnDownload { display: none !important; } 
             .subcat-dl-btn { display: none; } 
-            
             .desktop-msg { display: none; }
             .mobile-msg { display: inline; }
             .leaflet-control-zoom { display: none !important; }
@@ -155,6 +123,9 @@
 </header>
 <div id="main-container">
     <div id="sidebar">
+        <div id="search-container">
+            <input type="text" id="catSearch" placeholder="Cerca categoria..." oninput="filterCategories()">
+        </div>
         <div id="sidebar-content"></div>
         <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
     </div>
@@ -189,19 +160,16 @@
 
     // --- GROUPS & COLORS ---
     var groupColors = {
-        "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura": "#FFB703", 
-        "Istruzione": "#FFD166", "Amministrazione": "#F4A261", "Fortificazioni": "#606C38", 
-        "Dimore ed Edifici": "#A53860", "Natura": "#2A9D8F", "Insediamenti": "#457B9D", 
-        "Infrastrutture": "#7D8597", "Monumenti e Spazi": "#9D4EDD", "Altro": "#000000"
+        "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura e tempo libero": "#FFB703", 
+        "Amministrazione": "#F4A261", "Fortificazioni e militare": "#606C38", 
+        "Dimore ed edifici": "#A53860", "Natura e paesaggio": "#2A9D8F", "Insediamenti": "#457B9D", 
+        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#000000"
     };
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    // FIXED: Mobile check for map clicks
     map.on('click', function() {
-        if (window.innerWidth > 700) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
+        if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
     });
 
     Promise.all([
@@ -235,40 +203,18 @@
         return '#8B0000';
     }
 
-    // --- TREND CALCULATION ---
     function getTrend(regionKey, currentPct) {
-        // We need previous data (not today)
         if (!historyData || historyData.length < 2) return "";
-        
-        // Find the latest entry that is NOT today. historyData is sorted by date.
-        // The last element is likely today (because update.py runs first).
-        // So we want the element BEFORE the last one.
         var lastEntry = historyData[historyData.length - 2]; 
-        
         if (!lastEntry || !lastEntry.data[regionKey]) return "";
-
         var oldMeta = lastEntry.data[regionKey];
         if (oldMeta.total === 0) return "";
-        
         var oldPct = Math.round((oldMeta.done / oldMeta.total) * 100);
         var diff = currentPct - oldPct;
-
-        // Styling based on your rules
-        var style = "";
-        var prefix = "";
-        
-        if (diff > 0) {
-            prefix = "+";
-            if (diff >= 3) style = "color:#006400; font-weight:bold"; // Dark Green >3%
-            else style = "color:#4cd137"; // Light Green 1-2%
-        } else if (diff < 0) {
-            style = "color:#e74c3c"; // Red
-        } else {
-            // 0% -> Orange
-            style = "color:#f39c12"; 
-            prefix = "+"; // +0%
-        }
-
+        var style = ""; var prefix = "";
+        if (diff > 0) { prefix = "+"; if (diff >= 3) style = "color:#006400; font-weight:bold"; else style = "color:#4cd137"; } 
+        else if (diff < 0) { style = "color:#e74c3c"; } 
+        else { style = "color:#f39c12"; prefix = "+"; }
         return `<span style="${style}; font-size:11px; margin-right:5px;">${prefix}${diff}%</span>`;
     }
 
@@ -277,17 +223,17 @@
             viewMode = 'regions';
             activeCategoryFilters.clear();
             expandedGroups.clear();
-            
             document.body.classList.remove('region-loaded');
             document.getElementById('controls').style.display = 'none'; 
             document.getElementById('cat-toggle-btn').style.display = 'none'; 
             document.getElementById('map-placeholder').style.display = 'block';
+            document.getElementById('search-container').style.display = 'none'; // Hide search
+            document.getElementById('catSearch').value = ""; // Clear search
             
             layers.activeBorder.clearLayers();
             layers.missing.clearLayers(); 
             layers.done.clearLayers();
             map.setView([42.0, 12.5], 6);
-            
             renderSidebar();
         }
     }
@@ -301,11 +247,8 @@
 
     function toggleGroupSelection(group, availableSubcats) {
         var allSelected = availableSubcats.every(s => activeCategoryFilters.has(s));
-        if (allSelected) {
-            availableSubcats.forEach(s => activeCategoryFilters.delete(s));
-        } else {
-            availableSubcats.forEach(s => activeCategoryFilters.add(s));
-        }
+        if (allSelected) availableSubcats.forEach(s => activeCategoryFilters.delete(s));
+        else availableSubcats.forEach(s => activeCategoryFilters.add(s));
         renderSidebar();
         renderMarkers(currentData);
     }
@@ -317,6 +260,19 @@
         renderMarkers(currentData);
     }
 
+    function filterCategories() {
+        var input = document.getElementById('catSearch').value.toLowerCase();
+        var items = document.querySelectorAll('.subcat-item');
+        items.forEach(item => {
+            var text = item.innerText.toLowerCase();
+            if (text.includes(input)) item.style.display = "flex";
+            else item.style.display = "none";
+        });
+        
+        // Also expand groups if search matches? Optional. 
+        // Simple visibility toggle is often enough for lists.
+    }
+
     function renderSidebar() {
         var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
         
@@ -326,18 +282,13 @@
                 var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
                 return (metaB.done / metaB.total) - (metaA.done / metaA.total);
             });
-
             sortedKeys.forEach(key => {
                 var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
                 var pct = Math.round((meta.done / meta.total) * 100);
                 var color = getHeatColor(pct);
-                
-                // Trend HTML
                 var trendHtml = getTrend(key, pct);
-
                 var div = document.createElement('div');
                 div.className = "list-item"; 
-                // Displays: Name .... +2% 56%
                 div.innerHTML = `<span>${regionConfig[key].name}</span><div>${trendHtml}<span style="color:${color};font-weight:bold">${pct}%</span></div>`;
                 div.onclick = () => { changeRegion(key); };
                 sb.appendChild(div);
@@ -345,35 +296,43 @@
         } 
         else {
             if (!currentData) return;
+            
+            // Build Hierarchy: Group -> Subgroup -> Type -> Count
             var hierarchy = {};
             currentData.features.forEach(f => {
                 var g = f.properties.group || 'Altro';
-                var s = f.properties.subcategory || 'Altro';
+                var sg = f.properties.subgroup || 'Altro';
+                var t = f.properties.subcategory || 'Altro';
+                
                 if (!hierarchy[g]) hierarchy[g] = {};
-                if (!hierarchy[g][s]) hierarchy[g][s] = 0;
-                hierarchy[g][s]++;
+                if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
+                if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
+                hierarchy[g][sg][t]++;
             });
 
             Object.keys(groupColors).forEach(group => {
                 if (!hierarchy[group]) return; 
                 
-                // Sort subcategories by count (descending)
-                var subcats = Object.keys(hierarchy[group]).sort((a,b) => hierarchy[group][b] - hierarchy[group][a]);
-                var groupTotal = Object.values(hierarchy[group]).reduce((a, b) => a + b, 0);
+                // Calc Group Total
+                var groupTotal = 0;
+                Object.values(hierarchy[group]).forEach(sg => {
+                    Object.values(sg).forEach(cnt => groupTotal += cnt);
+                });
+
                 var isExpanded = expandedGroups.has(group);
                 var color = groupColors[group];
-
-                var selectedCount = subcats.filter(s => activeCategoryFilters.has(s)).length;
-                var selectionClass = "";
-                if (selectedCount === subcats.length && subcats.length > 0) selectionClass = "fully-selected";
-                else if (selectedCount > 0) selectionClass = "partially-selected";
-
+                
+                // Create Header
                 var headerDiv = document.createElement('div');
-                headerDiv.className = `group-header ${selectionClass}`;
+                headerDiv.className = "group-header";
+                
                 var labelDiv = document.createElement('div');
                 labelDiv.className = "group-label";
                 labelDiv.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${group} <span style="font-weight:normal; font-size:11px; margin-left:5px; opacity:0.8">(${groupTotal})</span>`;
-                labelDiv.onclick = () => toggleGroupSelection(group, subcats);
+                
+                // Select All in Group logic is complex with 3 levels, simplified to toggle expand
+                labelDiv.onclick = () => toggleGroupExpand(group); 
+                
                 var toggleDiv = document.createElement('div');
                 toggleDiv.className = "group-toggle-icon";
                 toggleDiv.innerText = isExpanded ? '▼' : '▶';
@@ -385,25 +344,38 @@
 
                 var content = document.createElement('div');
                 content.className = "group-content" + (isExpanded ? " expanded" : "");
-                subcats.forEach(subcat => {
-                    var count = hierarchy[group][subcat];
-                    var item = document.createElement('div');
-                    item.className = "subcat-item" + (activeCategoryFilters.has(subcat) ? " selected" : "");
-                    
-                    var labelPart = document.createElement('div');
-                    labelPart.className = "subcat-label";
-                    labelPart.innerHTML = `<span>${subcat}</span> <span>(${count})</span>`;
-                    labelPart.onclick = () => toggleCategoryFilter(subcat);
-                    
-                    var btnPart = document.createElement('button');
-                    btnPart.className = "subcat-dl-btn";
-                    btnPart.innerHTML = "⬇";
-                    btnPart.title = "Scarica JSON";
-                    btnPart.onclick = (e) => { e.stopPropagation(); downloadSubcategory(subcat); };
+                
+                // Subgroups
+                Object.keys(hierarchy[group]).sort().forEach(subgroup => {
+                    if(subgroup !== "Altro" && subgroup !== group) {
+                        var sgHeader = document.createElement('div');
+                        sgHeader.className = "subgroup-header";
+                        sgHeader.innerText = subgroup;
+                        content.appendChild(sgHeader);
+                    }
 
-                    item.appendChild(labelPart);
-                    item.appendChild(btnPart);
-                    content.appendChild(item);
+                    // Types inside Subgroup
+                    var types = hierarchy[group][subgroup];
+                    Object.keys(types).sort((a,b) => types[b] - types[a]).forEach(type => {
+                        var count = types[type];
+                        var item = document.createElement('div');
+                        item.className = "subcat-item" + (activeCategoryFilters.has(type) ? " selected" : "");
+                        
+                        var labelPart = document.createElement('div');
+                        labelPart.className = "subcat-label";
+                        labelPart.innerHTML = `<span>${type}</span> <span>(${count})</span>`;
+                        labelPart.onclick = () => toggleCategoryFilter(type);
+                        
+                        var btnPart = document.createElement('button');
+                        btnPart.className = "subcat-dl-btn";
+                        btnPart.innerHTML = "⬇";
+                        btnPart.title = "Scarica JSON";
+                        btnPart.onclick = (e) => { e.stopPropagation(); downloadSubcategory(type); };
+
+                        item.appendChild(labelPart);
+                        item.appendChild(btnPart);
+                        content.appendChild(item);
+                    });
                 });
                 sb.appendChild(content);
             });
@@ -454,6 +426,7 @@
         document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
         document.getElementById('cat-toggle-btn').style.display = 'block'; 
         document.getElementById('controls').style.display = 'flex';
+        document.getElementById('search-container').style.display = 'block'; // Show search
 
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
@@ -527,10 +500,8 @@
         downloadJSON(feats, `missing_${regionName}${suffix}.geojson`);
     }
 
-    // New function for specific subcategory download
     function downloadSubcategory(cat) {
         if (!currentData) return;
-        // Filter: Status missing AND specific category
         var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subcategory === cat);
         if (feats.length === 0) { alert("Nessun elemento da scaricare."); return; }
         

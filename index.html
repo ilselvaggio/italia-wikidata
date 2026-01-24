@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panoramica OSM-Wikidata Italia</title>
+    <title>Panoramica OpenStreetMap-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
@@ -11,12 +11,8 @@
         /* HEADER */
         #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 1000; position: relative; }
         
-        /* LAYOUT HEADER: Left Col flexibel, Controls fixiert */
-        #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; /* Permette al titolo di accorciarsi */ }
-        
+        #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
-        
-        /* Titolo che si accorcia se manca spazio */
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         /* TOGGLE BUTTON */
@@ -25,12 +21,12 @@
             background: #e67e22; border: none; color: white; 
             padding: 5px 10px; border-radius: 4px; font-weight: bold; 
             cursor: pointer; font-size: 12px; margin-left: 10px; white-space: nowrap;
-            flex-shrink: 0; /* Non rimpicciolire il bottone */
+            flex-shrink: 0; 
         }
         #cat-toggle-btn:hover { background: #d35400; }
         #cat-toggle-btn.active { background: #c0392b; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
 
-        /* CONTROLS - NON SI DEVONO NASCONDERE */
+        /* CONTROLS */
         #controls { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         
         /* SIDEBAR */
@@ -81,12 +77,12 @@
             }
             #sidebar.open { transform: translateX(0); }
             
-            /* Ottimizzazione Header Mobile */
-            #title { font-size: 13px; max-width: 120px; } /* Titolo più piccolo */
-            #cat-toggle-btn { font-size: 10px; padding: 4px 6px; margin-left: 5px; } /* Bottone compatto */
+            /* Titolo nascosto su mobile per dare spazio ai controlli */
+            #title { display: none; }
+            #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
             
-            /* Nascondi solo il testo lungo, tieni i pallini e checkbox */
+            /* Nascondi testo lungo controlli */
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
         }
@@ -170,7 +166,7 @@
         document.getElementById('sidebar').classList.toggle('open');
     }
 
-    // Chiudi sidebar quando clicchi sulla mappa vuota (NON sulla regione)
+    // CLICK MAPPA: Chiude sidebar solo se click sullo sfondo (non sulla regione)
     map.on('click', function() {
         if (window.innerWidth <= 700) document.getElementById('sidebar').classList.remove('open');
     });
@@ -214,7 +210,6 @@
         btn.innerText = (viewMode === 'categories') ? "Torna a Regioni" : "Vista Categorie";
         if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
         
-        // Reset filter
         activeCategoryFilter = null;
         
         renderSidebar();
@@ -337,7 +332,7 @@
                 var k = getKeyFromFeature(f); 
                 if (k) { 
                     l.on('click', (e) => { 
-                        // FIX: Ferma la propagazione per non chiudere la sidebar su mobile!
+                        // FIX CRITICO MOBILE: Ferma la propagazione per NON chiudere la sidebar!
                         L.DomEvent.stopPropagation(e);
                         changeRegion(k); 
                     }); 
@@ -359,6 +354,9 @@
         document.getElementById('cat-toggle-btn').style.display = 'block'; 
 
         renderSidebar(); 
+        
+        // FIX MOBILE: Apri la sidebar se chiusa
+        if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
@@ -402,7 +400,6 @@
             var p = f.properties;
             var pop = `<div style="text-align:center">
                 <b>${p.name}</b><br><small>${p.wikidata}</small><br>
-                <small style="color:#7f8c8d">${p.type || ''}</small>
                 <div class="logo-row">
                     <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
@@ -433,8 +430,6 @@
 
         document.getElementById('count-missing').innerText = `(${cM})`;
         document.getElementById('count-done').innerText = `(${cD})`;
-        document.getElementById('stat-missing').style.display = 'flex';
-        document.getElementById('stat-done').style.display = 'flex';
         
         if (currentMissingFeatures.length > 0) document.getElementById('btnDownload').style.display = 'block';
         else document.getElementById('btnDownload').style.display = 'none';

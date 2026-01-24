@@ -7,16 +7,19 @@ import sys
 import datetime
 import argparse
 
+# --- CONFIGURATION ---
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
-DATA_DIR = "data_overpass"
+DATA_DIR = "data_overpass" # Or "data", depending on your local setup
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 HISTORY_FILE = "history.json"
 
+# --- 3-LEVEL CATEGORY CONFIGURATION ---
+# Structure: Main Group -> Subgroup -> Type -> [QIDs]
 CATEGORY_CONFIG = {
     "Religione": {
         "color": "#E63946",
@@ -217,12 +220,12 @@ CATEGORY_CONFIG = {
     "Monumenti": {
         "color": "#9D4EDD",
         "subgroups": {
-            "Opere Commemorative": {
+            "Monumenti commemorativi": {
                 "Monumento": ["Q4989906"],
                 "Monumento ai caduti": ["Q575759", "Q114124381"],
                 "Arco di trionfo": ["Q200688"]
             },
-            "Fontane e Sculture": {
+            "Fontane e statue": {
                 "Fontana": ["Q483453"],
                 "Statua": ["Q179700"]
             }
@@ -230,6 +233,7 @@ CATEGORY_CONFIG = {
     }
 }
 
+# --- GENERATE LOOKUP TABLE ---
 QID_LOOKUP = {}
 for group_name, group_data in CATEGORY_CONFIG.items():
     for subgroup_name, types_dict in group_data["subgroups"].items():
@@ -423,6 +427,7 @@ def main():
             type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
             label_val = row.get('itemLabel') or row.get('?itemLabel') or qid
 
+            # --- MATCHING LOGIC (3 LEVEL) ---
             if type_qid in QID_LOOKUP:
                 match = QID_LOOKUP[type_qid]
                 group = match["group"]
@@ -443,8 +448,8 @@ def main():
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
                     "group": group,
-                    "subgroup": subgroup,
-                    "subcategory": type_name
+                    "subgroup": subgroup, 
+                    "subcategory": type_name 
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })

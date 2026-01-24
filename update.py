@@ -107,6 +107,7 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
+    # Retrieve Label, Type Label and Type QID
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label ?typeLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
@@ -231,7 +232,7 @@ def main():
             except: continue
             
             type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
-            type_label = row.get('typeLabel') or row.get('?typeLabel') or ""
+            # type_label = row.get('typeLabel') or row.get('?typeLabel') or "" # REMOVED to avoid duplicates
 
             # Mapping Logic per le 30 categorie
             category_slug = "other"
@@ -248,7 +249,7 @@ def main():
                     "name": row.get('label') or row.get('?label') or qid, 
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
-                    "type": type_label,
+                    # "type": type_label, # REMOVED
                     "category": category_slug
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }

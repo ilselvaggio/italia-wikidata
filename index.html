@@ -17,9 +17,9 @@
             justify-content: space-between; 
             padding: 0 5px; 
             height: 50px; 
-            z-index: 3000; /* CHANGE: Increased to 3000 to keep it always on top */
+            z-index: 3000; /* High z-index to stay on top */
             position: relative; 
-            flex-shrink: 0; /* Ensures header never shrinks */
+            flex-shrink: 0;
         }
         
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
@@ -46,7 +46,6 @@
             border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px);
         }
-        /* Mobile Text Logic */
         .desktop-msg { display: inline; }
         .mobile-msg { display: none; }
 
@@ -54,7 +53,7 @@
         #sidebar { 
             width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; 
             flex-shrink: 0; transition: transform 0.3s ease; 
-            display: flex; flex-direction: column; /* Flex Column for footer */
+            display: flex; flex-direction: column; 
             height: 100%; 
         }
         
@@ -99,7 +98,6 @@
         
         .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
         
-        /* Updated: Text is now Italian */
         #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
@@ -108,7 +106,7 @@
 
         /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
-            /* Fix: Alignment of the menu button */
+            /* Fix: Menu button flush left */
             #header { padding-left: 0; } 
             
             #menu-toggle { display: block; }
@@ -116,18 +114,17 @@
             #sidebar { 
                 position: absolute; 
                 left: 0; 
-                top: 50px; /* IMPORTANT: Starts below the header (50px height) */
+                top: 50px; /* Start below header */
                 bottom: 0; 
                 z-index: 2000; 
                 transform: translateX(-100%); 
                 width: 250px; 
                 box-shadow: 2px 0 5px rgba(0,0,0,0.5);
-                border-top: 1px solid #1a252f; /* Separator line to header */
+                border-top: 1px solid #1a252f;
             }
             
             #sidebar.open { transform: translateX(0); }
             
-            /* ... (Rest of mobile styles remains the same) ... */
             #title { display: none; }
             body:not(.region-loaded) #title { display: block; max-width: 200px; } 
 
@@ -171,7 +168,7 @@
 <div id="main-container">
     <div id="sidebar">
         <div id="sidebar-content"></div>
-        <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
+        <div id="sidebar-footer">Realizzato da: Michael Wild (2026)</div>
     </div>
     <div id="map">
         <div id="map-placeholder">
@@ -211,7 +208,7 @@
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    // FIXED: Sidebar does NOT close on map click for mobile anymore to avoid accidents
+    // FIXED: Mobile check for map clicks
     map.on('click', function() {
         if (window.innerWidth > 700) {
             document.getElementById('sidebar').classList.remove('open');

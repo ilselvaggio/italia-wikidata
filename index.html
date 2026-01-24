@@ -3,29 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panoramica OpenStreetMap-Wikidata Italia</title>
+    <title>Panoramica OSM-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; }
         
         /* HEADER */
-        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; height: 50px; z-index: 1000; position: relative; }
-        #left-col { display: flex; align-items: center; gap: 10px; }
-        #menu-toggle { display: none; background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
-        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; }
+        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 1000; position: relative; }
         
-        /* TOGGLE BUTTON - NASCOSTO DI DEFAULT */
+        /* LAYOUT HEADER: Left Col flexibel, Controls fixiert */
+        #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; /* Permette al titolo di accorciarsi */ }
+        
+        #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
+        
+        /* Titolo che si accorcia se manca spazio */
+        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* TOGGLE BUTTON */
         #cat-toggle-btn { 
-            display: none; /* Appare solo quando regione è selezionata */
+            display: none; 
             background: #e67e22; border: none; color: white; 
             padding: 5px 10px; border-radius: 4px; font-weight: bold; 
-            cursor: pointer; font-size: 12px; margin-left: 15px;
+            cursor: pointer; font-size: 12px; margin-left: 10px; white-space: nowrap;
+            flex-shrink: 0; /* Non rimpicciolire il bottone */
         }
         #cat-toggle-btn:hover { background: #d35400; }
         #cat-toggle-btn.active { background: #c0392b; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
 
-        /* CONTROLS */
-        #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
+        /* CONTROLS - NON SI DEVONO NASCONDERE */
+        #controls { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         
         /* SIDEBAR */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
@@ -40,12 +46,12 @@
         
         /* CATEGORY ITEM STYLE */
         .cat-item { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .cat-info { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+        .cat-info { display: flex; align-items: center; gap: 5px; overflow: hidden; pointer-events: none; }
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
-        .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 12px; padding: 2px 6px; }
+        .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 12px; padding: 2px 6px; z-index: 10; }
         .cat-dl-btn:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
 
-        .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; }
+        .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
@@ -74,8 +80,13 @@
                 transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5);
             }
             #sidebar.open { transform: translateX(0); }
-            #title { font-size: 14px; }
+            
+            /* Ottimizzazione Header Mobile */
+            #title { font-size: 13px; max-width: 120px; } /* Titolo più piccolo */
+            #cat-toggle-btn { font-size: 10px; padding: 4px 6px; margin-left: 5px; } /* Bottone compatto */
             #controls { gap: 5px; }
+            
+            /* Nascondi solo il testo lungo, tieni i pallini e checkbox */
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
         }
@@ -86,15 +97,15 @@
     <div id="left-col">
         <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
         <div id="title" onclick="location.reload()">Panoramica OpenStreetMap-Wikidata Italia</div>
-        <button id="cat-toggle-btn" onclick="toggleViewMode()">Vista categorie</button>
+        <button id="cat-toggle-btn" onclick="toggleViewMode()">Vista Categorie</button>
     </div>
     <div id="controls">
         <div id="loading">Loading...</div>
-        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Wikidata only">
+        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Solo Wikidata">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Solo Wikidata</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
         <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()" title="Scarica solo Wikidata">⬇</button>
-        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="Done">
+        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="OSM+Wikidata">
             <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
         <div id="meta-info">
@@ -128,6 +139,7 @@
     // STATE
     var viewMode = 'regions'; // 'regions' or 'categories'
     var selectedRegionKey = null;
+    var activeCategoryFilter = null; 
 
     // --- CONFIGURAZIONE COLORI ESATTI (30 Categorie) ---
     var categoryColors = {
@@ -158,6 +170,7 @@
         document.getElementById('sidebar').classList.toggle('open');
     }
 
+    // Chiudi sidebar quando clicchi sulla mappa vuota (NON sulla regione)
     map.on('click', function() {
         if (window.innerWidth <= 700) document.getElementById('sidebar').classList.remove('open');
     });
@@ -198,11 +211,24 @@
     function toggleViewMode() {
         viewMode = (viewMode === 'regions') ? 'categories' : 'regions';
         var btn = document.getElementById('cat-toggle-btn');
-        btn.innerText = (viewMode === 'categories') ? "Torna a Vista Regioni" : "Vista Categorie";
+        btn.innerText = (viewMode === 'categories') ? "Torna a Regioni" : "Vista Categorie";
         if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
+        
+        // Reset filter
+        activeCategoryFilter = null;
         
         renderSidebar();
         if (currentData) renderMarkers(currentData);
+    }
+    
+    function filterByCategory(cat) {
+        if (activeCategoryFilter === cat) {
+            activeCategoryFilter = null; 
+        } else {
+            activeCategoryFilter = cat; 
+        }
+        renderSidebar(); 
+        renderMarkers(currentData); 
     }
 
     function renderSidebar() {
@@ -239,12 +265,10 @@
                 return;
             }
             
-            // Calcola statistiche per la regione corrente
             var missing = currentData.features.filter(f => f.properties.status === 'missing');
             var totalMissing = missing.length;
             var counts = {};
             
-            // Inizializza conteggi
             Object.keys(categoryColors).forEach(k => counts[k] = 0);
             
             missing.forEach(f => {
@@ -252,17 +276,26 @@
                 if(counts[cat] !== undefined) counts[cat]++; else counts['other']++;
             });
 
-            // Ordina per conteggio decrescente
             var sortedCats = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
 
             sortedCats.forEach(cat => {
-                // Se count è 0, magari non mostrarlo? O mostralo comunque. Mostriamolo se > 0
                 if (counts[cat] === 0) return;
 
                 var percent = (totalMissing > 0) ? ((counts[cat] / totalMissing) * 100).toFixed(1) : 0;
                 
                 var div = document.createElement('div');
                 div.className = "list-item";
+                
+                if (activeCategoryFilter === cat) {
+                    div.style.backgroundColor = "#2980b9"; 
+                    div.style.borderLeft = "4px solid white";
+                }
+                
+                div.onclick = (e) => {
+                    if(e.target.tagName !== 'BUTTON') {
+                        filterByCategory(cat);
+                    }
+                };
                 
                 div.innerHTML = `
                     <div class="cat-item">
@@ -274,7 +307,6 @@
                         <button class="cat-dl-btn" onclick="downloadCategory('${cat}')" title="Scarica JSON">⬇</button>
                     </div>
                 `;
-                // Nessun click sulla riga intera, solo sul bottone download
                 sb.appendChild(div);
             });
         }
@@ -304,7 +336,11 @@
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
                 if (k) { 
-                    l.on('click', () => changeRegion(k)); 
+                    l.on('click', (e) => { 
+                        // FIX: Ferma la propagazione per non chiudere la sidebar su mobile!
+                        L.DomEvent.stopPropagation(e);
+                        changeRegion(k); 
+                    }); 
                     l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
             }
@@ -315,14 +351,14 @@
     function changeRegion(key) {
         selectedRegionKey = key;
         
-        // Se siamo in categories mode e cambiamo regione, forse meglio tornare a regions?
-        // No, restiamo in regions mode di default quando si cambia
         viewMode = 'regions'; 
+        activeCategoryFilter = null; 
+        
         document.getElementById('cat-toggle-btn').innerText = "Vista Categorie";
         document.getElementById('cat-toggle-btn').classList.remove('active');
-        document.getElementById('cat-toggle-btn').style.display = 'block'; // MOSTRA IL BOTTONE ORA
+        document.getElementById('cat-toggle-btn').style.display = 'block'; 
 
-        renderSidebar(); // Aggiorna highlight sidebar
+        renderSidebar(); 
 
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
@@ -352,6 +388,10 @@
             var isD = f.properties.status === 'done';
             var cat = f.properties.category || 'other';
 
+            if (activeCategoryFilter) {
+                if (cat !== activeCategoryFilter) return; 
+            }
+
             if(isD) {
                 cD++;
             } else {
@@ -374,15 +414,14 @@
             }
             pop += `</div></div>`;
 
-            // Colore: Se è vista Categorie E è missing, usa colore categoria. Altrimenti standard
             var color;
             if (isD) {
-                color = "#2ecc71"; // Verde
+                color = "#2ecc71"; 
             } else {
                 if (viewMode === 'categories') {
                     color = categoryColors[cat] || "#000000";
                 } else {
-                    color = "#e74c3c"; // Rosso standard
+                    color = "#e74c3c"; 
                 }
             }
 
@@ -398,6 +437,7 @@
         document.getElementById('stat-done').style.display = 'flex';
         
         if (currentMissingFeatures.length > 0) document.getElementById('btnDownload').style.display = 'block';
+        else document.getElementById('btnDownload').style.display = 'none';
         
         if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
         if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
@@ -405,14 +445,18 @@
 
     function downloadCurrentMissing() {
         if (!currentMissingFeatures.length) return;
-        downloadJSON(currentMissingFeatures, "missing_items_all.geojson");
+        var suffix = activeCategoryFilter ? `_${activeCategoryFilter}` : "_all";
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(currentMissingFeatures, `missing_${regionName}${suffix}.geojson`);
     }
 
     function downloadCategory(cat) {
         if (!currentData) return;
         var feats = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat);
         if (feats.length === 0) { alert("Nessun elemento in questa categoria"); return; }
-        downloadJSON(feats, `missing_${cat}.geojson`);
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${cat}.geojson`);
     }
 
     function downloadJSON(features, filename) {

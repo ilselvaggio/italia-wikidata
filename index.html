@@ -39,7 +39,7 @@
         .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
         
-        /* ACCORDION - Level 1 */
+        /* ACCORDION */
         .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; transition: background 0.2s; }
         .group-header.fully-selected { background-color: #2980b9 !important; border-left: 4px solid #fff; }
         .group-header.partially-selected { border-left: 4px solid #f39c12; background-color: #3e5871; }
@@ -53,7 +53,7 @@
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
-        /* ACCORDION - Level 2 */
+        /* SUBGROUPS */
         .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
         .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
         .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
@@ -62,7 +62,7 @@
         .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
         .subgroup-dl-btn:hover { background: #27ae60; color: white; }
 
-        /* ACCORDION - Level 3 */
+        /* TYPES */
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
@@ -70,8 +70,8 @@
         .subcat-label { flex-grow: 1; padding: 8px 5px 8px 15px; display: flex; align-items: center; } 
         .subcat-item.selected .subcat-label { padding-left: 11px; } 
         
-        /* Dynamic Dot */
-        .subcat-dot { min-width: 8px; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid rgba(255,255,255,0.3); }
+        /* Dynamic Dot: Hidden by default, visible when selected */
+        .subcat-dot { min-width: 8px; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid #7f8c8d; background: transparent; }
         
         .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
         .subcat-dl-btn:hover { background: #27ae60; color: white; }
@@ -181,7 +181,7 @@
         if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
     });
 
-    // --- COLOR UTILS ---
+    // --- COLOR MATH ---
     function hexToHSL(H) {
         let r = 0, g = 0, b = 0;
         if (H.length == 4) { r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3]; } 
@@ -225,10 +225,14 @@
         let hash = 0;
         for (let i = 0; i < seedString.length; i++) hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
         let hsl = hexToHSL(baseHex);
-        let hueShift = (hash % 50) - 25; 
+        
+        // Stronger variation to make items distinct
+        let hueShift = (hash % 120) - 60; // +/- 60 degree shift
         let newH = (hsl.h + hueShift + 360) % 360;
-        let lightShift = (hash % 30) - 15;
-        let newL = Math.max(30, Math.min(75, hsl.l + lightShift)); 
+        
+        let lightShift = (hash % 40) - 20; // +/- 20% lightness
+        let newL = Math.max(30, Math.min(80, hsl.l + lightShift)); 
+
         let finalColor = HSLToHex(newH, hsl.s, newL);
         typeColorCache[seedString] = finalColor;
         return finalColor;
@@ -244,7 +248,6 @@
         historyData = history;
 
         var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
-        
         if(metadata.global_osm_date) {
              let d = new Date(metadata.global_osm_date);
              document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_osm_date;
@@ -340,7 +343,6 @@
                 var g = f.properties.group || 'Altro';
                 var sg = f.properties.subgroup || 'Altro';
                 var t = f.properties.subcategory || 'Altro';
-                
                 if (!hierarchy[g]) hierarchy[g] = {};
                 if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
                 if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
@@ -414,13 +416,18 @@
                     typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
                         var count = hierarchy[group][subgroup][type];
                         var dynColor = generateVariant(color, type);
+                        var isSelected = activeCategoryFilters.has(type);
 
                         var item = document.createElement('div');
-                        item.className = "subcat-item" + (activeCategoryFilters.has(type) ? " selected" : "");
+                        item.className = "subcat-item" + (isSelected ? " selected" : "");
                         
                         var labelPart = document.createElement('div');
                         labelPart.className = "subcat-label";
-                        labelPart.innerHTML = `<span class="subcat-dot" style="background:${dynColor}"></span> <span>${type}</span> <span style="margin-left:auto; font-size:10px; opacity:0.7">(${count})</span>`;
+                        
+                        // LOGIC: Show colored dot only if selected, else empty/grey
+                        var dotStyle = isSelected ? `background:${dynColor}; border-color:${dynColor}` : `border-color:#7f8c8d`;
+                        
+                        labelPart.innerHTML = `<span class="subcat-dot" style="${dotStyle}"></span> <span>${type}</span> <span style="margin-left:auto; font-size:10px; opacity:0.7">(${count})</span>`;
                         labelPart.onclick = () => toggleCategoryFilter(type);
                         
                         var btnPart = document.createElement('button');
@@ -448,15 +455,22 @@
         return null;
     }
 
+    // --- HOVER & RESET LOGIC ---
     function highlightFeature(e) {
         if (viewMode !== 'regions') return; 
         var layer = e.target;
         layer.setStyle({ weight: 3, color: '#55AAFF' }); 
-        // No bringToFront() to prevent blocking
     }
 
     function resetHighlight(e) {
-        if (viewMode === 'regions') { layers.regions.resetStyle(e.target); }
+        if (viewMode === 'regions') { 
+            // Reset to original heatmap style
+            var layer = e.target;
+            var k = getKeyFromFeature(layer.feature);
+            var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+            var c = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+            layer.setStyle({ color: c, weight: 1.5, fillColor: c }); 
+        }
     }
 
     function loadRegionsShape() {
@@ -501,8 +515,19 @@
 
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
-        // REMOVE THE REGIONS LAYER SO IT DOESN'T BLOCK MARKERS
-        if(map.hasLayer(layers.regions)) map.removeLayer(layers.regions);
+        // Logic Issue 4: Hide selected region's fill, keep others visible
+        layers.regions.eachLayer(layer => {
+            if(getKeyFromFeature(layer.feature) === key) {
+                // Selected: Hide fill, hide stroke (will be replaced by activeBorder)
+                layer.setStyle({ fillOpacity: 0, stroke: false }); 
+            } else {
+                // Others: Ensure they are visible (resetting potential hover states)
+                var k = getKeyFromFeature(layer.feature);
+                var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+                var c = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+                layer.setStyle({ fillOpacity: 0.6, weight: 1.5, color: c, fillColor: c }); 
+            }
+        });
 
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
@@ -545,6 +570,7 @@
             if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg"></a>`;
             pop += `</div></div>`;
 
+            // Dynamic color logic
             var color;
             if (isD) {
                 color = "#2ecc71"; 

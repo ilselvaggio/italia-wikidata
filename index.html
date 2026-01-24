@@ -23,7 +23,7 @@
         
         /* --- PLACEHOLDER --- */
         #map-placeholder { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
-        .desktop-msg { display: inline; }
+        .desktop-msg { display: none; }
         .mobile-msg { display: none; }
 
         /* --- SIDEBAR --- */
@@ -141,7 +141,6 @@
     </div>
     <div id="map">
         <div id="map-placeholder">
-            <span class="desktop-msg">Seleziona una regione</span>
             <span class="mobile-msg">↖ Toccare il menu (☰) per scegliere una regione</span>
         </div>
     </div>
@@ -414,11 +413,27 @@
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
                 if (k) { 
-                    l.on('click', (e) => { 
-                        if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
-                        L.DomEvent.stopPropagation(e);
-                        changeRegion(k); 
-                    }); 
+                    l.on({
+                        mouseover: function (e) {
+                            if (viewMode !== 'regions') return;
+                            e.target.setStyle({
+                                weight: 3,
+                                color: '#3498db'
+                            });
+                        },
+                        mouseout: function (e) {
+                            if (viewMode !== 'regions') return;
+                            layers.regions.resetStyle(e.target);
+                        },
+                        click: function (e) {
+                            if (window.innerWidth <= 700) {
+                                L.DomEvent.stopPropagation(e);
+                                return;
+                            }
+                            L.DomEvent.stopPropagation(e);
+                            changeRegion(k);
+                        }
+                    });
                     l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
             }

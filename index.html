@@ -14,28 +14,36 @@
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; }
         
+        /* TOGGLE BUTTON - NASCOSTO DI DEFAULT */
+        #cat-toggle-btn { 
+            display: none; /* Appare solo quando regione è selezionata */
+            background: #e67e22; border: none; color: white; 
+            padding: 5px 10px; border-radius: 4px; font-weight: bold; 
+            cursor: pointer; font-size: 12px; margin-left: 15px;
+        }
+        #cat-toggle-btn:hover { background: #d35400; }
+        #cat-toggle-btn.active { background: #c0392b; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+
         /* CONTROLS */
         #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
         
         /* SIDEBAR */
-        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
         
-        /* TABS NELLA SIDEBAR */
-        #sidebar-tabs { display: flex; border-bottom: 1px solid #1a252f; background: #34495e; min-height: 40px; }
-        .tab-btn { flex: 1; border: none; background: none; color: #bdc3c7; cursor: pointer; font-weight: bold; font-size: 13px; padding: 10px 0; }
-        .tab-btn.active { color: #fff; border-bottom: 3px solid #3498db; background: #2c3e50; }
-        
-        #sidebar-content { flex: 1; overflow-y: auto; }
-
         /* MAIN LAYOUT */
         #main-container { display: flex; height: calc(100vh - 50px); width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
-        .list-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
         .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
-        .cat-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid #fff; }
+        /* CATEGORY ITEM STYLE */
+        .cat-item { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .cat-info { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
+        .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 12px; padding: 2px 6px; }
+        .cat-dl-btn:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
 
         .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
@@ -68,8 +76,8 @@
             #sidebar.open { transform: translateX(0); }
             #title { font-size: 14px; }
             #controls { gap: 5px; }
-            .stat-item span:nth-child(3) { display: none; } /* Hide text labels on small screens */
-            #meta-info { display: none; } /* Hide dates on very small screens to save space */
+            .stat-item span:nth-child(3) { display: none; } 
+            #meta-info { display: none; }
         }
     </style>
 </head>
@@ -77,11 +85,12 @@
 <header id="header">
     <div id="left-col">
         <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div>
+        <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
+        <button id="cat-toggle-btn" onclick="toggleViewMode()">🎨 Vista Categorie</button>
     </div>
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download Wikidata only</button>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download ALL</button>
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Wikidata only">
             <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Wikidata only</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
@@ -95,13 +104,7 @@
     </div>
 </header>
 <div id="main-container">
-    <div id="sidebar">
-        <div id="sidebar-tabs">
-            <button class="tab-btn active" onclick="switchTab('regions')">Regioni</button>
-            <button class="tab-btn" onclick="switchTab('categories')">Categorie</button>
-        </div>
-        <div id="sidebar-content"></div>
-    </div>
+    <div id="sidebar"></div>
     <div id="map"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -120,35 +123,43 @@
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
     var currentMissingFeatures = [];
-    var currentData = null; // Stores currently loaded region data
-    var currentTab = 'regions';
-    var activeCategoryFilter = null; // null = all
-
-    var categoryColors = {
-        "religion": "#9b59b6",   // Viola
-        "settlement": "#3498db", // Blu
-        "admin": "#f39c12",      // Arancione
-        "culture": "#e67e22",    // Marrone
-        "other": "#e74c3c"       // Rosso (default)
-    };
+    var currentData = null; 
     
-    var categoryNames = {
-        "religion": "Luoghi di Culto",
-        "settlement": "Insediamenti",
-        "admin": "Amministrazione",
-        "culture": "Cultura/Turismo",
-        "other": "Altro"
+    // STATE
+    var viewMode = 'regions'; // 'regions' or 'categories'
+    var selectedRegionKey = null;
+
+    // --- CONFIGURAZIONE COLORI ESATTI (30 Categorie) ---
+    var categoryColors = {
+        "chiesa": "#FF0000", "insediamento": "#0000FF", "frazione": "#008000", "cimitero": "#808080",
+        "palazzo_comunale": "#FFA500", "municipality_seat": "#FFD700", "biblio_pubblica": "#00CED1",
+        "cappella": "#800080", "nuraghe": "#8B4513", "oratorio": "#FF69B4", "villa": "#4B0082",
+        "casa": "#A52A2A", "natura_2000": "#32CD32", "struttura_arch": "#708090", "palazzo": "#DC143C",
+        "cascina": "#D2691E", "edificio": "#C0C0C0", "pianta_monum": "#006400", "archivio": "#4682B4",
+        "palazzo_italiano": "#B22222", "castello": "#800000", "montagna": "#2F4F4F",
+        "biblio_spec": "#20B2AA", "biblio_univ": "#5F9EA0", "capitello": "#DA70D6", "torre": "#000080",
+        "museo": "#DDA0DD", "biblio_privata": "#BC8F8F", "strada_urbana": "#696969",
+        "biblio_scolastica": "#F0E68C", "other": "#000000"
+    };
+
+    var categoryLabels = {
+        "chiesa": "Chiesa", "insediamento": "Insediamento Umano", "frazione": "Frazione", "cimitero": "Cimitero",
+        "palazzo_comunale": "Palazzo Comunale", "municipality_seat": "Sede Municipio", "biblio_pubblica": "Biblioteca Pubblica",
+        "cappella": "Cappella", "nuraghe": "Nuraghe", "oratorio": "Oratorio", "villa": "Villa",
+        "casa": "Casa", "natura_2000": "Natura 2000", "struttura_arch": "Struttura Arch.", "palazzo": "Palazzo",
+        "cascina": "Cascina", "edificio": "Edificio", "pianta_monum": "Pianta Monumentale", "archivio": "Archivio",
+        "palazzo_italiano": "Palazzo Italiano", "castello": "Castello", "montagna": "Montagna",
+        "biblio_spec": "Biblio. Specializzata", "biblio_univ": "Biblio. Universitaria", "capitello": "Capitello Votivo",
+        "torre": "Torre", "museo": "Museo", "biblio_privata": "Biblio. Privata", "strada_urbana": "Strada Urbana",
+        "biblio_scolastica": "Biblio. Scolastica", "other": "Altro"
     };
 
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
     }
 
-    // Close sidebar when clicking map on mobile
     map.on('click', function() {
-        if (window.innerWidth <= 700) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
+        if (window.innerWidth <= 700) document.getElementById('sidebar').classList.remove('open');
     });
 
     Promise.all([
@@ -158,16 +169,13 @@
     ]).then(([regions, metadata, bounds]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
         
-        // Fix Date display
         if(metadata.global_osm_date) {
              let d = new Date(metadata.global_osm_date);
-             if(!isNaN(d)) document.getElementById('date-osm').innerText = d.toLocaleString() + " CET";
-             else document.getElementById('date-osm').innerText = metadata.global_osm_date;
+             document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString() + " CET" : metadata.global_osm_date;
         }
         if(metadata.global_wiki_date) {
              let d = new Date(metadata.global_wiki_date);
-             if(!isNaN(d)) document.getElementById('date-wiki').innerText = d.toLocaleString() + " CET";
-             else document.getElementById('date-wiki').innerText = metadata.global_wiki_date;
+             document.getElementById('date-wiki').innerText = !isNaN(d) ? d.toLocaleString() + " CET" : metadata.global_wiki_date;
         }
 
         renderSidebar();
@@ -187,27 +195,21 @@
         return '#8B0000';
     }
 
-    function switchTab(tabName) {
-        currentTab = tabName;
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
-        renderSidebar();
+    function toggleViewMode() {
+        viewMode = (viewMode === 'regions') ? 'categories' : 'regions';
+        var btn = document.getElementById('cat-toggle-btn');
+        btn.innerText = (viewMode === 'categories') ? "🔙 Torna a Regioni" : "🎨 Vista Categorie";
+        if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
         
-        // Se passiamo a categorie, azzeriamo il filtro (mostra tutto colorato)
-        // Se torniamo a regioni, togliamo il filtro categorie
-        if (tabName === 'regions') {
-            activeCategoryFilter = null;
-            if (currentData) renderMarkers(currentData); // Ridisegna normale
-        } else {
-            // Se siamo in categoria ma non c'è una regione selezionata, non succede nulla di speciale
-            // Se c'è una regione, l'utente può cliccare le categorie per filtrare
-        }
+        renderSidebar();
+        if (currentData) renderMarkers(currentData);
     }
 
     function renderSidebar() {
-        var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
+        var sb = document.getElementById('sidebar'); sb.innerHTML = "";
         
-        if (currentTab === 'regions') {
+        // --- MODE 1: REGIONS LIST (Default) ---
+        if (viewMode === 'regions') {
             var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
                 var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
                 var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
@@ -223,45 +225,56 @@
                 var color = pct !== null ? getHeatColor(pct) : "#fff";
                 
                 var div = document.createElement('div');
-                div.className = "list-item"; div.id = "sb-item-" + key;
+                div.className = "list-item"; 
+                if (key === selectedRegionKey) div.classList.add('active');
                 div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
                 div.onclick = () => { changeRegion(key); if(window.innerWidth<=700) toggleSidebar(); };
                 sb.appendChild(div);
             });
-        } else {
-            // CATEGORIES TAB
-            var cats = Object.keys(categoryColors);
+        } 
+        // --- MODE 2: CATEGORY LIST (Only active inside a region) ---
+        else {
+            if (!currentData) {
+                sb.innerHTML = "<div style='padding:10px;color:orange'>Seleziona prima una regione!</div>";
+                return;
+            }
             
-            // Bottone "Tutte"
-            var allDiv = document.createElement('div');
-            allDiv.className = "list-item";
-            if(activeCategoryFilter === null) allDiv.classList.add('active');
-            allDiv.innerHTML = `<span><span class="cat-dot" style="background:#fff"></span>Tutte le Categorie</span>`;
-            allDiv.onclick = () => { 
-                activeCategoryFilter = null; 
-                renderSidebar(); 
-                if(currentData) renderMarkers(currentData); 
-            };
-            sb.appendChild(allDiv);
+            // Calcola statistiche per la regione corrente
+            var missing = currentData.features.filter(f => f.properties.status === 'missing');
+            var totalMissing = missing.length;
+            var counts = {};
+            
+            // Inizializza conteggi
+            Object.keys(categoryColors).forEach(k => counts[k] = 0);
+            
+            missing.forEach(f => {
+                var cat = f.properties.category || 'other';
+                if(counts[cat] !== undefined) counts[cat]++; else counts['other']++;
+            });
 
-            cats.forEach(cat => {
+            // Ordina per conteggio decrescente
+            var sortedCats = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+
+            sortedCats.forEach(cat => {
+                // Se count è 0, magari non mostrarlo? O mostralo comunque. Mostriamolo se > 0
+                if (counts[cat] === 0) return;
+
+                var percent = (totalMissing > 0) ? ((counts[cat] / totalMissing) * 100).toFixed(1) : 0;
+                
                 var div = document.createElement('div');
                 div.className = "list-item";
-                if(activeCategoryFilter === cat) div.classList.add('active');
                 
-                // Se abbiamo dati caricati, mostriamo il conteggio (opzionale, ma carino)
-                var countStr = "";
-                if (currentData) {
-                   var c = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat).length;
-                   countStr = ` <b>(${c})</b>`;
-                }
-
-                div.innerHTML = `<span><span class="cat-dot" style="background:${categoryColors[cat]}"></span>${categoryNames[cat] || cat}</span><span>${countStr}</span>`;
-                div.onclick = () => {
-                    activeCategoryFilter = cat;
-                    renderSidebar();
-                    if(currentData) renderMarkers(currentData);
-                };
+                div.innerHTML = `
+                    <div class="cat-item">
+                        <div class="cat-info">
+                            <span class="cat-dot" style="background:${categoryColors[cat]}"></span>
+                            <span>${categoryLabels[cat] || cat}</span>
+                            <small style="color:#aaa;margin-left:4px"> ${percent}% (${counts[cat]})</small>
+                        </div>
+                        <button class="cat-dl-btn" onclick="downloadCategory('${cat}')" title="Scarica JSON">⬇</button>
+                    </div>
+                `;
+                // Nessun click sulla riga intera, solo sul bottone download
                 sb.appendChild(div);
             });
         }
@@ -300,11 +313,16 @@
     }
 
     function changeRegion(key) {
-        // Highlight active region in list (if in Regions tab)
-        if (currentTab === 'regions') {
-            document.querySelectorAll('.list-item').forEach(el => el.classList.remove('active'));
-            if(document.getElementById("sb-item-" + key)) document.getElementById("sb-item-" + key).classList.add('active');
-        }
+        selectedRegionKey = key;
+        
+        // Se siamo in categories mode e cambiamo regione, forse meglio tornare a regions?
+        // No, restiamo in regions mode di default quando si cambia
+        viewMode = 'regions'; 
+        document.getElementById('cat-toggle-btn').innerText = "🎨 Vista Categorie";
+        document.getElementById('cat-toggle-btn').classList.remove('active');
+        document.getElementById('cat-toggle-btn').style.display = 'block'; // MOSTRA IL BOTTONE ORA
+
+        renderSidebar(); // Aggiorna highlight sidebar
 
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
@@ -319,12 +337,8 @@
         document.getElementById('btnDownload').style.display = 'none';
         
         fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
-            currentData = data; // Store globally
+            currentData = data; 
             renderMarkers(data);
-            
-            // Refresh sidebar if Categories tab is active (to update counts)
-            if (currentTab === 'categories') renderSidebar();
-
             document.getElementById('loading').style.display = 'none';
         });
     }
@@ -336,17 +350,7 @@
         var cM = 0, cD = 0;
         data.features.forEach(f => {
             var isD = f.properties.status === 'done';
-            
-            // FILTER LOGIC
-            // If activeCategoryFilter is set, we ONLY show missing items of that category
-            // Done items are always shown (green) unless filtered out explicitly? 
-            // Let's assume Filter only applies to Missing items coloring/visibility
-            
             var cat = f.properties.category || 'other';
-
-            if(activeCategoryFilter && !isD && cat !== activeCategoryFilter) {
-                return; // Skip this marker if filter is active and doesn't match
-            }
 
             if(isD) {
                 cD++;
@@ -370,8 +374,17 @@
             }
             pop += `</div></div>`;
 
-            // Color Logic: Green if done, Category Color if missing
-            var color = isD ? "#2ecc71" : (categoryColors[cat] || "#e74c3c");
+            // Colore: Se è vista Categorie E è missing, usa colore categoria. Altrimenti standard
+            var color;
+            if (isD) {
+                color = "#2ecc71"; // Verde
+            } else {
+                if (viewMode === 'categories') {
+                    color = categoryColors[cat] || "#000000";
+                } else {
+                    color = "#e74c3c"; // Rosso standard
+                }
+            }
 
             L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
                 pane: 'markersPane',
@@ -392,10 +405,21 @@
 
     function downloadCurrentMissing() {
         if (!currentMissingFeatures.length) return;
-        var blob = new Blob([JSON.stringify({ "type": "FeatureCollection", "features": currentMissingFeatures })], {type: "application/json"});
+        downloadJSON(currentMissingFeatures, "missing_items_all.geojson");
+    }
+
+    function downloadCategory(cat) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat);
+        if (feats.length === 0) { alert("Nessun elemento in questa categoria"); return; }
+        downloadJSON(feats, `missing_${cat}.geojson`);
+    }
+
+    function downloadJSON(features, filename) {
+        var blob = new Blob([JSON.stringify({ "type": "FeatureCollection", "features": features })], {type: "application/json"});
         var a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "missing_items.geojson";
+        a.download = filename;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 

@@ -16,7 +16,10 @@ METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 HISTORY_FILE = "history.json"
-CATEGORY_CONFIG = "category_config.json"
+CATEGORY_CONFIG_FILE = "category_config.json"
+
+with open(CATEGORY_CONFIG_FILE, "r", encoding="utf-8") as f:
+    CATEGORY_CONFIG = json.load(f)
 
 QID_LOOKUP = {}
 for group_name, group_data in CATEGORY_CONFIG.items():

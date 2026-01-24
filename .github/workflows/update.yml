@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       region:
-        description: 'Region zum Aktualisieren'
+        description: 'Select region to update'
         required: true
         default: 'all'
         type: choice

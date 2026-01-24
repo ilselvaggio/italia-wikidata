@@ -6,31 +6,16 @@
     <title>Panoramica OpenStreetMap-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* CORE LAYOUT FIX: Use Flexbox to handle mobile viewport heights correctly */
+        /* CORE LAYOUT: Flexbox for correct mobile height */
         body, html { 
-            margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            font-family: -apple-system, sans-serif; 
-            overflow: hidden;
-            
-            /* ADDED: Flex column layout */
-            display: flex;
-            flex-direction: column;
+            margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden;
+            display: flex; flex-direction: column;
         }
         
         /* HEADER */
         #header { 
-            background-color: #333; 
-            color: #fff; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 0 5px; 
-            height: 50px; 
-            z-index: 3000; /* High z-index to stay on top of map/sidebar */
-            position: relative; 
-            flex-shrink: 0; /* Prevents header from shrinking on small screens */
+            background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0;
         }
         
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
@@ -38,11 +23,8 @@
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         #cat-toggle-btn { 
-            display: none; 
-            background: #e67e22; border: none; color: white; 
-            padding: 5px 10px; border-radius: 4px; font-weight: bold; 
-            cursor: pointer; font-size: 12px; margin-left: 10px; white-space: nowrap;
-            flex-shrink: 0; 
+            display: none; background: #e67e22; border: none; color: white; 
+            padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; 
         }
         #cat-toggle-btn:hover { background: #d35400; }
         
@@ -50,23 +32,20 @@
         
         #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
         
-        /* PLACEHOLDER TEXT */
+        /* PLACEHOLDER */
         #map-placeholder {
             position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
             z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px;
             border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px);
         }
-        /* Logic for desktop/mobile text toggle */
         .desktop-msg { display: inline; }
         .mobile-msg { display: none; }
 
-        /* SIDEBAR LAYOUT */
+        /* SIDEBAR */
         #sidebar { 
             width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; 
-            flex-shrink: 0; transition: transform 0.3s ease; 
-            display: flex; flex-direction: column; 
-            height: 100%; 
+            flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; 
         }
         
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
@@ -76,23 +55,14 @@
             border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0;
         }
 
-        /* MAIN CONTAINER FIX */
-        #main-container { 
-            display: flex; 
-            /* REMOVED: height: calc(100vh - 50px); */
-            /* ADDED: flex: 1 to allow automatic resizing */
-            flex: 1; 
-            width: 100%; 
-            position: relative; 
-            overflow: hidden; 
-        }
+        #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
         .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
         .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
-        /* ACCORDION STYLES */
+        /* ACCORDION */
         .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; }
         .group-label { flex-grow: 1; padding: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; }
         .group-label:hover { background-color: #3e5871; }
@@ -105,12 +75,21 @@
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
-        .subcat-item { padding: 8px 10px 8px 25px; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; }
+        .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
-        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; padding-left: 21px; }
+        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } /* Padding removed here, handled in children */
+
+        /* Split subcat item into clickable label and download button */
+        .subcat-label { flex-grow: 1; padding: 8px 5px 8px 25px; display: flex; justify-content: space-between; align-items: center;}
+        .subcat-item.selected .subcat-label { padding-left: 21px; } /* Adjust for border */
+        
+        .subcat-dl-btn { 
+            width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e;
+        }
+        .subcat-dl-btn:hover { background: #27ae60; color: white; }
 
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
-        .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 1px 4px; }
         
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
@@ -118,51 +97,37 @@
         .dot-green { background: #2ecc71; }
         
         .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
-        
         #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE RESPONSIVE MEDIA QUERY */
+        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
-            /* Flush left menu button */
             #header { padding-left: 0; } 
-            
             #menu-toggle { display: block; }
             
             #sidebar { 
-                position: absolute; 
-                left: 0; 
-                /* CHANGED: Set top to 0 because main-container is already below the header via Flexbox */
-                top: 0; 
-                bottom: 0; 
-                z-index: 2000; 
-                transform: translateX(-100%); 
-                width: 250px; 
-                box-shadow: 2px 0 5px rgba(0,0,0,0.5);
-                border-top: 1px solid #1a252f;
+                position: absolute; left: 0; top: 0; bottom: 0; 
+                z-index: 2000; transform: translateX(-100%); width: 250px; 
+                box-shadow: 2px 0 5px rgba(0,0,0,0.5); border-top: 1px solid #1a252f;
             }
-            
             #sidebar.open { transform: translateX(0); }
             
-            /* Hide Title on mobile when data is loaded, show otherwise */
             #title { display: none; }
             body:not(.region-loaded) #title { display: block; max-width: 200px; } 
 
             #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
             
-            /* Hide elements on mobile */
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
-            #btnDownload { display: none !important; }
+            #btnDownload { display: none !important; } /* Global download hidden on mobile */
+            .subcat-dl-btn { display: none; } /* Per-category download hidden on mobile */
             
             .desktop-msg { display: none; }
             .mobile-msg { display: inline; }
-
-            /* HIDE ZOOM CONTROLS ON MOBILE */
             .leaflet-control-zoom { display: none !important; }
         }
     </style>
@@ -232,7 +197,7 @@
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    // MOBILE FIX: Prevent map clicks from closing the sidebar on mobile
+    // FIXED: Mobile check for map clicks
     map.on('click', function() {
         if (window.innerWidth > 700) {
             document.getElementById('sidebar').classList.remove('open');
@@ -348,7 +313,8 @@
             Object.keys(groupColors).forEach(group => {
                 if (!hierarchy[group]) return; 
                 
-                var subcats = Object.keys(hierarchy[group]).sort();
+                // Sort subcategories by count (descending)
+                var subcats = Object.keys(hierarchy[group]).sort((a,b) => hierarchy[group][b] - hierarchy[group][a]);
                 var groupTotal = Object.values(hierarchy[group]).reduce((a, b) => a + b, 0);
                 var isExpanded = expandedGroups.has(group);
                 var color = groupColors[group];
@@ -379,8 +345,22 @@
                     var count = hierarchy[group][subcat];
                     var item = document.createElement('div');
                     item.className = "subcat-item" + (activeCategoryFilters.has(subcat) ? " selected" : "");
-                    item.innerHTML = `<span>${subcat}</span> <span>(${count})</span>`;
-                    item.onclick = () => toggleCategoryFilter(subcat);
+                    
+                    // Create label part
+                    var labelPart = document.createElement('div');
+                    labelPart.className = "subcat-label";
+                    labelPart.innerHTML = `<span>${subcat}</span> <span>(${count})</span>`;
+                    labelPart.onclick = () => toggleCategoryFilter(subcat);
+                    
+                    // Create download button part
+                    var btnPart = document.createElement('button');
+                    btnPart.className = "subcat-dl-btn";
+                    btnPart.innerHTML = "⬇";
+                    btnPart.title = "Scarica JSON";
+                    btnPart.onclick = (e) => { e.stopPropagation(); downloadSubcategory(subcat); };
+
+                    item.appendChild(labelPart);
+                    item.appendChild(btnPart);
                     content.appendChild(item);
                 });
                 sb.appendChild(content);
@@ -505,13 +485,16 @@
         downloadJSON(feats, `missing_${regionName}${suffix}.geojson`);
     }
 
-    function downloadCategory(cat) {
+    // New function for specific subcategory download
+    function downloadSubcategory(cat) {
         if (!currentData) return;
-        var feats = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat);
-        if (feats.length === 0) { alert("Nessun elemento in questa categoria"); return; }
+        // Filter: Status missing AND specific category
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subcategory === cat);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare."); return; }
         
         var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        downloadJSON(feats, `missing_${regionName}_${cat}.geojson`);
+        var catName = cat.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
     }
 
     function downloadJSON(features, filename) {

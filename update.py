@@ -12,7 +12,7 @@ REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
-DATA_DIR = "data_overpass" # Or "data", depending on your local setup
+DATA_DIR = "data_overpass" # Ensure this matches your local folder name
 METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
@@ -31,6 +31,7 @@ CATEGORY_CONFIG = {
                 "Oratorio": ["Q580499"],
                 "Santuario": ["Q697295"],
                 "Tempio": ["Q44539"],
+                "Via Crucis": ["Q231685"],
                 "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496"]
             },
             "Vita Monastica": {
@@ -85,10 +86,11 @@ CATEGORY_CONFIG = {
                 "Casa museo": ["Q2087181"]
             },
             "Biblioteche e Archivi": {
-                "Biblioteca pubblica": ["Q28564"],
-                "Biblioteca": ["Q7075", "Q124750618"],
+                "Biblioteca pubblica": ["Q28564", "Q2326815", "Q124750618", "Q124750593", "Q124750711"],
+                "Biblioteca universitaria": ["Q1622062"],
+                "Biblioteca": ["Q7075", "Q380829", "Q385994", "Q105763925"],
                 "Archivio storico": ["Q3621673"],
-                "Archivio": ["Q166118", "Q604177"]
+                "Archivio": ["Q166118", "Q604177", "Q17620767", "Q2877653"]
             },
             "Spettacolo": {
                 "Teatro": ["Q24354"],
@@ -171,7 +173,12 @@ CATEGORY_CONFIG = {
                 "Municipio": ["Q25550691", "Q15303838"],
                 "Comune italiano": ["Q747074"],
                 "Palazzo di giustizia": ["Q1137809"],
-                "Ufficio postale": ["Q35054"]
+                "Ufficio postale": ["Q35054"],
+                "Istituzione": ["Q1188075"]
+            },
+            "Istruzione": {
+                "Scuola": ["Q9842", "Q126807", "Q3914", "Q56177191", "Q20860083"],
+                "Conservatorio": ["Q184644"]
             }
         }
     },
@@ -189,6 +196,10 @@ CATEGORY_CONFIG = {
                 "Rifugio di montagna": ["Q182676"],
                 "Bivacco": ["Q20743510"],
                 "Edificio": ["Q41176"]
+            },
+            "Strutture Generiche": {
+                "Struttura architettonica": ["Q811979"],
+                "Complesso di edifici": ["Q1497375"]
             }
         }
     },
@@ -220,12 +231,12 @@ CATEGORY_CONFIG = {
     "Monumenti": {
         "color": "#9D4EDD",
         "subgroups": {
-            "Monumenti commemorativi": {
+            "Opere Commemorative": {
                 "Monumento": ["Q4989906"],
                 "Monumento ai caduti": ["Q575759", "Q114124381"],
                 "Arco di trionfo": ["Q200688"]
             },
-            "Fontane e statue": {
+            "Fontane e Sculture": {
                 "Fontana": ["Q483453"],
                 "Statua": ["Q179700"]
             }

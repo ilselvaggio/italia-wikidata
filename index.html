@@ -22,12 +22,18 @@
         }
         #cat-toggle-btn:hover { background: #d35400; }
         
-        /* CONTROLS */
         #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         
-        /* META INFO (Datenstand) - Muss sichtbar bleiben */
-        #meta-info { font-size: 9px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 80px; display: block; margin-left: auto; margin-right: 5px;}
+        /* DATE - Desktop: normal, Mobile: hidden */
+        #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
         
+        /* PLACEHOLDER TEXT */
+        #map-placeholder {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 500; background: rgba(0,0,0,0.6); color: white; padding: 20px;
+            border-radius: 8px; font-size: 16px; pointer-events: none; text-align: center;
+        }
+
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
         #main-container { display: flex; height: calc(100vh - 50px); width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
@@ -36,16 +42,32 @@
         .list-item:hover { background-color: #34495e; }
         .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
-        /* ACCORDION STYLES */
-        .group-header { padding: 10px; background-color: #34495e; cursor: pointer; border-bottom: 1px solid #2c3e50; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
-        .group-header:hover { background-color: #3e5871; }
+        /* ACCORDION */
+        .group-header { 
+            display: flex; justify-content: space-between; align-items: stretch;
+            border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e;
+        }
+        .group-label { 
+            flex-grow: 1; padding: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center;
+        }
+        .group-label:hover { background-color: #3e5871; }
+        .group-toggle-icon {
+            padding: 10px; cursor: pointer; border-left: 1px solid #2c3e50; display: flex; align-items: center; justify-content: center; width: 30px;
+        }
+        .group-toggle-icon:hover { background-color: #3e5871; }
+        
+        /* Highlight states */
+        .group-header.fully-selected .group-label { background-color: #2980b9; border-left: 4px solid #fff; padding-left: 6px; }
+        .group-header.partially-selected .group-label { border-left: 4px solid #f39c12; padding-left: 6px; }
+
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
+        
         .subcat-item { padding: 8px 10px 8px 25px; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; }
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; padding-left: 21px; }
 
-        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 5px; }
+        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
         .cat-dl-btn { background: none; border: 1px solid #7f8c8d; color: #bdc3c7; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 1px 4px; }
         
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
@@ -60,15 +82,23 @@
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
+        /* MOBILE RESPONSIVE */
         @media (max-width: 700px) {
             #menu-toggle { display: block; }
             #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5); }
             #sidebar.open { transform: translateX(0); }
-            #title { display: none; }
+            
+            /* Logic: Title is visible if 'region-loaded' class is NOT present (default). 
+               We will toggle this class in JS. */
+            body.region-loaded #title { display: none; } 
+            
             #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
             #controls { gap: 5px; }
-            .stat-item span:nth-child(3) { display: none; } 
-            /* Meta info stays visible but smaller if needed, or moved */
+            
+            /* Hide elements on mobile */
+            .stat-item span:nth-child(3) { display: none; } /* Hide text labels */
+            #meta-info { display: none; } /* Hide Date on mobile */
+            #btnDownload { display: none !important; } /* Hide download on mobile */
         }
     </style>
 </head>
@@ -96,7 +126,9 @@
 </header>
 <div id="main-container">
     <div id="sidebar"></div>
-    <div id="map"></div>
+    <div id="map">
+        <div id="map-placeholder">Seleziona una regione per iniziare</div>
+    </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -115,27 +147,19 @@
     var viewMode = 'regions'; 
     var selectedRegionKey = null;
     var activeCategoryFilters = new Set(); 
-    var expandedGroups = new Set(); // For accordion state
+    var expandedGroups = new Set(); 
 
     // --- GRUPPI & FARBEN ---
     var groupColors = {
-        "Religione": "#E63946", 
-        "Archeologia": "#8D6E63", 
-        "Cultura": "#FFB703", 
-        "Istruzione": "#FFD166", 
-        "Amministrazione": "#F4A261", 
-        "Fortificazioni": "#606C38", 
-        "Dimore ed Edifici": "#A53860", 
-        "Natura": "#2A9D8F", 
-        "Insediamenti": "#457B9D", 
-        "Infrastrutture": "#7D8597", 
-        "Monumenti e Spazi": "#9D4EDD",
-        "Altro": "#000000"
+        "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura": "#FFB703", 
+        "Istruzione": "#FFD166", "Amministrazione": "#F4A261", "Fortificazioni": "#606C38", 
+        "Dimore ed Edifici": "#A53860", "Natura": "#2A9D8F", "Insediamenti": "#457B9D", 
+        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#000000"
     };
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    // MOBILE FIX: Prevent closing when clicking map on mobile to avoid frustration
+    // MOBILE FIX: Karte klickt nicht aufs Menü
     map.on('click', function() {
         if (window.innerWidth > 700) {
             document.getElementById('sidebar').classList.remove('open');
@@ -149,13 +173,16 @@
     ]).then(([regions, metadata, bounds]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
         
+        // ZEIT FORMATIERUNG (Minuten, keine Sekunden)
+        var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+        
         if(metadata.global_osm_date) {
              let d = new Date(metadata.global_osm_date);
-             document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString() + " CET" : metadata.global_osm_date;
+             document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_osm_date;
         }
         if(metadata.global_wiki_date) {
              let d = new Date(metadata.global_wiki_date);
-             document.getElementById('date-wiki').innerText = !isNaN(d) ? d.toLocaleString() + " CET" : metadata.global_wiki_date;
+             document.getElementById('date-wiki').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_wiki_date;
         }
 
         renderSidebar();
@@ -163,28 +190,24 @@
     });
 
     function getHeatColor(p) {
-        if (p >= 90) return '#006400';
-        if (p >= 80) return '#228B22';
-        if (p >= 70) return '#32CD32';
-        if (p >= 60) return '#ADFF2F';
-        if (p >= 50) return '#FFFF00';
-        if (p >= 40) return '#FFA500';
-        if (p >= 30) return '#FF8C00';
-        if (p >= 20) return '#FF4500';
-        if (p >= 10) return '#FF0000';
+        if (p >= 90) return '#006400'; if (p >= 80) return '#228B22'; if (p >= 70) return '#32CD32';
+        if (p >= 60) return '#ADFF2F'; if (p >= 50) return '#FFFF00'; if (p >= 40) return '#FFA500';
+        if (p >= 30) return '#FF8C00'; if (p >= 20) return '#FF4500'; if (p >= 10) return '#FF0000';
         return '#8B0000';
     }
 
     function toggleViewMode() {
-        // "Torna a panoramica" Logic
         if (viewMode === 'categories') {
             viewMode = 'regions';
             activeCategoryFilters.clear();
             expandedGroups.clear();
-            document.getElementById('controls').style.display = 'none'; // Hide controls on home
-            document.getElementById('cat-toggle-btn').style.display = 'none'; // Hide button itself
             
-            // Reset Map
+            // UI Reset
+            document.body.classList.remove('region-loaded');
+            document.getElementById('controls').style.display = 'none'; 
+            document.getElementById('cat-toggle-btn').style.display = 'none'; 
+            document.getElementById('map-placeholder').style.display = 'block';
+            
             layers.activeBorder.clearLayers();
             layers.missing.clearLayers(); 
             layers.done.clearLayers();
@@ -194,10 +217,23 @@
         }
     }
     
-    function toggleGroup(group) {
+    // --- NEUE LOGIK: GRUPPEN-AUSWAHL ---
+    function toggleGroupExpand(group, event) {
+        if (event) event.stopPropagation();
         if (expandedGroups.has(group)) expandedGroups.delete(group);
         else expandedGroups.add(group);
         renderSidebar();
+    }
+
+    function toggleGroupSelection(group, availableSubcats) {
+        var allSelected = availableSubcats.every(s => activeCategoryFilters.has(s));
+        if (allSelected) {
+            availableSubcats.forEach(s => activeCategoryFilters.delete(s));
+        } else {
+            availableSubcats.forEach(s => activeCategoryFilters.add(s));
+        }
+        renderSidebar();
+        renderMarkers(currentData);
     }
 
     function toggleCategoryFilter(subcat) {
@@ -221,7 +257,6 @@
                 var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
                 var pct = Math.round((meta.done / meta.total) * 100);
                 var color = getHeatColor(pct);
-                
                 var div = document.createElement('div');
                 div.className = "list-item"; 
                 div.innerHTML = `<span>${regionConfig[key].name}</span><span style="color:${color};font-weight:bold">${pct}%</span>`;
@@ -232,38 +267,54 @@
         else {
             if (!currentData) return;
             
-            // Group Data Structure
             var hierarchy = {};
             currentData.features.forEach(f => {
-                if (f.properties.status === 'missing') {
-                    var g = f.properties.group || 'Altro';
-                    var s = f.properties.subcategory || 'Altro';
-                    if (!hierarchy[g]) hierarchy[g] = {};
-                    if (!hierarchy[g][s]) hierarchy[g][s] = 0;
-                    hierarchy[g][s]++;
-                }
+                // Wir zählen ALLES für die Navigation, nicht nur Missing
+                var g = f.properties.group || 'Altro';
+                var s = f.properties.subcategory || 'Altro';
+                if (!hierarchy[g]) hierarchy[g] = {};
+                if (!hierarchy[g][s]) hierarchy[g][s] = 0;
+                hierarchy[g][s]++;
             });
 
-            // Render Accordion
             Object.keys(groupColors).forEach(group => {
-                if (!hierarchy[group]) return; // Skip empty groups
+                if (!hierarchy[group]) return; 
                 
-                var groupCount = Object.values(hierarchy[group]).reduce((a, b) => a + b, 0);
+                var subcats = Object.keys(hierarchy[group]).sort();
+                var groupTotal = Object.values(hierarchy[group]).reduce((a, b) => a + b, 0);
                 var isExpanded = expandedGroups.has(group);
                 var color = groupColors[group];
 
+                var selectedCount = subcats.filter(s => activeCategoryFilters.has(s)).length;
+                var selectionClass = "";
+                if (selectedCount === subcats.length && subcats.length > 0) selectionClass = "fully-selected";
+                else if (selectedCount > 0) selectionClass = "partially-selected";
+
                 // Header
-                var header = document.createElement('div');
-                header.className = "group-header";
-                header.innerHTML = `<span><span class="cat-dot" style="background:${color}"></span>${group}</span><span>(${groupCount}) ${isExpanded ? '▼' : '▶'}</span>`;
-                header.onclick = () => toggleGroup(group);
-                sb.appendChild(header);
+                var headerDiv = document.createElement('div');
+                headerDiv.className = `group-header ${selectionClass}`;
+                
+                // Label (Selects Group)
+                var labelDiv = document.createElement('div');
+                labelDiv.className = "group-label";
+                labelDiv.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${group} <span style="font-weight:normal; font-size:11px; margin-left:5px; opacity:0.8">(${groupTotal})</span>`;
+                labelDiv.onclick = () => toggleGroupSelection(group, subcats);
+                
+                // Arrow (Expands)
+                var toggleDiv = document.createElement('div');
+                toggleDiv.className = "group-toggle-icon";
+                toggleDiv.innerText = isExpanded ? '▼' : '▶';
+                toggleDiv.onclick = (e) => toggleGroupExpand(group, e);
+
+                headerDiv.appendChild(labelDiv);
+                headerDiv.appendChild(toggleDiv);
+                sb.appendChild(headerDiv);
 
                 // Content
                 var content = document.createElement('div');
                 content.className = "group-content" + (isExpanded ? " expanded" : "");
                 
-                Object.keys(hierarchy[group]).sort().forEach(subcat => {
+                subcats.forEach(subcat => {
                     var count = hierarchy[group][subcat];
                     var item = document.createElement('div');
                     item.className = "subcat-item" + (activeCategoryFilters.has(subcat) ? " selected" : "");
@@ -315,11 +366,13 @@
         activeCategoryFilters.clear(); 
         expandedGroups.clear();
         
+        // UI Updates
+        document.body.classList.add('region-loaded'); // Hides title on mobile
+        document.getElementById('map-placeholder').style.display = 'none';
         document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
         document.getElementById('cat-toggle-btn').style.display = 'block'; 
         document.getElementById('controls').style.display = 'flex';
 
-        // Fix Mobile Sidebar Open
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
         layers.activeBorder.clearLayers();
@@ -350,7 +403,6 @@
             var subcat = f.properties.subcategory || 'Altro';
             var group = f.properties.group || 'Altro';
 
-            // FILTER: If selection exists, item must match subcategory
             if (hasSelection && !activeCategoryFilters.has(subcat)) return;
 
             if(isD) cD++; else cM++;
@@ -380,7 +432,6 @@
 
     function downloadCurrentMissing() {
         if (!currentMissingFeatures.length && !currentData) return;
-        // Re-filter for download
         var feats = [];
         var hasSelection = activeCategoryFilters.size > 0;
         currentData.features.forEach(f => {
@@ -392,6 +443,15 @@
         var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         var suffix = hasSelection ? "_selection" : "_all";
         downloadJSON(feats, `missing_${regionName}${suffix}.geojson`);
+    }
+
+    function downloadCategory(cat) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat);
+        if (feats.length === 0) { alert("Nessun elemento in questa categoria"); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${cat}.geojson`);
     }
 
     function downloadJSON(features, filename) {

@@ -15,7 +15,6 @@
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* FIXED: Button now fully reloads the page to clear all states */
         #cat-toggle-btn { display: none; background: #e67e22; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; }
         #cat-toggle-btn:hover { background: #d35400; }
         
@@ -30,9 +29,10 @@
         /* SIDEBAR */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         
-        /* Search Hidden but CSS kept for layout stability */
         #search-container { padding: 10px; border-bottom: 1px solid #34495e; display: none; }
         #catSearch { width: 90%; padding: 5px; border-radius: 4px; border: none; font-size: 12px; background: #34495e; color: white; }
+        #catSearch::placeholder { color: #95a5a6; }
+        #catSearch:focus { outline: none; background: #3e5871; }
 
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
         #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
@@ -74,16 +74,16 @@
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
         
-        /* Layout for Type Label and Dot */
+        /* Flexbox for label to align dot */
         .subcat-label { flex-grow: 1; padding: 8px 5px 8px 15px; display: flex; align-items: center; } 
         .subcat-item.selected .subcat-label { padding-left: 11px; } 
         
-        /* DYNAMIC COLORED DOT IN MENU */
         .subcat-dot { min-width: 8px; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid rgba(255,255,255,0.3); }
-
+        
         .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
         .subcat-dl-btn:hover { background: #27ae60; color: white; }
 
+        /* Dots & Stats */
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
         
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
@@ -98,6 +98,7 @@
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
+        /* MOBILE */
         @media (max-width: 700px) {
             #header { padding-left: 0; } 
             #menu-toggle { display: block; }
@@ -194,11 +195,8 @@
     // --- COLOR UTILS ---
     function hexToHSL(H) {
         let r = 0, g = 0, b = 0;
-        if (H.length == 4) {
-            r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3];
-        } else if (H.length == 7) {
-            r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6];
-        }
+        if (H.length == 4) { r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3]; } 
+        else if (H.length == 7) { r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6]; }
         r /= 255; g /= 255; b /= 255;
         let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
         let h = 0, s = 0, l = 0;
@@ -363,6 +361,7 @@
                 var g = f.properties.group || 'Altro';
                 var sg = f.properties.subgroup || 'Altro';
                 var t = f.properties.subcategory || 'Altro';
+                
                 if (!hierarchy[g]) hierarchy[g] = {};
                 if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
                 if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
@@ -436,8 +435,9 @@
                     typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
                         var count = hierarchy[group][subgroup][type];
                         
-                        // DYNAMIC COLOR
+                        // --- DYNAMIC COLOR CALCULATION ---
                         var dynColor = generateVariant(color, type);
+                        // ---------------------------------
 
                         var item = document.createElement('div');
                         item.className = "subcat-item" + (activeCategoryFilters.has(type) ? " selected" : "");
@@ -445,7 +445,7 @@
                         var labelPart = document.createElement('div');
                         labelPart.className = "subcat-label";
                         
-                        // Dot with dynamic color
+                        // Insert Dynamic Dot
                         labelPart.innerHTML = `<span class="subcat-dot" style="background:${dynColor}"></span> <span>${type}</span> <span style="margin-left:auto; font-size:10px; opacity:0.7">(${count})</span>`;
                         labelPart.onclick = () => toggleCategoryFilter(type);
                         
@@ -474,12 +474,12 @@
         return null;
     }
 
-    // --- FIXED HOVER & CLICK LOGIC ---
+    // --- HOVER LOGIC ---
     function highlightFeature(e) {
+        // Only active in overview mode to prevent bugs
         if (viewMode !== 'regions') return; 
         var layer = e.target;
-        layer.setStyle({ weight: 3, color: '#0044ff' });
-        // DO NOT use bringToFront() here to avoid stuttering
+        layer.setStyle({ weight: 3, color: '#55AAFF' }); // Light blue hover
     }
 
     function resetHighlight(e) {
@@ -514,6 +514,7 @@
         map.addLayer(layers.regions);
     }
 
+    // --- CLICK LOGIC ---
     function changeRegion(key) {
         selectedRegionKey = key;
         viewMode = 'categories'; 
@@ -529,7 +530,7 @@
 
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
-        // 1. MAKE SELECTED REGION TRANSPARENT (Hide Fill)
+        // 1. Hide fill of selected region
         layers.regions.eachLayer(layer => {
             if(getKeyFromFeature(layer.feature) === key) {
                 layer.setStyle({ fillOpacity: 0, stroke: false }); 
@@ -538,7 +539,7 @@
             }
         });
 
-        // 2. ADD BLUE BORDER
+        // 2. Add sharp blue border overlay
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
@@ -580,10 +581,10 @@
             if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg"></a>`;
             pop += `</div></div>`;
 
-            // DYNAMIC COLOR ON MAP
+            // Dynamic color logic
             var color;
             if (isD) {
-                color = "#2ecc71"; // Green for Done
+                color = "#2ecc71"; 
             } else {
                 var baseColor = groupColors[group] || "#000000";
                 color = typeColorCache[subcat] || generateVariant(baseColor, subcat);

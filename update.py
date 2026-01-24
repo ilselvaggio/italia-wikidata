@@ -17,40 +17,41 @@ METADATA_FILE = "metadata.json"
 BOUNDARIES_FILE = "regions_boundaries.geojson"
 BLACKLIST_FILE = "blacklist.json"
 
-# --- 30 KATEGORIEN + LOCALITÀ + OTHER ---
+# --- CATEGORY MAPPING (30 Items + Località) ---
+# Enthält erweiterte IDs (z.B. Nuraghe Varianten), um "Altro" zu minimieren.
 CATEGORY_MAPPING = {
-    "chiesa":               {"ids": ["Q16970"], "color": "#FF0000"},       # 1
-    "insediamento":         {"ids": ["Q486972"], "color": "#0000FF"},      # 2
-    "frazione":             {"ids": ["Q1134686"], "color": "#008000"},     # 3
-    "cimitero":             {"ids": ["Q39614"], "color": "#808080"},       # 4
-    "palazzo_comunale":     {"ids": ["Q25550691"], "color": "#FFA500"},    # 5
-    "municipality_seat":    {"ids": ["Q193055"], "color": "#FFD700"},      # 6
-    "biblio_pubblica":      {"ids": ["Q28564"], "color": "#00CED1"},       # 7
-    "cappella":             {"ids": ["Q108325"], "color": "#800080"},      # 8
-    "nuraghe":              {"ids": ["Q688326"], "color": "#8B4513"},      # 9
-    "oratorio":             {"ids": ["Q1064047"], "color": "#FF69B4"},     # 10
-    "villa":                {"ids": ["Q80966"], "color": "#4B0082"},       # 11
-    "casa":                 {"ids": ["Q3947"], "color": "#A52A2A"},        # 12
-    "natura_2000":          {"ids": ["Q2683204"], "color": "#32CD32"},     # 13
-    "struttura_arch":       {"ids": ["Q811979"], "color": "#708090"},      # 14
-    "palazzo":              {"ids": ["Q16560"], "color": "#DC143C"},       # 15
-    "cascina":              {"ids": ["Q1046969"], "color": "#D2691E"},     # 16
-    "edificio":             {"ids": ["Q41176"], "color": "#C0C0C0"},       # 17
-    "pianta_monum":         {"ids": ["Q811534"], "color": "#006400"},      # 18
-    "archivio":             {"ids": ["Q166118"], "color": "#4682B4"},      # 19
-    "palazzo_italiano":     {"ids": ["Q1767"], "color": "#B22222"},        # 20
-    "castello":             {"ids": ["Q23413"], "color": "#800000"},       # 21
-    "montagna":             {"ids": ["Q8502"], "color": "#2F4F4F"},        # 22
-    "biblio_spec":          {"ids": ["Q622549"], "color": "#20B2AA"},      # 23
-    "biblio_univ":          {"ids": ["Q856584"], "color": "#5F9EA0"},      # 24
-    "capitello":            {"ids": ["Q750656"], "color": "#DA70D6"},      # 25
-    "torre":                {"ids": ["Q12518"], "color": "#000080"},       # 26
-    "museo":                {"ids": ["Q33506"], "color": "#DDA0DD"},       # 27
-    "biblio_privata":       {"ids": ["Q7246255"], "color": "#BC8F8F"},     # 28
-    "strada_urbana":        {"ids": ["Q7944"], "color": "#696969"},        # 29
-    "biblio_scolastica":    {"ids": ["Q193896"], "color": "#F0E68C"},      # 30
-    "localita":             {"ids": ["Q3257686"], "color": "#A0522D"},     # ZUSATZ
-    "other":                {"ids": [], "color": "#000000"}
+    "chiesa":               {"ids": ["Q16970"], "color": "#FF0000"},       # 1. Kirche
+    "insediamento":         {"ids": ["Q486972"], "color": "#0000FF"},      # 2. Siedlung
+    "frazione":             {"ids": ["Q1134686"], "color": "#008000"},     # 3. Frazione
+    "cimitero":             {"ids": ["Q39614"], "color": "#808080"},       # 4. Friedhof
+    "palazzo_comunale":     {"ids": ["Q25550691", "Q543654"], "color": "#FFA500"}, # 5. Rathaus (IT + General)
+    "municipality_seat":    {"ids": ["Q193055"], "color": "#FFD700"},      # 6. Verwaltungssitz
+    "biblio_pubblica":      {"ids": ["Q28564"], "color": "#00CED1"},       # 7. Öffentl. Bib.
+    "cappella":             {"ids": ["Q108325"], "color": "#800080"},      # 8. Kapelle
+    "nuraghe":              {"ids": ["Q688326", "Q688292", "Q2002347", "Q3924307"], "color": "#8B4513"}, # 9. Nuraghe (+Komplexe)
+    "oratorio":             {"ids": ["Q1064047"], "color": "#FF69B4"},     # 10. Oratorium
+    "villa":                {"ids": ["Q80966"], "color": "#4B0082"},       # 11. Villa
+    "casa":                 {"ids": ["Q3947"], "color": "#A52A2A"},        # 12. Haus
+    "natura_2000":          {"ids": ["Q2683204"], "color": "#32CD32"},     # 13. Natura 2000
+    "struttura_arch":       {"ids": ["Q811979"], "color": "#708090"},      # 14. Arch. Struktur
+    "palazzo":              {"ids": ["Q16560"], "color": "#DC143C"},       # 15. Palast/Palazzo
+    "cascina":              {"ids": ["Q1046969"], "color": "#D2691E"},     # 16. Cascina
+    "edificio":             {"ids": ["Q41176"], "color": "#C0C0C0"},       # 17. Gebäude
+    "pianta_monum":         {"ids": ["Q811534"], "color": "#006400"},      # 18. Monumentalbaum
+    "archivio":             {"ids": ["Q166118"], "color": "#4682B4"},      # 19. Archiv
+    "palazzo_italiano":     {"ids": ["Q16560"], "color": "#B22222"},       # 20. (Mapping auf Palazzo Q16560 fallback)
+    "castello":             {"ids": ["Q23413"], "color": "#800000"},       # 21. Schloss
+    "montagna":             {"ids": ["Q8502"], "color": "#2F4F4F"},        # 22. Berg
+    "biblio_spec":          {"ids": ["Q622549"], "color": "#20B2AA"},      # 23. Spez. Bib.
+    "biblio_univ":          {"ids": ["Q856584"], "color": "#5F9EA0"},      # 24. Uni Bib.
+    "capitello":            {"ids": ["Q750656"], "color": "#DA70D6"},      # 25. Bildstock
+    "torre":                {"ids": ["Q12518"], "color": "#000080"},       # 26. Turm
+    "museo":                {"ids": ["Q33506"], "color": "#DDA0DD"},       # 27. Museum
+    "biblio_privata":       {"ids": ["Q7246255"], "color": "#BC8F8F"},     # 28. Privatbib.
+    "strada_urbana":        {"ids": ["Q7944"], "color": "#696969"},        # 29. Stadtstraße
+    "biblio_scolastica":    {"ids": ["Q193896"], "color": "#F0E68C"},      # 30. Schulbib.
+    "localita":             {"ids": ["Q3257686"], "color": "#A0522D"},     # ZUSATZ: Località
+    "other":                {"ids": [], "color": "#000000"}                # Fallback
 }
 
 def get_bbox_from_feature(feature):
@@ -108,7 +109,7 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Retrieve ?itemLabel instead of ?label to use the Service correctly (IT -> EN -> ID)
+    # Holt explizit das Label (?itemLabel) via Service
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        
@@ -129,7 +130,7 @@ def get_wikidata_clean(qid):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/4.0', 'Accept': 'text/csv'}
+        headers = {'User-Agent': 'ItaliaWikidataCheck/5.0', 'Accept': 'text/csv'}
         r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
         r.raise_for_status()
         return r.text
@@ -234,7 +235,7 @@ def main():
             
             type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
             
-            # Use ?itemLabel from SPARQL Service (Correct Name)
+            # WICHTIG: Nutzt das echte Label aus SPARQL
             label_val = row.get('itemLabel') or row.get('?itemLabel') or qid
 
             # Mapping Logic
@@ -249,10 +250,10 @@ def main():
                 "type": "Feature",
                 "properties": { 
                     "wikidata": qid, 
-                    "name": label_val, 
+                    "name": label_val, # Korrektes Label
                     "status": status, 
                     "osm_id": osm_ids.get(qid),
-                    "category": category_slug
+                    "category": category_slug # Nur Slug, kein 'type' mehr
                 },
                 "geometry": { "type": "Point", "coordinates": [lon, lat] }
             })

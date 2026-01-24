@@ -85,15 +85,15 @@
 <header id="header">
     <div id="left-col">
         <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
-        <button id="cat-toggle-btn" onclick="toggleViewMode()">🎨 Vista Categorie</button>
+        <div id="title" onclick="location.reload()">Panoramica OSM-Wikidata Italia</div>
+        <button id="cat-toggle-btn" onclick="toggleViewMode()">Vista categorie</button>
     </div>
     <div id="controls">
         <div id="loading">Loading...</div>
-        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()">Download ALL</button>
         <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Wikidata only">
-            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Wikidata only</span> <span id="count-missing" style="font-weight:bold"></span>
+            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Solo Wikidata</span> <span id="count-missing" style="font-weight:bold"></span>
         </div>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()" title="Scarica solo Wikidata">⬇</button>
         <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="Done">
             <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
         </div>
@@ -198,7 +198,7 @@
     function toggleViewMode() {
         viewMode = (viewMode === 'regions') ? 'categories' : 'regions';
         var btn = document.getElementById('cat-toggle-btn');
-        btn.innerText = (viewMode === 'categories') ? "🔙 Torna a Regioni" : "🎨 Vista Categorie";
+        btn.innerText = (viewMode === 'categories') ? "Torna a Regioni" : "Vista Categorie";
         if(viewMode === 'categories') btn.classList.add('active'); else btn.classList.remove('active');
         
         renderSidebar();

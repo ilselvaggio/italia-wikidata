@@ -72,12 +72,13 @@ def fetch_osm_area_fallback(area_id, retries=2):
     return None
 
 def get_wikidata_clean(qid):
-    # Added P5817 filter to exclude "destroyed" locations
+    # Added filters for destroyed locations (P5817 and P5816)
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?label WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
        FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
        FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }} 
+       FILTER NOT EXISTS {{ ?item wdt:P5816 wd:Q56556915 }} 
        MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
        BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
        BIND(geof:latitude(?loc) as ?lat) 
@@ -134,9 +135,10 @@ def main():
         except: pass
 
     target_regions = regions.keys() if args.region == 'all' else [args.region]
+    # Fixed timezone usage for Python 3.12+ compatibility / general correctness
     utc_now = datetime.datetime.now(datetime.timezone.utc)
-    rome_time = utc_now + datetime.timedelta(hours=1)
-    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now_str = utc_now.isoformat()
+    
     new_meta = old_meta.copy()
     processed_count = 0
 

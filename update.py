@@ -1,551 +1,644 @@
-import json
-import csv
-import time
-import requests
-import os
-import sys
-import datetime
-import argparse
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panoramica OpenStreetMap-Wikidata Italia</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* CORE LAYOUT */
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* HEADER */
+        #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0; }
+        #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+        #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
+        #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        #cat-toggle-btn { display: none; background: #e67e22; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; }
+        #cat-toggle-btn:hover { background: #d35400; }
+        
+        #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
+        #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
+        
+        /* PLACEHOLDER */
+        #map-placeholder { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); z-index: 500; background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; border-radius: 30px; font-size: 14px; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
+        .desktop-msg { display: inline; }
+        .mobile-msg { display: none; }
 
-# --- CONFIGURATION ---
-REGIONS_FILE = "regions.json"
-WIKIDATA_URL = "https://query.wikidata.org/sparql"
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-OSM_DIR = "osm"
-DATA_DIR = "data_overpass" 
-METADATA_FILE = "metadata.json"
-BOUNDARIES_FILE = "regions_boundaries.geojson"
-BLACKLIST_FILE = "blacklist.json"
-HISTORY_FILE = "history.json"
+        /* SIDEBAR */
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
+        
+        #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
+        #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
 
-# --- 3-LEVEL CATEGORY CONFIGURATION (STRICT) ---
-# Basierend auf deiner Audit-Liste. Jede QID hat einen festen Platz.
-CATEGORY_CONFIG = {
-    "Religione": {
-        "color": "#E63946",
-        "subgroups": {
-            "Luoghi di Culto": {
-                "Chiesa": ["Q16970", "Q317557"],
-                "Chiesa parrocchiale": ["Q55876909", "Q317557", "Q1088552"],
-                "Basilica minore": ["Q120560"],
-                "Cappella": ["Q108325"],
-                "Cappella cimiteriale": ["Q1457501"],
-                "Oratorio": ["Q580499"],
-                "Santuario": ["Q697295"],
-                "Tempio": ["Q44539"],
-                "Capitello votivo": ["Q3395121"],
-                "Via Crucis": ["Q231685"],
-                "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496"]
-            },
-            "Vita Monastica": {
-                "Monastero": ["Q44613"],
-                "Abbazia": ["Q160742"],
-                "Convento": ["Q1128397"],
-                "Eremo": ["Q513550"],
-                "Canonica": ["Q607241"]
-            },
-            "Cimiteri": {
-                "Cimitero": ["Q39614"],
-                "Cimitero di guerra": ["Q1241568"],
-                "Necropoli": ["Q200141"],
-                "Tomba": ["Q381885"],
-                "Monumento funebre": ["Q56055312"]
-            },
-            "Amministrazione Religiosa": {
-                "Parrocchia": ["Q102496"]
-            }
+        #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
+        #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
+        
+        /* LIST ITEM */
+        .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .list-item:hover { background-color: #34495e; }
+        
+        /* ACCORDION */
+        .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; transition: background 0.2s; }
+        .group-header.fully-selected { background-color: #2980b9 !important; border-left: 4px solid #fff; }
+        .group-header.partially-selected { border-left: 4px solid #f39c12; background-color: #3e5871; }
+
+        .group-label { flex-grow: 1; padding: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; }
+        .group-label:hover { background-color: rgba(255,255,255,0.1); }
+        
+        .group-toggle-icon { padding: 10px; cursor: pointer; border-left: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; width: 30px; }
+        .group-toggle-icon:hover { background-color: rgba(255,255,255,0.2); }
+        
+        .group-content { display: none; background-color: #2c3e50; }
+        .group-content.expanded { display: block; }
+        
+        /* SUBGROUPS */
+        .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
+        .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
+        .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
+        .subgroup-header.fully-selected .subgroup-label { color: #3498db; }
+
+        .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
+        .subgroup-dl-btn:hover { background: #27ae60; color: white; }
+
+        /* TYPES */
+        .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
+        .subcat-item:hover { background-color: #3e5871; }
+        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
+        
+        .subcat-label { flex-grow: 1; padding: 8px 5px 8px 15px; display: flex; align-items: center; } 
+        .subcat-item.selected .subcat-label { padding-left: 11px; } 
+        
+        /* Dynamic Dot: Hidden by default, visible when selected */
+        .subcat-dot { min-width: 8px; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid #7f8c8d; background: transparent; }
+        
+        .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
+        .subcat-dl-btn:hover { background: #27ae60; color: white; }
+
+        /* Dots & Stats */
+        .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
+        
+        .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
+        .dot-red { background: #e74c3c; }
+        .dot-green { background: #2ecc71; }
+        
+        .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
+        #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
+        
+        .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
+        .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
+        .logo-link img { width: 100%; height: 100%; object-fit: contain; }
+
+        @media (max-width: 700px) {
+            #header { padding-left: 0; } 
+            #menu-toggle { display: block; }
+            #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 2000; transform: translateX(-100%); width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.5); border-top: 1px solid #1a252f; }
+            #sidebar.open { transform: translateX(0); }
+            #title { display: none; }
+            body:not(.region-loaded) #title { display: block; max-width: 200px; } 
+            #cat-toggle-btn { font-size: 11px; padding: 4px 8px; margin-left: 0; }
+            #controls { gap: 5px; }
+            .stat-item span:nth-child(3) { display: none; } 
+            #meta-info { display: none; }
+            #btnDownload { display: none !important; } 
+            .subcat-dl-btn, .subgroup-dl-btn { display: none; } 
+            .desktop-msg { display: none; }
+            .mobile-msg { display: inline; }
+            .leaflet-control-zoom { display: none !important; }
         }
-    },
-    "Cultura e tempo libero": {
-        "color": "#FFB703",
-        "subgroups": {
-            "Biblioteche": {
-                "Biblioteca universitaria": ["Q1622062"],
-                "Biblioteca pubblica": ["Q28564", "Q2326815", "Q124750618"],
-                "Altre biblioteche": ["Q7075", "Q380829", "Q385994", "Q124750593", "Q124750711", "Q105763925", "Q1076099"] 
-            },
-            "Musei": {
-                "Museo": ["Q33506"],
-                "Museo d'arte": ["Q207694", "Q108860593"],
-                "Pinacoteca": ["Q740437"],
-                "Museo archeologico": ["Q3329412"],
-                "Museo storico": ["Q16735822"],
-                "Museo etnografico": ["Q12104174"],
-                "Museo pubblico": ["Q124830213", "Q124830411"],
-                "Museo didattico": ["Q94701740"],
-                "Ecomuseo": ["Q94701721"],
-                "Casa museo": ["Q2087181"]
-            },
-            "Archivi": {
-                "Archivio": ["Q166118"],
-                "Archivio comunale": ["Q604177"],
-                "Archivio di Stato": ["Q17620767"],
-                "Archivio accademico": ["Q27032435", "Q2877653"]
-            },
-            "Spettacolo": {
-                "Teatro": ["Q24354"],
-                "Teatro d'opera": ["Q153562"],
-                "Cinema": ["Q41253"],
-                "Casinò": ["Q133215"],
-                "Centro culturale": ["Q1329623"]
-            }
+    </style>
+</head>
+<body>
+<header id="header">
+    <div id="left-col">
+        <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <div id="title" onclick="location.reload()">Panoramica OpenStreetMap-Wikidata Italia</div>
+        <button id="cat-toggle-btn" onclick="location.reload()">Torna a panoramica</button>
+    </div>
+    <div id="controls">
+        <div id="loading">Caricamento...</div>
+        <div class="stat-item" id="stat-missing" onclick="toggleCheckbox('chkMissing')" title="Solo Wikidata">
+            <span class="dot dot-red"></span><input type="checkbox" id="chkMissing" checked onchange="toggleLayer('missing', this.checked)"> <span>Solo Wikidata</span> <span id="count-missing" style="font-weight:bold"></span>
+        </div>
+        <button id="btnDownload" class="btn-download" onclick="downloadCurrentMissing()" title="Scarica selezione">⬇</button>
+        <div class="stat-item" id="stat-done" onclick="toggleCheckbox('chkDone')" title="OSM+Wikidata">
+            <span class="dot dot-green"></span><input type="checkbox" id="chkDone" onchange="toggleLayer('done', this.checked)"> <span>OSM+Wikidata</span> <span id="count-done" style="font-weight:bold"></span>
+        </div>
+    </div>
+    <div id="meta-info">
+        <div>OSM: <span id="date-osm">--</span></div>
+        <div>WD: <span id="date-wiki">--</span></div>
+    </div>
+</header>
+<div id="main-container">
+    <div id="sidebar">
+        <div id="sidebar-content"></div>
+        <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
+    </div>
+    <div id="map">
+        <div id="map-placeholder">
+            <span class="desktop-msg">Seleziona una regione</span>
+            <span class="mobile-msg">↖ Toccare il menu (☰) per scegliere una regione</span>
+        </div>
+    </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([42.0, 12.5], 6);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+    maxZoom: 19, 
+    attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>' 
+    }).addTo(map);
+    map.createPane('regionsPane'); map.getPane('regionsPane').style.zIndex = 400;
+    map.createPane('markersPane'); map.getPane('markersPane').style.zIndex = 600;
+
+    var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
+    var regionConfig, metaDataGlobal, boundariesGeoJSON;
+    var currentMissingFeatures = [];
+    var currentData = null; 
+    var historyData = [];
+    
+    var viewMode = 'regions'; 
+    var selectedRegionKey = null;
+    var activeCategoryFilters = new Set(); 
+    var expandedGroups = new Set(); 
+    var typeColorCache = {};
+
+    // --- GROUPS & COLORS ---
+    var groupColors = {
+        "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura e tempo libero": "#FFB703", 
+        "Amministrazione": "#F4A261", "Fortificazioni e militare": "#606C38", 
+        "Dimore ed edifici": "#A53860", "Natura e paesaggio": "#2A9D8F", "Insediamenti": "#457B9D", 
+        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#777777"
+    };
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+    map.on('click', function() {
+        if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
+    });
+
+    // --- COLOR MATH ---
+    function hexToHSL(H) {
+        let r = 0, g = 0, b = 0;
+        if (H.length == 4) { r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3]; } 
+        else if (H.length == 7) { r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6]; }
+        r /= 255; g /= 255; b /= 255;
+        let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
+        let h = 0, s = 0, l = 0;
+        if (delta == 0) h = 0;
+        else if (cmax == r) h = ((g - b) / delta) % 6;
+        else if (cmax == g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+        l = (cmax + cmin) / 2;
+        s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+        s = +(s * 100).toFixed(1);
+        l = +(l * 100).toFixed(1);
+        return {h, s, l};
+    }
+
+    function HSLToHex(h, s, l) {
+        s /= 100; l /= 100;
+        let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
+        if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+        else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+        else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+        else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+        else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+        else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+        r = Math.round((r + m) * 255).toString(16);
+        g = Math.round((g + m) * 255).toString(16);
+        b = Math.round((b + m) * 255).toString(16);
+        if (r.length == 1) r = "0" + r;
+        if (g.length == 1) g = "0" + g;
+        if (b.length == 1) b = "0" + b;
+        return "#" + r + g + b;
+    }
+
+    function generateVariant(baseHex, seedString) {
+        if (typeColorCache[seedString]) return typeColorCache[seedString];
+        let hash = 0;
+        for (let i = 0; i < seedString.length; i++) hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
+        let hsl = hexToHSL(baseHex);
+        
+        // Stronger variation to make items distinct
+        let hueShift = (hash % 120) - 60; // +/- 60 degree shift
+        let newH = (hsl.h + hueShift + 360) % 360;
+        
+        let lightShift = (hash % 40) - 20; // +/- 20% lightness
+        let newL = Math.max(30, Math.min(80, hsl.l + lightShift)); 
+
+        let finalColor = HSLToHex(newH, hsl.s, newL);
+        typeColorCache[seedString] = finalColor;
+        return finalColor;
+    }
+
+    Promise.all([
+        fetch('regions.json').then(r => r.json()),
+        fetch('metadata.json').then(r => r.json()).catch(() => ({})),
+        fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null),
+        fetch('history.json').then(r => r.json()).catch(() => []) 
+    ]).then(([regions, metadata, bounds, history]) => {
+        regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
+        historyData = history;
+
+        var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+        if(metadata.global_osm_date) {
+             let d = new Date(metadata.global_osm_date);
+             document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_osm_date;
         }
-    },
-    "Amministrazione": {
-        "color": "#F4A261",
-        "subgroups": {
-            "Istruzione": {
-                "Scuola": ["Q3914"],
-                "Scuola dell'infanzia": ["Q126807"],
-                "Scuola primaria": ["Q9842"],
-                "Istituto comprensivo": ["Q56177191"],
-                "Conservatorio": ["Q184644"],
-                "Complesso educativo": ["Q20860083"],
-                "Istituzione accademica": ["Q4671277"]
-            },
-            "Uffici Pubblici": {
-                "Municipio": ["Q25550691", "Q15303838"],
-                "Comune italiano": ["Q747074"],
-                "Palazzo di giustizia": ["Q1137809"],
-                "Ufficio postale": ["Q35054"],
-                "Agenzia governativa": ["Q1188075"],
-                "Carcere": ["Q40357"]
-            }
+        if(metadata.global_wiki_date) {
+             let d = new Date(metadata.global_wiki_date);
+             document.getElementById('date-wiki').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_wiki_date;
         }
-    },
-    "Fortificazioni e militare": {
-        "color": "#606C38",
-        "subgroups": {
-            "Fortificazioni": {
-                "Castello": ["Q23413"],
-                "Castello in rovina": ["Q17715832"],
-                "Rocca": ["Q1195705"],
-                "Forte": ["Q1785071"],
-                "Fortezza": ["Q57831"],
-                "Fortificazione": ["Q57821"],
-                "Mura cittadine": ["Q16748868"],
-                "Porta cittadina": ["Q82117"],
-                "Torre": ["Q12518"],
-                "Torre campanaria": ["Q200334"],
-                "Baluardo": ["Q81851"]
-            },
-            "Militare": {
-                "Caserma": ["Q131263"],
-                "Bunker": ["Q91122"],
-                "Campo di concentramento": ["Q152081"]
-            }
+
+        renderSidebar();
+        if (boundariesGeoJSON) loadRegionsShape();
+    });
+
+    function getHeatColor(p) {
+        if (p >= 90) return '#006400'; if (p >= 80) return '#228B22'; if (p >= 70) return '#32CD32';
+        if (p >= 60) return '#ADFF2F'; if (p >= 50) return '#FFFF00'; if (p >= 40) return '#FFA500';
+        if (p >= 30) return '#FF8C00'; if (p >= 20) return '#FF4500'; if (p >= 10) return '#FF0000';
+        return '#8B0000';
+    }
+
+    function getTrend(regionKey, currentPct) {
+        if (!historyData || historyData.length < 2) return "";
+        var lastEntry = historyData[historyData.length - 2]; 
+        if (!lastEntry || !lastEntry.data[regionKey]) return "";
+        var oldMeta = lastEntry.data[regionKey];
+        if (oldMeta.total === 0) return "";
+        var oldPct = Math.round((oldMeta.done / oldMeta.total) * 100);
+        var diff = currentPct - oldPct;
+        var style = ""; var prefix = "";
+        if (diff > 0) { prefix = "+"; if (diff >= 3) style = "color:#006400; font-weight:bold"; else style = "color:#4cd137"; } 
+        else if (diff < 0) { style = "color:#e74c3c"; } 
+        else { style = "color:#f39c12"; prefix = "+"; }
+        return `<span style="${style}; font-size:11px; margin-right:5px;">${prefix}${diff}%</span>`;
+    }
+    
+    function toggleGroupExpand(group, event) {
+        if (event) event.stopPropagation();
+        if (expandedGroups.has(group)) expandedGroups.delete(group);
+        else expandedGroups.add(group);
+        renderSidebar();
+    }
+
+    function toggleGroupSelection(group, availableSubcats) {
+        var allSelected = availableSubcats.every(s => activeCategoryFilters.has(s));
+        if (allSelected) availableSubcats.forEach(s => activeCategoryFilters.delete(s));
+        else availableSubcats.forEach(s => activeCategoryFilters.add(s));
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
+    function toggleSubgroupSelection(subgroup, types) {
+        var allSelected = types.every(t => activeCategoryFilters.has(t));
+        if (allSelected) {
+            types.forEach(t => activeCategoryFilters.delete(t));
+        } else {
+            types.forEach(t => activeCategoryFilters.add(t));
         }
-    },
-    "Natura e paesaggio": {
-        "color": "#2A9D8F",
-        "subgroups": {
-            "Acqua": {
-                "Lago": ["Q23397"],
-                "Bacino artificiale": ["Q131681", "Q4735538"],
-                "Fiume": ["Q4022"],
-                "Sorgente": ["Q124714"],
-                "Cascata": ["Q34038"]
-            },
-            "Mare e Costa": {
-                "Spiaggia": ["Q40080"],
-                "Baia": ["Q39594"],
-                "Capo": ["Q185113"],
-                "Isola": ["Q23442"]
-            },
-            "Montagna": {
-                "Montagna": ["Q8502"],
-                "Vetta": ["Q207326"],
-                "Catena montuosa": ["Q46831"],
-                "Valle": ["Q39816"],
-                "Passo": ["Q2231510"],
-                "Sella": ["Q10862618"],
-                "Gap": ["Q16887036"],
-                "Grotta": ["Q35509"]
-            },
-            "Verde": {
-                "Parco": ["Q22698"],
-                "Parco cittadino": ["Q22746"],
-                "Giardino": ["Q1107656"],
-                "Orto botanico": ["Q167346"],
-                "Albero monumentale": ["Q811534"],
-                "Area protetta": ["Q473972", "Q15069452", "Q3936950"]
-            }
-        }
-    },
-    "Dimore ed edifici": {
-        "color": "#A53860",
-        "subgroups": {
-            "Residenze": {
-                "Palazzo": ["Q16560"],
-                "Palazzo italiano": ["Q2651004"],
-                "Villa": ["Q3950", "Q80966", "Q111189432"],
-                "Casa": ["Q3947"],
-                "Casa rurale": ["Q16884952"],
-                "Cascina": ["Q1169748"],
-                "Grangia": ["Q1098590"],
-                "Fattoria": ["Q1207909"]
-            },
-            "Ospitalità": {
-                "Albergo": ["Q27686"],
-                "Guest house": ["Q2460422"],
-                "Rifugio di montagna": ["Q182676"],
-                "Bivacco alpino": ["Q20743510"]
-            },
-            "Strutture Varie": {
-                "Edificio": ["Q41176"],
-                "Complesso di edifici": ["Q1497375"],
-                "Struttura architettonica": ["Q811979"],
-                "Rifugio per cani": ["Q1411287"],
-                "Dépendance": ["Q3044808"]
-            }
-        }
-    },
-    "Insediamenti": {
-        "color": "#457B9D",
-        "subgroups": {
-            "Centri": {
-                "Frazione": ["Q1134686"],
-                "Insediamento umano": ["Q486972"],
-                "Località abitata": ["Q3835961"],
-                "Cittadina": ["Q3957"],
-                "Grande città": ["Q1549591"]
-            },
-            "Zone Urbane": {
-                "Centro storico": ["Q676050"],
-                "Quartiere": ["Q123705"],
-                "Ghetto": ["Q152018"],
-                "Piazza": ["Q174782"],
-                "Piazza della cattedrale": ["Q131542697"]
-            }
-        }
-    },
-    "Infrastrutture": {
-        "color": "#7D8597",
-        "subgroups": {
-            "Trasporti": {
-                "Stazione ferroviaria": ["Q55488"],
-                "Fermata ferroviaria": ["Q55678"],
-                "Fermata dismessa": ["Q65464941"],
-                "Stazione metropolitana": ["Q928830"],
-                "Stazione sotterranea": ["Q22808403"],
-                "Fermata tram": ["Q2175765"],
-                "Linea ferroviaria": ["Q728937"],
-                "Aeroporto": ["Q1248784"],
-                "Aerodromo": ["Q94993988"],
-                "Porto": ["Q44782"],
-                "Valico di confine": ["Q55599109"],
-                "Galleria": ["Q44377", "Q2354973"],
-                "Strada urbana": ["Q79007"]
-            },
-            "Industria e Tecnica": {
-                "Edificio industriale": ["Q1662011"],
-                "Mulino": ["Q44494"],
-                "Fabbrica": ["Q3973051"],
-                "Centrale telefonica": ["Q256132"],
-                "Centrale elettrica": ["Q339353"],
-                "Lavatoio": ["Q1690211"],
-                "Stazione meteorologica": ["Q190107"],
-                "Società scientifica": ["Q955824"],
-                "Osservatorio": ["Q1254933"]
-            },
-            "Opere Ingegneristiche": {
-                "Ponte": ["Q12280"],
-                "Viadotto": ["Q181348"],
-                "Faro": ["Q39715"]
-            },
-            "Servizi": {
-                "Servizio": ["Q13226383"],
-                "Impresa sociale": ["Q1071015"],
-                "Organizzazione no-profit": ["Q163740"]
-            }
-        }
-    },
-    "Archeologia": {
-        "color": "#8D6E63",
-        "subgroups": {
-            "Siti": {
-                "Sito archeologico": ["Q839954"],
-                "Parco archeologico": ["Q3363945"],
-                "Nuraghe": ["Q688292", "Q1385277"],
-                "Domus de Janas": ["Q782970"],
-                "Tomba dei giganti": ["Q1523627"],
-                "Rovine": ["Q109607"],
-                "Città antica": ["Q15661340"],
-                "Anfiteatro": ["Q41735"],
-                "Teatro romano": ["Q3243464"],
-                "Terme": ["Q1341387"]
-            }
-        }
-    },
-    "Monumenti": {
-        "color": "#9D4EDD",
-        "subgroups": {
-            "Monumenti": {
-                "Monumento": ["Q4989906"],
-                "Memoriale di guerra": ["Q575759"],
-                "Targa commemorativa": ["Q721747"],
-                "Arco di trionfo": ["Q200688"],
-                "Statua": ["Q179700"],
-                "Fontana": ["Q483453"],
-                "Elemento architettonico": ["Q391414"]
-            }
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
+    function toggleCategoryFilter(subcat) {
+        if (activeCategoryFilters.has(subcat)) activeCategoryFilters.delete(subcat);
+        else activeCategoryFilters.add(subcat);
+        renderSidebar();
+        renderMarkers(currentData);
+    }
+
+    function renderSidebar() {
+        var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
+        
+        if (!currentData || viewMode === 'regions') { 
+            var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
+                var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
+                var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
+                return (metaB.done / metaB.total) - (metaA.done / metaA.total);
+            });
+            sortedKeys.forEach(key => {
+                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
+                var pct = Math.round((meta.done / meta.total) * 100);
+                var color = getHeatColor(pct);
+                var trendHtml = getTrend(key, pct);
+                var div = document.createElement('div');
+                div.className = "list-item"; 
+                div.innerHTML = `<span>${regionConfig[key].name}</span><div>${trendHtml}<span style="color:${color};font-weight:bold">${pct}%</span></div>`;
+                div.onclick = () => { changeRegion(key); };
+                sb.appendChild(div);
+            });
+        } 
+        else {
+            var hierarchy = {};
+            currentData.features.forEach(f => {
+                var g = f.properties.group || 'Altro';
+                var sg = f.properties.subgroup || 'Altro';
+                var t = f.properties.subcategory || 'Altro';
+                if (!hierarchy[g]) hierarchy[g] = {};
+                if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
+                if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
+                hierarchy[g][sg][t]++;
+            });
+
+            Object.keys(groupColors).forEach(group => {
+                if (!hierarchy[group]) return; 
+                
+                var allTypesInGroup = [];
+                var groupTotal = 0;
+                Object.values(hierarchy[group]).forEach(sg => {
+                    Object.values(sg).forEach(cnt => groupTotal += cnt);
+                    Object.keys(sg).forEach(t => allTypesInGroup.push(t));
+                });
+
+                var selectedCount = allTypesInGroup.filter(s => activeCategoryFilters.has(s)).length;
+                var selectionClass = "";
+                if (selectedCount === allTypesInGroup.length && allTypesInGroup.length > 0) selectionClass = "fully-selected";
+                else if (selectedCount > 0) selectionClass = "partially-selected";
+
+                var isExpanded = expandedGroups.has(group);
+                var color = groupColors[group];
+                
+                var headerDiv = document.createElement('div');
+                headerDiv.className = `group-header ${selectionClass}`; 
+                
+                var labelDiv = document.createElement('div');
+                labelDiv.className = "group-label";
+                labelDiv.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${group} <span style="font-weight:normal; font-size:11px; margin-left:5px; opacity:0.8">(${groupTotal})</span>`;
+                labelDiv.onclick = () => toggleGroupSelection(group, allTypesInGroup); 
+                
+                var toggleDiv = document.createElement('div');
+                toggleDiv.className = "group-toggle-icon";
+                toggleDiv.innerText = isExpanded ? '▼' : '▶';
+                toggleDiv.onclick = (e) => toggleGroupExpand(group, e);
+
+                headerDiv.appendChild(labelDiv);
+                headerDiv.appendChild(toggleDiv);
+                sb.appendChild(headerDiv);
+
+                var content = document.createElement('div');
+                content.className = "group-content" + (isExpanded ? " expanded" : "");
+                
+                Object.keys(hierarchy[group]).sort().forEach(subgroup => {
+                    var typesInSubgroup = Object.keys(hierarchy[group][subgroup]);
+                    
+                    if(subgroup !== "Altro" && subgroup !== group) {
+                        var subSelectedCount = typesInSubgroup.filter(t => activeCategoryFilters.has(t)).length;
+                        var subClass = (subSelectedCount === typesInSubgroup.length) ? "fully-selected" : "";
+
+                        var sgHeader = document.createElement('div');
+                        sgHeader.className = `subgroup-header ${subClass}`;
+                        
+                        var sgLabel = document.createElement('div');
+                        sgLabel.className = "subgroup-label";
+                        sgLabel.innerText = subgroup;
+                        sgLabel.onclick = () => toggleSubgroupSelection(subgroup, typesInSubgroup);
+                        
+                        var sgDlBtn = document.createElement('button');
+                        sgDlBtn.className = "subgroup-dl-btn";
+                        sgDlBtn.innerHTML = "⬇";
+                        sgDlBtn.title = "Scarica " + subgroup;
+                        sgDlBtn.onclick = (e) => { e.stopPropagation(); downloadSubgroup(subgroup); };
+
+                        sgHeader.appendChild(sgLabel);
+                        sgHeader.appendChild(sgDlBtn);
+                        content.appendChild(sgHeader);
+                    }
+
+                    typesInSubgroup.sort((a,b) => hierarchy[group][subgroup][b] - hierarchy[group][subgroup][a]).forEach(type => {
+                        var count = hierarchy[group][subgroup][type];
+                        var dynColor = generateVariant(color, type);
+                        var isSelected = activeCategoryFilters.has(type);
+
+                        var item = document.createElement('div');
+                        item.className = "subcat-item" + (isSelected ? " selected" : "");
+                        
+                        var labelPart = document.createElement('div');
+                        labelPart.className = "subcat-label";
+                        
+                        // LOGIC: Show colored dot only if selected, else empty/grey
+                        var dotStyle = isSelected ? `background:${dynColor}; border-color:${dynColor}` : `border-color:#7f8c8d`;
+                        
+                        labelPart.innerHTML = `<span class="subcat-dot" style="${dotStyle}"></span> <span>${type}</span> <span style="margin-left:auto; font-size:10px; opacity:0.7">(${count})</span>`;
+                        labelPart.onclick = () => toggleCategoryFilter(type);
+                        
+                        var btnPart = document.createElement('button');
+                        btnPart.className = "subcat-dl-btn";
+                        btnPart.innerHTML = "⬇";
+                        btnPart.title = "Scarica JSON";
+                        btnPart.onclick = (e) => { e.stopPropagation(); downloadSubcategory(type); };
+
+                        item.appendChild(labelPart);
+                        item.appendChild(btnPart);
+                        content.appendChild(item);
+                    });
+                });
+                sb.appendChild(content);
+            });
         }
     }
-}
 
-# --- GENERATE LOOKUP TABLE ---
-QID_LOOKUP = {}
-for group_name, group_data in CATEGORY_CONFIG.items():
-    for subgroup_name, types_dict in group_data["subgroups"].items():
-        for type_name, qids in types_dict.items():
-            for qid in qids:
-                QID_LOOKUP[qid] = {
-                    "group": group_name,
-                    "subgroup": subgroup_name,
-                    "type": type_name
+    function getKeyFromFeature(f) {
+        var id = String(f.id || f.properties.id || f.properties['@id'] || "").replace("relation/", "");
+        var found = Object.keys(regionConfig).find(k => String(parseInt(regionConfig[k].osm) - 3600000000) === id);
+        if (found) return found;
+        var name = f.properties.name || f.properties['name:en'] || "";
+        if (name.includes("Sardegna")) return "sardegna";
+        return null;
+    }
+
+    // --- HOVER & RESET LOGIC ---
+    function highlightFeature(e) {
+        if (viewMode !== 'regions') return; 
+        var layer = e.target;
+        layer.setStyle({ weight: 3, color: '#55AAFF' }); 
+    }
+
+    function resetHighlight(e) {
+        if (viewMode === 'regions') { 
+            // Reset to original heatmap style
+            var layer = e.target;
+            var k = getKeyFromFeature(layer.feature);
+            var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+            var c = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+            layer.setStyle({ color: c, weight: 1.5, fillColor: c }); 
+        }
+    }
+
+    function loadRegionsShape() {
+        L.geoJSON(boundariesGeoJSON, {
+            pane: 'regionsPane',
+            style: function(f) {
+                var k = getKeyFromFeature(f);
+                var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+                var color = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+                return { color: color, weight: 1.5, fillOpacity: 0.6, fillColor: color }; 
+            },
+            onEachFeature: (f, l) => { 
+                var k = getKeyFromFeature(f); 
+                if (k) { 
+                    l.on({
+                        mouseover: highlightFeature,
+                        mouseout: resetHighlight,
+                        click: (e) => { 
+                            if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
+                            L.DomEvent.stopPropagation(e);
+                            changeRegion(k); 
+                        }
+                    });
+                    l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
+            }
+        }).addTo(layers.regions);
+        map.addLayer(layers.regions);
+    }
 
-def get_bbox_from_feature(feature):
-    all_coords = []
-    def extract(coords_list):
-        for item in coords_list:
-            if isinstance(item, list) and len(item) == 2 and isinstance(item[0], (int, float)):
-                all_coords.append(item)
-            elif isinstance(item, list):
-                extract(item)
-    extract(feature['geometry']['coordinates'])
-    if not all_coords: return None
-    lons = [c[0] for c in all_coords]
-    lats = [c[1] for c in all_coords]
-    pad = 0.02 
-    return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
-
-def fetch_osm_bbox(bbox, retries=3):
-    query = f"""
-    [out:json][timeout:180];
-    (
-      node["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-      way["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-      relation["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    );
-    out tags qt;
-    """
-    for attempt in range(retries):
-        try:
-            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
-            response.raise_for_status()
-            data = response.json()
-            if 'elements' in data: return data
-        except Exception as e:
-            print(f"      [!] Attempt {attempt+1}/{retries} failed: {e}")
-            time.sleep(5)
-    return None
-
-def fetch_osm_area_fallback(area_id, retries=2):
-    query = f"""
-    [out:json][timeout:180];
-    area({area_id})->.searchArea;
-    (
-      node["wikidata"](area.searchArea);
-      way["wikidata"](area.searchArea);
-      relation["wikidata"](area.searchArea);
-    );
-    out tags qt;
-    """
-    for attempt in range(retries):
-        try:
-            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
-            response.raise_for_status()
-            return response.json()
-        except: time.sleep(5)
-    return None
-
-def get_wikidata_clean(qid):
-    query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
-       ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
-       
-       FILTER NOT EXISTS {{ ?item wdt:P582 ?end. FILTER(?end < NOW()) }}
-       FILTER NOT EXISTS {{ ?item wdt:P576 ?dissolved. FILTER(?dissolved < NOW()) }}
-       FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q56556915 }} 
-       FILTER NOT EXISTS {{ ?item wdt:P5816 wd:Q56556915 }} 
-       FILTER NOT EXISTS {{ ?item wdt:P5817 wd:Q11639308 }}
-
-       MINUS {{ ?item p:P131 ?stmt . ?stmt pq:P582 ?linkEnd . FILTER(?linkEnd < NOW()) }}
-       
-       OPTIONAL {{ ?item wdt:P31 ?type. }}
-
-       BIND(STRAFTER(STR(?item), '/entity/') as ?qid) 
-       BIND(geof:latitude(?loc) as ?lat) 
-       BIND(geof:longitude(?loc) as ?lon) 
-       
-       SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
-    }}"""
-    try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/11.0', 'Accept': 'text/csv'}
-        r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
-        r.raise_for_status()
-        return r.text
-    except: return None
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--region", default="all", help="Region key")
-    args = parser.parse_args()
-
-    if not os.path.exists(REGIONS_FILE): 
-        print(f"Error: {REGIONS_FILE} not found.")
-        return
-    if not os.path.exists(OSM_DIR): os.makedirs(OSM_DIR)
-    if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
-
-    with open(REGIONS_FILE, 'r', encoding='utf-8') as f:
-        regions = json.load(f)
-
-    blacklist = set()
-    if os.path.exists(BLACKLIST_FILE):
-        try:
-            with open(BLACKLIST_FILE, 'r', encoding='utf-8') as f:
-                blacklist = set(json.load(f))
-        except: pass
-
-    boundary_features = {}
-    if os.path.exists(BOUNDARIES_FILE):
-        try:
-            with open(BOUNDARIES_FILE, 'r', encoding='utf-8') as f:
-                gj = json.load(f)
-                for feat in gj.get('features', []):
-                    props = feat.get('properties', {})
-                    osm_id = props.get('id') or props.get('@id') or feat.get('id')
-                    if osm_id:
-                        osm_id = str(osm_id).replace('relation/', '')
-                        boundary_features[osm_id] = feat
-        except: pass
-
-    old_meta = {}
-    if os.path.exists(METADATA_FILE):
-        try:
-            with open(METADATA_FILE, 'r') as f:
-                old_meta = json.load(f).get("regions", {})
-        except: pass
-
-    target_regions = regions.keys() if args.region == 'all' else [args.region]
-    utc_now = datetime.datetime.now(datetime.timezone.utc)
-    now_str = utc_now.isoformat()
-    
-    new_meta = old_meta.copy()
-    processed_count = 0
-
-    for key in target_regions:
-        if key not in regions: continue
-        config = regions[key]
-        print(f"\nProcessing {config['name']}...")
+    function changeRegion(key) {
+        selectedRegionKey = key;
+        viewMode = 'categories'; 
+        activeCategoryFilters.clear(); 
+        expandedGroups.clear();
         
-        file_osm = os.path.join(OSM_DIR, f"osm_{key}.json")
-        osm_data = None
-        current_osm_date = now_str
+        document.body.classList.add('region-loaded');
+        document.getElementById('map-placeholder').style.display = 'none';
+        document.getElementById('cat-toggle-btn').innerText = "Torna a panoramica";
+        document.getElementById('cat-toggle-btn').style.display = 'block'; 
+        document.getElementById('controls').style.display = 'flex';
+
+        if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
+
+        // Logic Issue 4: Hide selected region's fill, keep others visible
+        layers.regions.eachLayer(layer => {
+            if(getKeyFromFeature(layer.feature) === key) {
+                // Selected: Hide fill, hide stroke (will be replaced by activeBorder)
+                layer.setStyle({ fillOpacity: 0, stroke: false }); 
+            } else {
+                // Others: Ensure they are visible (resetting potential hover states)
+                var k = getKeyFromFeature(layer.feature);
+                var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+                var c = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+                layer.setStyle({ fillOpacity: 0.6, weight: 1.5, color: c, fillColor: c }); 
+            }
+        });
+
+        layers.activeBorder.clearLayers();
+        var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
+        if(target) {
+            var b = L.geoJSON(target, { 
+                pane: 'regionsPane', 
+                style: { color: "#0044ff", weight: 3, fillOpacity: 0, interactive: false } 
+            }).addTo(layers.activeBorder);
+            map.fitBounds(b.getBounds());
+        }
         
-        rel_id_str = str(int(config['osm']) - 3600000000)
-        bbox = get_bbox_from_feature(boundary_features[rel_id_str]) if rel_id_str in boundary_features else None
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('btnDownload').style.display = 'none';
         
-        if bbox:
-            print("   -> Fetching OSM via BBox")
-            new_data = fetch_osm_bbox(bbox)
-        else:
-            print("   -> Fetching OSM via Area (Fallback)")
-            new_data = fetch_osm_area_fallback(config['osm'])
+        fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
+            currentData = data; 
+            renderSidebar();
+            renderMarkers(data);
+            document.getElementById('loading').style.display = 'none';
+        });
+    }
 
-        if new_data:
-            with open(file_osm, 'w', encoding='utf-8') as f: json.dump(new_data, f)
-            osm_data = new_data
-        else:
-            if key in old_meta: current_osm_date = old_meta[key].get("osm", "Unknown")
-            if os.path.exists(file_osm):
-                with open(file_osm, 'r', encoding='utf-8') as f: osm_data = json.load(f)
+    function renderMarkers(data) {
+        layers.missing.clearLayers(); layers.done.clearLayers();
+        var cM = 0, cD = 0;
+        var hasSelection = activeCategoryFilters.size > 0;
 
-        if not osm_data: continue
+        data.features.forEach(f => {
+            var isD = f.properties.status === 'done';
+            var subcat = f.properties.subcategory || 'Altro';
+            var group = f.properties.group || 'Altro';
 
-        osm_ids = {}
-        for el in osm_data.get('elements', []):
-            if 'wikidata' in el.get('tags', {}):
-                for raw in el['tags']['wikidata'].replace(',', ';').split(';'):
-                    raw = raw.strip().upper()
-                    if raw.startswith('Q'): osm_ids[raw] = f"{el['type']}/{el['id']}"
+            if (hasSelection && !activeCategoryFilters.has(subcat)) return;
 
-        csv_text = get_wikidata_clean(config['qid'])
-        if not csv_text: continue
+            if(isD) cD++; else cM++;
 
-        features = []
-        seen = set()
-        reader = csv.DictReader(csv_text.splitlines())
-        for row in reader:
-            qid = (row.get('qid') or row.get('?qid', '')).split('/')[-1].upper()
-            if not qid or qid in seen or qid in blacklist: continue
-            try:
-                lat, lon = float(row.get('lat') or row.get('?lat')), float(row.get('lon') or row.get('?lon'))
-            except: continue
+            var p = f.properties;
+            var pop = `<div style="text-align:center"><b>${p.name}</b><br><small>${p.wikidata}</small>
+            <div class="logo-row"><a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg"></a>`;
+            if(p.osm_id) pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg"></a>`;
+            pop += `</div></div>`;
+
+            // Dynamic color logic
+            var color;
+            if (isD) {
+                color = "#2ecc71"; 
+            } else {
+                var baseColor = groupColors[group] || "#000000";
+                color = typeColorCache[subcat] || generateVariant(baseColor, subcat);
+            }
             
-            type_qid = (row.get('type') or row.get('?type', '')).split('/')[-1].upper()
-            label_val = row.get('itemLabel') or row.get('?itemLabel') or qid
+            L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
+                pane: 'markersPane', radius: 4.5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.8 
+            }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
+        });
 
-            # --- MATCHING LOGIC (3 LEVEL) ---
-            if type_qid in QID_LOOKUP:
-                match = QID_LOOKUP[type_qid]
-                group = match["group"]
-                subgroup = match["subgroup"]
-                type_name = match["type"]
-            else:
-                group = "Altro"
-                subgroup = "Altro"
-                type_name = "Altro"
-
-            status = "done" if qid in osm_ids else "missing"
-            
-            features.append({
-                "type": "Feature",
-                "properties": { 
-                    "wikidata": qid, 
-                    "name": label_val, 
-                    "status": status, 
-                    "osm_id": osm_ids.get(qid),
-                    "group": group,
-                    "subgroup": subgroup, 
-                    "subcategory": type_name 
-                },
-                "geometry": { "type": "Point", "coordinates": [lon, lat] }
-            })
-            seen.add(qid)
-
-        done = sum(1 for f in features if f['properties']['status'] == 'done')
-        total = len(features)
-        new_meta[key] = { "osm": current_osm_date, "wiki": now_str, "done": done, "total": total }
-
-        with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
-            json.dump({"type": "FeatureCollection", "features": features}, f)
+        document.getElementById('count-missing').innerText = `(${cM})`;
+        document.getElementById('count-done').innerText = `(${cD})`;
         
-        print(f"   -> Saved {total} items ({done} matched)")
-        processed_count += 1
-        time.sleep(1)
+        if (cM > 0) document.getElementById('btnDownload').style.display = 'block';
+        else document.getElementById('btnDownload').style.display = 'none';
+        
+        if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+        if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
+    }
 
-    if processed_count > 0:
-        # Save Metadata
-        with open(METADATA_FILE, 'w') as f:
-            json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_meta }, f)
+    function downloadCurrentMissing() {
+        if (!currentMissingFeatures.length && !currentData) return;
+        var feats = [];
+        var hasSelection = activeCategoryFilters.size > 0;
+        currentData.features.forEach(f => {
+            if (f.properties.status === 'missing') {
+                if (!hasSelection || activeCategoryFilters.has(f.properties.subcategory)) feats.push(f);
+            }
+        });
         
-        # Save History
-        history = []
-        if os.path.exists(HISTORY_FILE):
-            try:
-                with open(HISTORY_FILE, 'r') as f: history = json.load(f)
-            except: pass
-        
-        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-        history = [h for h in history if h.get("date") != today_str]
-        history.append({ "date": today_str, "data": new_meta })
-        history.sort(key=lambda x: x['date'])
-        
-        with open(HISTORY_FILE, 'w') as f:
-            json.dump(history, f)
-            print(f"   -> History updated for {today_str}")
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var suffix = hasSelection ? "_selection" : "_all";
+        downloadJSON(feats, `missing_${regionName}${suffix}.geojson`);
+    }
 
-if __name__ == "__main__":
-    main()
+    function downloadSubcategory(cat) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subcategory === cat);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare."); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var catName = cat.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
+    }
+
+    function downloadSubgroup(subgroup) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare per questo gruppo."); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var sgName = subgroup.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${sgName}.geojson`);
+    }
+
+    function downloadJSON(features, filename) {
+        var blob = new Blob([JSON.stringify({ "type": "FeatureCollection", "features": features })], {type: "application/json"});
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function toggleLayer(t, c) { if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); }
+    function toggleCheckbox(id) { var c = document.getElementById(id); if(event.target !== c) { c.checked = !c.checked; c.dispatchEvent(new Event('change')); } }
+</script>
+</body>
+</html>

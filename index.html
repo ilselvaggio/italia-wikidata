@@ -18,16 +18,25 @@
         #controls { display: flex; gap: 10px; align-items: center; font-size: 12px; margin-left: auto; }
         
         /* SIDEBAR */
-        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; overflow-y: auto; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; }
+        #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         
+        /* TABS NELLA SIDEBAR */
+        #sidebar-tabs { display: flex; border-bottom: 1px solid #1a252f; background: #34495e; min-height: 40px; }
+        .tab-btn { flex: 1; border: none; background: none; color: #bdc3c7; cursor: pointer; font-weight: bold; font-size: 13px; padding: 10px 0; }
+        .tab-btn.active { color: #fff; border-bottom: 3px solid #3498db; background: #2c3e50; }
+        
+        #sidebar-content { flex: 1; overflow-y: auto; }
+
         /* MAIN LAYOUT */
-        #main-container { display: flex; height: calc(100% - 50px); width: 100%; position: relative; }
+        #main-container { display: flex; height: calc(100vh - 50px); width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
-        .region-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; }
-        .region-item:hover { background-color: #34495e; }
-        .region-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
+        .list-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .list-item:hover { background-color: #34495e; }
+        .list-item.active { background-color: #3498db; font-weight: bold; border-left: 4px solid #fff; }
         
+        .cat-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 1px solid #fff; }
+
         .stat-item { display: none; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
@@ -68,7 +77,7 @@
 <header id="header">
     <div id="left-col">
         <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <div id="title" onclick="location.reload()">OSM-Wikidata Italia</div>
+        <div id="title" onclick="location.reload()">OSM-Wikidata Italia Overview</div>
     </div>
     <div id="controls">
         <div id="loading">Loading...</div>
@@ -81,12 +90,18 @@
         </div>
         <div id="meta-info">
             <div>OSM: <span id="date-osm">--</span></div>
-            <div>Wikidata: <span id="date-wiki">--</span></div>
+            <div>WD: <span id="date-wiki">--</span></div>
         </div>
     </div>
 </header>
 <div id="main-container">
-    <div id="sidebar"></div>
+    <div id="sidebar">
+        <div id="sidebar-tabs">
+            <button class="tab-btn active" onclick="switchTab('regions')">Regioni</button>
+            <button class="tab-btn" onclick="switchTab('categories')">Categorie</button>
+        </div>
+        <div id="sidebar-content"></div>
+    </div>
     <div id="map"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -105,6 +120,25 @@
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
     var currentMissingFeatures = [];
+    var currentData = null; // Stores currently loaded region data
+    var currentTab = 'regions';
+    var activeCategoryFilter = null; // null = all
+
+    var categoryColors = {
+        "religion": "#9b59b6",   // Viola
+        "settlement": "#3498db", // Blu
+        "admin": "#f39c12",      // Arancione
+        "culture": "#e67e22",    // Marrone
+        "other": "#e74c3c"       // Rosso (default)
+    };
+    
+    var categoryNames = {
+        "religion": "Luoghi di Culto",
+        "settlement": "Insediamenti",
+        "admin": "Amministrazione",
+        "culture": "Cultura/Turismo",
+        "other": "Altro"
+    };
 
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
@@ -123,9 +157,20 @@
         fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null)
     ]).then(([regions, metadata, bounds]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
-        if(metadata.global_osm_date) document.getElementById('date-osm').innerText = new Date(metadata.global_osm_date).toLocaleString();
-        if(metadata.global_wiki_date) document.getElementById('date-wiki').innerText = new Date(metadata.global_wiki_date).toLocaleString();
-        initNavigation();
+        
+        // Fix Date display
+        if(metadata.global_osm_date) {
+             let d = new Date(metadata.global_osm_date);
+             if(!isNaN(d)) document.getElementById('date-osm').innerText = d.toLocaleString() + " CET";
+             else document.getElementById('date-osm').innerText = metadata.global_osm_date;
+        }
+        if(metadata.global_wiki_date) {
+             let d = new Date(metadata.global_wiki_date);
+             if(!isNaN(d)) document.getElementById('date-wiki').innerText = d.toLocaleString() + " CET";
+             else document.getElementById('date-wiki').innerText = metadata.global_wiki_date;
+        }
+
+        renderSidebar();
         if (boundariesGeoJSON) loadRegionsShape();
     });
 
@@ -142,28 +187,84 @@
         return '#8B0000';
     }
 
-    function initNavigation() {
-        var sb = document.getElementById('sidebar'); sb.innerHTML = "";
-        var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
-            var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
-            var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
-            var pctA = (metaA.done / metaA.total);
-            var pctB = (metaB.done / metaB.total);
-            if (pctB !== pctA) return pctB - pctA;
-            return regionConfig[a].name.localeCompare(regionConfig[b].name);
-        });
+    function switchTab(tabName) {
+        currentTab = tabName;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        renderSidebar();
+        
+        // Se passiamo a categorie, azzeriamo il filtro (mostra tutto colorato)
+        // Se torniamo a regioni, togliamo il filtro categorie
+        if (tabName === 'regions') {
+            activeCategoryFilter = null;
+            if (currentData) renderMarkers(currentData); // Ridisegna normale
+        } else {
+            // Se siamo in categoria ma non c'è una regione selezionata, non succede nulla di speciale
+            // Se c'è una regione, l'utente può cliccare le categorie per filtrare
+        }
+    }
 
-        sortedKeys.forEach(key => {
-            var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) ? metaDataGlobal.regions[key] : null;
-            var pct = (meta && meta.total > 0) ? Math.round((meta.done / meta.total) * 100) : null;
-            var color = pct !== null ? getHeatColor(pct) : "#fff";
+    function renderSidebar() {
+        var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
+        
+        if (currentTab === 'regions') {
+            var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
+                var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
+                var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
+                var pctA = (metaA.done / metaA.total);
+                var pctB = (metaB.done / metaB.total);
+                if (pctB !== pctA) return pctB - pctA;
+                return regionConfig[a].name.localeCompare(regionConfig[b].name);
+            });
+
+            sortedKeys.forEach(key => {
+                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) ? metaDataGlobal.regions[key] : null;
+                var pct = (meta && meta.total > 0) ? Math.round((meta.done / meta.total) * 100) : null;
+                var color = pct !== null ? getHeatColor(pct) : "#fff";
+                
+                var div = document.createElement('div');
+                div.className = "list-item"; div.id = "sb-item-" + key;
+                div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
+                div.onclick = () => { changeRegion(key); if(window.innerWidth<=700) toggleSidebar(); };
+                sb.appendChild(div);
+            });
+        } else {
+            // CATEGORIES TAB
+            var cats = Object.keys(categoryColors);
             
-            var div = document.createElement('div');
-            div.className = "region-item"; div.id = "sb-item-" + key;
-            div.innerHTML = `<span>${regionConfig[key].name}</span>` + (pct !== null ? `<span style="color:${color};font-weight:bold">${pct}%</span>` : "");
-            div.onclick = () => { changeRegion(key); if(window.innerWidth<=700) toggleSidebar(); };
-            sb.appendChild(div);
-        });
+            // Bottone "Tutte"
+            var allDiv = document.createElement('div');
+            allDiv.className = "list-item";
+            if(activeCategoryFilter === null) allDiv.classList.add('active');
+            allDiv.innerHTML = `<span><span class="cat-dot" style="background:#fff"></span>Tutte le Categorie</span>`;
+            allDiv.onclick = () => { 
+                activeCategoryFilter = null; 
+                renderSidebar(); 
+                if(currentData) renderMarkers(currentData); 
+            };
+            sb.appendChild(allDiv);
+
+            cats.forEach(cat => {
+                var div = document.createElement('div');
+                div.className = "list-item";
+                if(activeCategoryFilter === cat) div.classList.add('active');
+                
+                // Se abbiamo dati caricati, mostriamo il conteggio (opzionale, ma carino)
+                var countStr = "";
+                if (currentData) {
+                   var c = currentData.features.filter(f => f.properties.status === 'missing' && (f.properties.category || 'other') === cat).length;
+                   countStr = ` <b>(${c})</b>`;
+                }
+
+                div.innerHTML = `<span><span class="cat-dot" style="background:${categoryColors[cat]}"></span>${categoryNames[cat] || cat}</span><span>${countStr}</span>`;
+                div.onclick = () => {
+                    activeCategoryFilter = cat;
+                    renderSidebar();
+                    if(currentData) renderMarkers(currentData);
+                };
+                sb.appendChild(div);
+            });
+        }
     }
 
     function getKeyFromFeature(f) {
@@ -199,8 +300,12 @@
     }
 
     function changeRegion(key) {
-        document.querySelectorAll('.region-item').forEach(el => el.classList.remove('active'));
-        if(document.getElementById("sb-item-" + key)) document.getElementById("sb-item-" + key).classList.add('active');
+        // Highlight active region in list (if in Regions tab)
+        if (currentTab === 'regions') {
+            document.querySelectorAll('.list-item').forEach(el => el.classList.remove('active'));
+            if(document.getElementById("sb-item-" + key)) document.getElementById("sb-item-" + key).classList.add('active');
+        }
+
         layers.activeBorder.clearLayers();
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
@@ -212,42 +317,77 @@
         }
         document.getElementById('loading').style.display = 'block';
         document.getElementById('btnDownload').style.display = 'none';
+        
+        fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
+            currentData = data; // Store globally
+            renderMarkers(data);
+            
+            // Refresh sidebar if Categories tab is active (to update counts)
+            if (currentTab === 'categories') renderSidebar();
+
+            document.getElementById('loading').style.display = 'none';
+        });
+    }
+
+    function renderMarkers(data) {
         layers.missing.clearLayers(); layers.done.clearLayers();
         currentMissingFeatures = [];
 
-        fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
-            var cM = 0, cD = 0;
-            data.features.forEach(f => {
-                var isD = f.properties.status === 'done';
-                if(isD) cD++; else { cM++; currentMissingFeatures.push(f); }
-                var p = f.properties;
-                var pop = `<div style="text-align:center">
-                    <b>${p.name}</b><br><small>${p.wikidata}</small>
-                    <div class="logo-row">
-                        <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
-                        </a>`;
-                if(p.osm_id) {
-                    pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
-                        </a>`;
-                }
-                pop += `</div></div>`;
+        var cM = 0, cD = 0;
+        data.features.forEach(f => {
+            var isD = f.properties.status === 'done';
+            
+            // FILTER LOGIC
+            // If activeCategoryFilter is set, we ONLY show missing items of that category
+            // Done items are always shown (green) unless filtered out explicitly? 
+            // Let's assume Filter only applies to Missing items coloring/visibility
+            
+            var cat = f.properties.category || 'other';
 
-                L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
-                    pane: 'markersPane',
-                    radius: 4.5, fillColor: isD ? "#2ecc71" : "#e74c3c", color: "#fff", weight: 1, fillOpacity: 0.8 
-                }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
-            });
-            document.getElementById('count-missing').innerText = `(${cM})`;
-            document.getElementById('count-done').innerText = `(${cD})`;
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('stat-missing').style.display = 'flex';
-            document.getElementById('stat-done').style.display = 'flex';
-            if (cM > 0) document.getElementById('btnDownload').style.display = 'block';
-            if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
-            if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
+            if(activeCategoryFilter && !isD && cat !== activeCategoryFilter) {
+                return; // Skip this marker if filter is active and doesn't match
+            }
+
+            if(isD) {
+                cD++;
+            } else {
+                cM++;
+                currentMissingFeatures.push(f);
+            }
+
+            var p = f.properties;
+            var pop = `<div style="text-align:center">
+                <b>${p.name}</b><br><small>${p.wikidata}</small><br>
+                <small style="color:#7f8c8d">${p.type || ''}</small>
+                <div class="logo-row">
+                    <a href="https://www.wikidata.org/wiki/${p.wikidata}" target="_blank" class="logo-link" title="Wikidata">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikidata-logo.svg" alt="WD">
+                    </a>`;
+            if(p.osm_id) {
+                pop += `<a href="https://www.openstreetmap.org/${p.osm_id}" target="_blank" class="logo-link" title="OSM">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Openstreetmap_logo.svg" alt="OSM">
+                    </a>`;
+            }
+            pop += `</div></div>`;
+
+            // Color Logic: Green if done, Category Color if missing
+            var color = isD ? "#2ecc71" : (categoryColors[cat] || "#e74c3c");
+
+            L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { 
+                pane: 'markersPane',
+                radius: 4.5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.8 
+            }).bindPopup(pop).addTo(isD ? layers.done : layers.missing);
         });
+
+        document.getElementById('count-missing').innerText = `(${cM})`;
+        document.getElementById('count-done').innerText = `(${cD})`;
+        document.getElementById('stat-missing').style.display = 'flex';
+        document.getElementById('stat-done').style.display = 'flex';
+        
+        if (currentMissingFeatures.length > 0) document.getElementById('btnDownload').style.display = 'block';
+        
+        if(document.getElementById('chkMissing').checked) map.addLayer(layers.missing);
+        if(document.getElementById('chkDone').checked) map.addLayer(layers.done);
     }
 
     function downloadCurrentMissing() {

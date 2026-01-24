@@ -77,11 +77,10 @@
         
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
-        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } /* Padding removed here, handled in children */
+        .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
 
-        /* Split subcat item into clickable label and download button */
         .subcat-label { flex-grow: 1; padding: 8px 5px 8px 25px; display: flex; justify-content: space-between; align-items: center;}
-        .subcat-item.selected .subcat-label { padding-left: 21px; } /* Adjust for border */
+        .subcat-item.selected .subcat-label { padding-left: 21px; } 
         
         .subcat-dl-btn { 
             width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; 
@@ -123,8 +122,8 @@
             
             .stat-item span:nth-child(3) { display: none; } 
             #meta-info { display: none; }
-            #btnDownload { display: none !important; } /* Global download hidden on mobile */
-            .subcat-dl-btn { display: none; } /* Per-category download hidden on mobile */
+            #btnDownload { display: none !important; } 
+            .subcat-dl-btn { display: none; } 
             
             .desktop-msg { display: none; }
             .mobile-msg { display: inline; }
@@ -157,7 +156,7 @@
 <div id="main-container">
     <div id="sidebar">
         <div id="sidebar-content"></div>
-        <div id="sidebar-footer">Panoramica a cura di: Michael Wild</div>
+        <div id="sidebar-footer">Realizzato da: Michael Wild (2026)</div>
     </div>
     <div id="map">
         <div id="map-placeholder">
@@ -181,6 +180,7 @@
     var regionConfig, metaDataGlobal, boundariesGeoJSON;
     var currentMissingFeatures = [];
     var currentData = null; 
+    var historyData = [];
     
     var viewMode = 'regions'; 
     var selectedRegionKey = null;
@@ -207,10 +207,12 @@
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({})),
-        fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null)
-    ]).then(([regions, metadata, bounds]) => {
+        fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null),
+        fetch('history.json').then(r => r.json()).catch(() => []) 
+    ]).then(([regions, metadata, bounds, history]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
-        
+        historyData = history;
+
         var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
         
         if(metadata.global_osm_date) {
@@ -231,6 +233,43 @@
         if (p >= 60) return '#ADFF2F'; if (p >= 50) return '#FFFF00'; if (p >= 40) return '#FFA500';
         if (p >= 30) return '#FF8C00'; if (p >= 20) return '#FF4500'; if (p >= 10) return '#FF0000';
         return '#8B0000';
+    }
+
+    // --- TREND CALCULATION ---
+    function getTrend(regionKey, currentPct) {
+        // We need previous data (not today)
+        if (!historyData || historyData.length < 2) return "";
+        
+        // Find the latest entry that is NOT today. historyData is sorted by date.
+        // The last element is likely today (because update.py runs first).
+        // So we want the element BEFORE the last one.
+        var lastEntry = historyData[historyData.length - 2]; 
+        
+        if (!lastEntry || !lastEntry.data[regionKey]) return "";
+
+        var oldMeta = lastEntry.data[regionKey];
+        if (oldMeta.total === 0) return "";
+        
+        var oldPct = Math.round((oldMeta.done / oldMeta.total) * 100);
+        var diff = currentPct - oldPct;
+
+        // Styling based on your rules
+        var style = "";
+        var prefix = "";
+        
+        if (diff > 0) {
+            prefix = "+";
+            if (diff >= 3) style = "color:#006400; font-weight:bold"; // Dark Green >3%
+            else style = "color:#4cd137"; // Light Green 1-2%
+        } else if (diff < 0) {
+            style = "color:#e74c3c"; // Red
+        } else {
+            // 0% -> Orange
+            style = "color:#f39c12"; 
+            prefix = "+"; // +0%
+        }
+
+        return `<span style="${style}; font-size:11px; margin-right:5px;">${prefix}${diff}%</span>`;
     }
 
     function toggleViewMode() {
@@ -292,9 +331,14 @@
                 var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
                 var pct = Math.round((meta.done / meta.total) * 100);
                 var color = getHeatColor(pct);
+                
+                // Trend HTML
+                var trendHtml = getTrend(key, pct);
+
                 var div = document.createElement('div');
                 div.className = "list-item"; 
-                div.innerHTML = `<span>${regionConfig[key].name}</span><span style="color:${color};font-weight:bold">${pct}%</span>`;
+                // Displays: Name .... +2% 56%
+                div.innerHTML = `<span>${regionConfig[key].name}</span><div>${trendHtml}<span style="color:${color};font-weight:bold">${pct}%</span></div>`;
                 div.onclick = () => { changeRegion(key); };
                 sb.appendChild(div);
             });
@@ -346,13 +390,11 @@
                     var item = document.createElement('div');
                     item.className = "subcat-item" + (activeCategoryFilters.has(subcat) ? " selected" : "");
                     
-                    // Create label part
                     var labelPart = document.createElement('div');
                     labelPart.className = "subcat-label";
                     labelPart.innerHTML = `<span>${subcat}</span> <span>(${count})</span>`;
                     labelPart.onclick = () => toggleCategoryFilter(subcat);
                     
-                    // Create download button part
                     var btnPart = document.createElement('button');
                     btnPart.className = "subcat-dl-btn";
                     btnPart.innerHTML = "⬇";

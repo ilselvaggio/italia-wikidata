@@ -275,6 +275,17 @@
         renderMarkers(currentData);
     }
 
+    // NEW: Download whole subgroup
+    function downloadSubgroup(subgroup) {
+        if (!currentData) return;
+        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);
+        if (feats.length === 0) { alert("Nessun elemento da scaricare per questo gruppo."); return; }
+        
+        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        var sgName = subgroup.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        downloadJSON(feats, `missing_${regionName}_${sgName}.geojson`);
+    }
+
     function renderSidebar() {
         var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
         
@@ -331,6 +342,8 @@
                 var labelDiv = document.createElement('div');
                 labelDiv.className = "group-label";
                 labelDiv.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${group} <span style="font-weight:normal; font-size:11px; margin-left:5px; opacity:0.8">(${groupTotal})</span>`;
+                
+                // Select All in Group logic is complex with 3 levels, simplified to toggle expand
                 labelDiv.onclick = () => toggleGroupExpand(group); 
                 
                 var toggleDiv = document.createElement('div');
@@ -522,17 +535,6 @@
         var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         var catName = cat.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
-    }
-
-    // NEW: Download whole subgroup
-    function downloadSubgroup(subgroup) {
-        if (!currentData) return;
-        var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);
-        if (feats.length === 0) { alert("Nessun elemento da scaricare per questo gruppo."); return; }
-        
-        var regionName = regionConfig[selectedRegionKey].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        var sgName = subgroup.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        downloadJSON(feats, `missing_${regionName}_${sgName}.geojson`);
     }
 
     function downloadJSON(features, filename) {

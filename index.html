@@ -155,6 +155,7 @@
     attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>' 
     }).addTo(map);
     map.createPane('regionsPane'); map.getPane('regionsPane').style.zIndex = 400;
+    map.createPane('activeBorderPane'); map.getPane('activeBorderPane').style.zIndex = 500;
     map.createPane('markersPane'); map.getPane('markersPane').style.zIndex = 600;
 
     var layers = { missing: L.layerGroup(), done: L.layerGroup(), regions: L.layerGroup(), activeBorder: L.layerGroup() };
@@ -167,6 +168,8 @@
     var selectedRegionKey = null;
     var activeCategoryFilters = new Set(); 
     var expandedGroups = new Set(); 
+    var regionLayers = {};
+    var regionsGeoLayer = null;
 
     // --- GROUPS & COLORS ---
     var groupColors = {
@@ -402,18 +405,22 @@
         return null;
     }
 
+    function getRegionStyleForFeature(f) {
+        var k = getKeyFromFeature(f);
+        var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
+        var color = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
+        return { color: color, weight: 1.5, fillOpacity: 0.6 };
+    }
+
     function loadRegionsShape() {
-        L.geoJSON(boundariesGeoJSON, {
+        regionLayers = {};
+        regionsGeoLayer = L.geoJSON(boundariesGeoJSON, {
             pane: 'regionsPane',
-            style: function(f) {
-                var k = getKeyFromFeature(f);
-                var m = (k && metaDataGlobal.regions && metaDataGlobal.regions[k]) || {done:0, total:1};
-                var color = (m.total > 0) ? getHeatColor((m.done / m.total) * 100) : "#3498db";
-                return { color: color, weight: 1.5, fillOpacity: 0.6 };
-            },
+            style: getRegionStyleForFeature,
             onEachFeature: (f, l) => { 
                 var k = getKeyFromFeature(f); 
                 if (k) { 
+                    regionLayers[k] = l;
                     l.on('click', (e) => { 
                         if (window.innerWidth <= 700) { L.DomEvent.stopPropagation(e); return; }
                         L.DomEvent.stopPropagation(e);
@@ -421,6 +428,17 @@
                     }); 
                     l.bindTooltip(regionConfig[k].name, {direction: "center", className: "region-label"}); 
                 }
+
+                l.on('mouseover', () => {
+                    if (viewMode !== 'regions') return;
+                    l.setStyle({ color: "#4aa3ff", weight: 3 });
+                    l.bringToFront();
+                });
+
+                l.on('mouseout', () => {
+                    if (viewMode !== 'regions') return;
+                    if (regionsGeoLayer) regionsGeoLayer.resetStyle(l);
+                });
             }
         }).addTo(layers.regions);
         map.addLayer(layers.regions);
@@ -441,9 +459,14 @@
         if(window.innerWidth <= 700) document.getElementById('sidebar').classList.add('open');
 
         layers.activeBorder.clearLayers();
+        if (regionLayers[key]) {
+            regionLayers[key].setStyle({ color: "#4aa3ff", weight: 3, fillOpacity: 0, fillColor: "transparent" });
+            regionLayers[key].bringToFront();
+        }
+
         var target = boundariesGeoJSON.features.find(f => getKeyFromFeature(f) === key);
         if(target) {
-            var b = L.geoJSON(target, { pane: 'regionsPane', style: { color: "#3498db", weight: 3, fillOpacity: 0.05 } }).addTo(layers.activeBorder);
+            var b = L.geoJSON(target, { pane: 'activeBorderPane', style: { color: "#4aa3ff", weight: 3, fillOpacity: 0, fillColor: "transparent" } }).addTo(layers.activeBorder);
             map.fitBounds(b.getBounds());
         }
         

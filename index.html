@@ -281,14 +281,26 @@
                 var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
                 return (metaB.done / metaB.total) - (metaA.done / metaA.total);
             });
+            var showM = document.getElementById('chkMissing') ? document.getElementById('chkMissing').checked : true;
+            var showD = document.getElementById('chkDone') ? document.getElementById('chkDone').checked : false;
+            
             sortedKeys.forEach(key => {
-                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
-                var pct = Math.round((meta.done / meta.total) * 100);
+                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:0};
+                
+                var displayCount = 0;
+                if (showM) displayCount += (meta.total - meta.done);
+                if (showD) displayCount += meta.done;
+            
+                var pct = meta.total > 0 ? Math.round((meta.done / meta.total) * 100) : 0;
                 var color = getHeatColor(pct);
-                var trendHtml = "";
+                
                 var div = document.createElement('div');
                 div.className = "list-item"; 
-                div.innerHTML = `<span>${regionConfig[key].name}</span><div>${trendHtml}<span style="color:${color};font-weight:bold">${pct}%</span></div>`;
+                div.innerHTML = `<span>${regionConfig[key].name}</span>
+                                 <div style="display:flex; gap:10px; align-items:center">
+                                    <span style="font-size:11px; color:#bdc3c7">(${displayCount})</span>
+                                    <span style="color:${color};font-weight:bold">${pct}%</span>
+                                 </div>`;
                 div.onclick = () => { changeRegion(key); };
                 sb.appendChild(div);
             });
@@ -296,15 +308,22 @@
         else {
             // SHOW CATEGORIES (3 Levels)
             var hierarchy = {};
+            var showM = document.getElementById('chkMissing').checked;
+            var showD = document.getElementById('chkDone').checked;
+            
             currentData.features.forEach(f => {
-                var g = f.properties.group || 'Altro';
-                var sg = f.properties.subgroup || 'Altro';
-                var t = f.properties.subcategory || 'Altro';
-                
-                if (!hierarchy[g]) hierarchy[g] = {};
-                if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
-                if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
-                hierarchy[g][sg][t]++;
+                var status = f.properties.status;
+                // Nur zählen, wenn der Status zur Auswahl passt
+                if ((status === 'missing' && showM) || (status === 'done' && showD)) {
+                    var g = f.properties.group || 'Altro';
+                    var sg = f.properties.subgroup || 'Altro';
+                    var t = f.properties.subcategory || 'Altro';
+                    
+                    if (!hierarchy[g]) hierarchy[g] = {};
+                    if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
+                    if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
+                    hierarchy[g][sg][t]++;
+                }
             });
 
             Object.keys(groupColors).forEach(group => {
@@ -550,7 +569,6 @@
         downloadJSON(feats, `missing_${regionName}_${catName}.geojson`);
     }
 
-    // NEW: Download whole subgroup
     function downloadSubgroup(subgroup) {
         if (!currentData) return;
         var feats = currentData.features.filter(f => f.properties.status === 'missing' && f.properties.subgroup === subgroup);
@@ -569,8 +587,20 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
-    function toggleLayer(t, c) { if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); }
-    function toggleCheckbox(id) { var c = document.getElementById(id); if(event.target !== c) { c.checked = !c.checked; c.dispatchEvent(new Event('change')); } }
+    function toggleLayer(t, c) { 
+        if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); 
+        // Menü neu zeichnen, um Zahlen zu aktualisieren
+        renderSidebar(); 
+    }
+    
+    function toggleCheckbox(id) {
+        const checkbox = document.getElementById(id);
+    
+        if (event.target !== checkbox) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    }
 </script>
 </body>
 </html>

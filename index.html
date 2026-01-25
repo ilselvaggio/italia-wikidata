@@ -296,7 +296,8 @@
         else {
             // SHOW CATEGORIES (3 Levels)
             var hierarchy = {};
-            currentData.features.forEach(f => {
+            const filtered = getFilteredFeaturesByStatus(currentData.features);
+            filtered.forEach(f => {
                 var g = f.properties.group || 'Altro';
                 var sg = f.properties.subgroup || 'Altro';
                 var t = f.properties.subcategory || 'Altro';
@@ -568,6 +569,17 @@
         a.download = filename;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
+
+    function getFilteredFeaturesByStatus(features) {
+        const showMissing = document.getElementById("chkMissing").checked;
+        const showDone = document.getElementById("chkDone").checked;
+
+        return features.filter(f => {
+            if (f.properties.status === "missing" && showMissing) return true;
+            if (f.properties.status === "done" && showDone) return true;
+            return false;
+        });
+    }    
 
     function toggleLayer(t, c) { if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); }
     function toggleCheckbox(id) { var c = document.getElementById(id); if(event.target !== c) { c.checked = !c.checked; c.dispatchEvent(new Event('change')); } }

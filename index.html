@@ -253,28 +253,27 @@
             var showD = document.getElementById('chkDone') ? document.getElementById('chkDone').checked : false;
             
             sortedKeys.forEach(key => {
-                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:0};
-                
-                var displayCount = 0;
-                if (showM) displayCount += (meta.total - meta.done);
-                if (showD) displayCount += meta.done;
-            
-                var pct = meta.total > 0 ? Math.round((meta.done / meta.total) * 100) : 0;
-                var color = getHeatColor(pct);
-                
-                var div = document.createElement('div');
+                const meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || { done: 0, total: 0 };
+                const missing = meta.total - meta.done;
+                const done = meta.done;
+                const countLabel = `${missing}/${done}`;
+                const pct = meta.total > 0 ? Math.round((meta.done / meta.total) * 100) : 0;
+                const color = getHeatColor(pct);
+                const div = document.createElement('div');
                 div.className = "list-item"; 
-                div.innerHTML = `<span>${regionConfig[key].name}</span>
-                                 <div style="display:flex; gap:10px; align-items:center">
-                                    <span style="font-size:11px; color:#bdc3c7">(${displayCount})</span>
-                                    <span style="color:${color};font-weight:bold">${pct}%</span>
-                                 </div>`;
+                
+                div.innerHTML = `
+                    <span>${regionConfig[key].name}</span>
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <span style="font-size:11px; color:#bdc3c7">(${countLabel})</span>
+                        <span style="color:${color};font-weight:bold">${pct}%</span>
+                    </div>`;
+                    
                 div.onclick = () => { changeRegion(key); };
                 sb.appendChild(div);
             });
         } 
         else {
-            // SHOW CATEGORIES (3 Levels)
             var hierarchy = {};
             var showM = document.getElementById('chkMissing').checked;
             var showD = document.getElementById('chkDone').checked;

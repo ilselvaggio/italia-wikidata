@@ -294,17 +294,23 @@
             });
         } 
         else {
-            // SHOW CATEGORIES (3 Levels)
             var hierarchy = {};
+            var showM = document.getElementById('chkMissing').checked;
+            var showD = document.getElementById('chkDone').checked;
+
             currentData.features.forEach(f => {
-                var g = f.properties.group || 'Altro';
-                var sg = f.properties.subgroup || 'Altro';
-                var t = f.properties.subcategory || 'Altro';
-                
-                if (!hierarchy[g]) hierarchy[g] = {};
-                if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
-                if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
-                hierarchy[g][sg][t]++;
+                var status = f.properties.status;
+                // Nur zählen, wenn der Status zur Checkbox-Auswahl passt
+                if ((status === 'missing' && showM) || (status === 'done' && showD)) {
+                    var g = f.properties.group || 'Altro';
+                    var sg = f.properties.subgroup || 'Altro';
+                    var t = f.properties.subcategory || 'Altro';
+                    
+                    if (!hierarchy[g]) hierarchy[g] = {};
+                    if (!hierarchy[g][sg]) hierarchy[g][sg] = {};
+                    if (!hierarchy[g][sg][t]) hierarchy[g][sg][t] = 0;
+                    hierarchy[g][sg][t]++;
+                }
             });
 
             Object.keys(groupColors).forEach(group => {
@@ -569,8 +575,19 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
-    function toggleLayer(t, c) { if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); }
-    function toggleCheckbox(id) { var c = document.getElementById(id); if(event.target !== c) { c.checked = !c.checked; c.dispatchEvent(new Event('change')); } }
+    function toggleLayer(t, c) { 
+        if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); 
+        renderSidebar(); 
+    }
+    
+    function toggleCheckbox(id) {
+        var c = document.getElementById(id);
+    
+        if (event.target !== c) {
+            c.checked = !c.checked;
+            c.dispatchEvent(new Event('change'));
+        }
+    }
 </script>
 </body>
 </html>

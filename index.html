@@ -6,22 +6,18 @@
     <title>Panoramica OpenStreetMap-Wikidata Italia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* --- CORE LAYOUT --- */
+
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
-        
-        /* --- HEADER --- */
+    
         #header { background-color: #333; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; height: 50px; z-index: 3000; position: relative; flex-shrink: 0; }
         #left-col { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
         #menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
         #title { font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
         #cat-toggle-btn { display: none; background: #e67e22; border: none; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0; }
         #cat-toggle-btn:hover { background: #d35400; }
-        
         #controls { display: none; gap: 8px; align-items: center; font-size: 12px; margin-left: auto; flex-shrink: 0; padding-right: 5px; }
         #meta-info { font-size: 10px; color: #ccc; text-align: right; border-left: 1px solid #555; padding-left: 10px; min-width: 90px; display: block; margin-left: auto; margin-right: 5px;}
         
-        /* --- PLACEHOLDER --- */
         #map-placeholder {
           position: absolute;
           top: 40%;
@@ -37,57 +33,42 @@
           text-align: center;
           box-shadow: 0 4px 10px rgba(0,0,0,0.3);
           backdrop-filter: blur(2px);
-          display: none; /* nascosto su desktop */
+          display: none;
         }
         
         @media (max-width: 768px) {
-          #map-placeholder { display: block; } /* visibile su mobile */
+          #map-placeholder { display: block; }
           .desktop-msg { display: none; }
           .mobile-msg { display: inline; }
         }
         
-        /* --- SIDEBAR --- */
         #sidebar { width: 220px; background-color: #2c3e50; color: #ecf0f1; border-right: 1px solid #1a252f; flex-shrink: 0; transition: transform 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         #sidebar-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
         #sidebar-footer { padding: 12px; font-size: 10px; text-align: center; color: #7f8c8d; border-top: 1px solid #34495e; background-color: #233140; flex-shrink: 0; }
-
         #main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { flex-grow: 1; background: #f0f0f0; height: 100%; }
         
-        /* List Item (Regions) */
         .list-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.2s; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .list-item:hover { background-color: #34495e; }
         
-        /* --- ACCORDION STYLES (THE IMPORTANT PART) --- */
-        
-        /* Level 1: Main Groups */
         .group-header { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid #2c3e50; font-size: 13px; background-color: #34495e; transition: background 0.2s; }
-        
-        /* Visual Feedback for Selected Groups */
         .group-header.fully-selected { background-color: #2980b9 !important; border-left: 4px solid #fff; }
         .group-header.partially-selected { border-left: 4px solid #f39c12; background-color: #3e5871; }
-
         .group-label { flex-grow: 1; padding: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; }
         .group-label:hover { background-color: rgba(255,255,255,0.1); }
-        
         .group-toggle-icon { padding: 10px; cursor: pointer; border-left: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; width: 30px; }
         .group-toggle-icon:hover { background-color: rgba(255,255,255,0.2); }
-        
         .group-content { display: none; background-color: #2c3e50; }
         .group-content.expanded { display: block; }
         
-        /* Level 2: Subgroups */
         .subgroup-header { display: flex; justify-content: space-between; align-items: center; padding: 0; background-color: #233140; border-bottom: 1px solid #2c3e50; }
         .subgroup-label { flex-grow: 1; padding: 8px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #bdc3c7; cursor: pointer; letter-spacing: 0.5px; }
         .subgroup-label:hover { color: #fff; background-color: #2c3e50; }
         
-        /* Subgroup selection feedback */
         .subgroup-header.fully-selected .subgroup-label { color: #3498db; }
-
         .subgroup-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #7f8c8d; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c3e50; padding: 8px 0; }
         .subgroup-dl-btn:hover { background: #27ae60; color: white; }
 
-        /* Level 3: Types */
         .subcat-item { padding: 0; cursor: pointer; border-bottom: 1px solid #34495e; font-size: 12px; display: flex; justify-content: space-between; align-items: stretch; }
         .subcat-item:hover { background-color: #3e5871; }
         .subcat-item.selected { background-color: #2980b9; border-left: 4px solid #fff; } 
@@ -97,22 +78,18 @@
         .subcat-dl-btn { width: 30px; border: none; background: rgba(0,0,0,0.2); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; border-left: 1px solid #34495e; }
         .subcat-dl-btn:hover { background: #27ae60; color: white; }
 
-        /* Dots & Stats */
         .cat-dot { min-width: 10px; width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #fff; margin-right: 8px; }
-        
         .stat-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; border: 1px solid #fff; }
         .dot-red { background: #e74c3c; }
         .dot-green { background: #2ecc71; }
-        
         .btn-download { background-color: #bdc3c7; color: #333; border: 1px solid #95a5a6; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; display: none; }
-        #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         
+        #loading { display:none; color: #f1c40f; font-weight: bold; font-size: 11px; }
         .logo-row { display: flex; gap: 15px; margin-top: 8px; justify-content: center; align-items: center; }
         .logo-link { display: inline-block; width: 32px; height: 32px; transition: transform 0.2s; }
         .logo-link img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* MOBILE */
         @media (max-width: 700px) {
             #header { padding-left: 0; } 
             #menu-toggle { display: block; }
@@ -185,7 +162,6 @@
     var currentMissingFeatures = [];
     var currentData = null; 
     var historyData = [];
-    
     var viewMode = 'regions'; 
     var selectedRegionKey = null;
     var activeCategoryFilters = new Set(); 
@@ -193,40 +169,32 @@
     var regionLayers = {};
     var regionsGeoLayer = null;
 
-    // --- GROUPS & COLORS ---
-    var groupColors = {
-        "Religione": "#E63946", "Archeologia": "#8D6E63", "Cultura e tempo libero": "#FFB703", 
-        "Amministrazione": "#F4A261", "Fortificazioni e militare": "#606C38", 
-        "Dimore ed edifici": "#A53860", "Natura e paesaggio": "#2A9D8F", "Insediamenti": "#457B9D", 
-        "Infrastrutture": "#7D8597", "Monumenti": "#9D4EDD", "Altro": "#000000"
-    };
-
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+   function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
     map.on('click', function() {
         if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
     });
 
+    var categoryConfig = {};
+
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({})),
         fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null),
-        fetch('history.json').then(r => r.json()).catch(() => []) 
-    ]).then(([regions, metadata, bounds, history]) => {
-        regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
+        fetch('history.json').then(r => r.json()).catch(() => []),
+        fetch('category_config.json').then(r => r.json()) 
+    ]).then(([regions, metadata, bounds, history, catConfig]) => {
+        regionConfig = regions; 
+        metaDataGlobal = metadata; 
+        boundariesGeoJSON = bounds;
         historyData = history;
-
-        var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
-        
-        if(metadata.global_osm_date) {
-             let d = new Date(metadata.global_osm_date);
-             document.getElementById('date-osm').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_osm_date;
-        }
-        if(metadata.global_wiki_date) {
-             let d = new Date(metadata.global_wiki_date);
-             document.getElementById('date-wiki').innerText = !isNaN(d) ? d.toLocaleString('it-IT', dateOpts) : metadata.global_wiki_date;
-        }
-
+        categoryConfig = catConfig;
+    
+        window.groupColors = {};
+        Object.keys(catConfig).forEach(groupName => {
+            window.groupColors[groupName] = catConfig[groupName].color;
+        });
+    
         renderSidebar();
         if (boundariesGeoJSON) loadRegionsShape();
     });
@@ -326,8 +294,8 @@
                 }
             });
 
-            Object.keys(groupColors).forEach(group => {
-                if (!hierarchy[group]) return; 
+            Object.keys(categoryConfig).forEach(group => {
+                if (!hierarchy[group]) return;
                 
                 // 1. Gather all types in this group for selection logic
                 var allTypesInGroup = [];

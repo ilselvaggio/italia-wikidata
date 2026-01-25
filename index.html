@@ -285,7 +285,7 @@
                 var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0,total:1};
                 var pct = Math.round((meta.done / meta.total) * 100);
                 var color = getHeatColor(pct);
-                var trendHtml = getTrend(key, pct);
+                var trendHtml = "";
                 var div = document.createElement('div');
                 div.className = "list-item"; 
                 div.innerHTML = `<span>${regionConfig[key].name}</span><div>${trendHtml}<span style="color:${color};font-weight:bold">${pct}%</span></div>`;

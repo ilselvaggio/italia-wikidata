@@ -177,23 +177,37 @@
 
     var categoryConfig = {};
 
+    var categoryConfig = {};
+
     Promise.all([
         fetch('regions.json').then(r => r.json()),
         fetch('metadata.json').then(r => r.json()).catch(() => ({})),
         fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null),
         fetch('history.json').then(r => r.json()).catch(() => []),
-        fetch('category_config.json').then(r => r.json()) 
+        fetch('category_config.json').then(r => r.json())
     ]).then(([regions, metadata, bounds, history, catConfig]) => {
         regionConfig = regions; 
         metaDataGlobal = metadata; 
         boundariesGeoJSON = bounds;
         historyData = history;
         categoryConfig = catConfig;
-    
         window.groupColors = {};
-        Object.keys(catConfig).forEach(groupName => {
-            window.groupColors[groupName] = catConfig[groupName].color;
-        });
+        Object.keys(catConfig).forEach(g => { window.groupColors[g] = catConfig[g].color; });
+    
+        // Datums-Fix
+        var dateOpts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+        var formatD = (v) => {
+            if(!v || v === "--") return "--";
+            var d = new Date(v);
+            return isNaN(d.getTime()) ? v : d.toLocaleString('it-IT', dateOpts);
+        };
+    
+        if(document.getElementById('date-osm')) document.getElementById('date-osm').innerText = formatD(metadata.global_osm_date || metadata.osm_date);
+        if(document.getElementById('date-wiki')) document.getElementById('date-wiki').innerText = formatD(metadata.global_wiki_date || metadata.wiki_date);
+    
+        renderSidebar();
+        if (boundariesGeoJSON) loadRegionsShape();
+    });
     
         renderSidebar();
         if (boundariesGeoJSON) loadRegionsShape();
@@ -241,38 +255,32 @@
 
     function renderSidebar() {
         var sb = document.getElementById('sidebar-content'); sb.innerHTML = "";
+
+
+
         
         if (!currentData || viewMode === 'regions') { 
-            // SHOW REGIONS LIST
             var sortedKeys = Object.keys(regionConfig).sort((a,b) => {
                 var metaA = (metaDataGlobal.regions && metaDataGlobal.regions[a]) || {done:0, total:1};
                 var metaB = (metaDataGlobal.regions && metaDataGlobal.regions[b]) || {done:0, total:1};
                 return (metaB.done / metaB.total) - (metaA.done / metaA.total);
             });
-            var showM = document.getElementById('chkMissing') ? document.getElementById('chkMissing').checked : true;
-            var showD = document.getElementById('chkDone') ? document.getElementById('chkDone').checked : false;
-            
+        
             sortedKeys.forEach(key => {
-                const meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || { done: 0, total: 0 };
-                const missing = meta.total - meta.done;
-                const done = meta.done;
-                const countLabel = `${missing}/${done}`;
-                const pct = meta.total > 0 ? Math.round((meta.done / meta.total) * 100) : 0;
-                const color = getHeatColor(pct);
-                const div = document.createElement('div');
-                div.className = "list-item"; 
+                var meta = (metaDataGlobal.regions && metaDataGlobal.regions[key]) || {done:0, total:1};
+                var pct = Math.round((meta.done / meta.total) * 100);
+                var color = getHeatColor(pct);
                 
-                div.innerHTML = `
-                    <span>${regionConfig[key].name}</span>
-                    <div style="display:flex; gap:10px; align-items:center">
-                        <span style="font-size:11px; color:#bdc3c7">(${countLabel})</span>
-                        <span style="color:${color};font-weight:bold">${pct}%</span>
-                    </div>`;
-                    
+                var div = document.createElement('div');
+                div.className = "list-item"; 
+                div.innerHTML = `<span>${regionConfig[key].name}</span>
+                                 <span style="color:${color};font-weight:bold">${pct}%</span>`;
                 div.onclick = () => { changeRegion(key); };
                 sb.appendChild(div);
             });
-        } 
+        }
+
+            
         else {
             var hierarchy = {};
             var showM = document.getElementById('chkMissing').checked;
@@ -556,7 +564,6 @@
 
     function toggleLayer(t, c) { 
         if(c) map.addLayer(layers[t]); else map.removeLayer(layers[t]); 
-        // Menü neu zeichnen, um Zahlen zu aktualisieren
         renderSidebar(); 
     }
     

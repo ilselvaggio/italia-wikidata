@@ -6,11 +6,11 @@
         "Scuola": ["Q3914"],
         "Scuola dell'infanzia": ["Q126807"],
         "Scuola primaria": ["Q9842"],
-        "Scuola secondaria": ["Q149566", "Q57775518"],
+        "Scuola secondaria": ["Q149566", "Q57775518", "Q9826", "Q3803834", "Q1981640", "Q3831968", "Q3803808"],
         "Istituto comprensivo": ["Q56177191"],
         "Conservatorio": ["Q184644"],
-        "Complesso educativo": ["Q20860083"],
-        "Istituzione accademica": ["Q4671277"]
+        "Complesso educativo": ["Q20860083", "Q2385804"],
+        "Istituzione accademica": ["Q4671277", "Q162633"]
       },
       "Uffici Pubblici": {
         "Municipio": ["Q25550691", "Q15303838"],
@@ -30,7 +30,7 @@
         "Biblioteca universitaria": ["Q1622062"],
         "Biblioteca scolastica": ["Q1076099"],
         "Biblioteca privata": ["Q380829"],
-        "Biblioteca specializzata": ["Q385994"],
+        "Biblioteca specializzata": ["Q385994", "Q105763925"],
         "Biblioteca di ente": ["Q124750618"],
         "Biblioteca": ["Q7075", "Q124750618"]
       },
@@ -59,6 +59,9 @@
         "Cinema": ["Q41253"],
         "Casinò": ["Q133215"],
         "Centro culturale": ["Q1329623"]
+      },
+      "Sport": {
+        "Impianto sportivo": ["Q1076486", "Q1154710", "Q483110", "Q3958661"]
       }
     }
   },
@@ -76,7 +79,8 @@
         "Tempio": ["Q44539"],
         "Capitello votivo": ["Q3395121"],
         "Via Crucis": ["Q231685"],
-        "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496"]
+        "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496", "Q96371632"],
+        "Edificio religioso": ["Q24398318"]
       },
       "Vita Monastica": {
         "Monastero": ["Q44613"],
@@ -146,9 +150,10 @@
       "Acqua": {
         "Lago": ["Q23397", "Q4735538", "Q5926864"],
         "Bacino artificiale": ["Q131681", "Q3215290"],
-        "Fiume": ["Q4022", "Q63565252", "Q1437299"],
+        "Fiume": ["Q4022", "Q63565252", "Q1437299", "Q47521"],
         "Sorgente": ["Q124714"],
-        "Cascata": ["Q34038"]
+        "Cascata": ["Q34038"],
+        "Canale artificiale": ["Q12284"]
       },
       "Mare e Costa": {
         "Spiaggia": ["Q40080"],
@@ -158,14 +163,14 @@
       },
       "Montagna": {
         "Collina": ["Q54050"],
-        "Montagna": ["Q8502"],
-        "Vetta": ["Q207326"],
+        "Montagna": ["Q8502", "Q740445", "Q207326", "Q46831", "Q3958626", "Q2624046"],
         "Valle": ["Q39816"],
         "Passo": ["Q2231510", "Q133056"],
         "Sella": ["Q10862618"],
         "Gap": ["Q16887036"],
         "Grotta": ["Q35509"],
-        "Ghiacciaio": ["Q35666"]
+        "Ghiacciaio": ["Q35666"],
+        "Via ferrata": ["Q648116"]
       },
       "Verde": {
         "Parco": ["Q22698"],
@@ -173,7 +178,7 @@
         "Giardino": ["Q1107656"],
         "Orto botanico": ["Q167346"],
         "Albero monumentale": ["Q811534"],
-        "Area protetta": ["Q473972", "Q15069452", "Q3936950", "Q179049"]
+        "Area protetta": ["Q473972", "Q15069452", "Q3936950", "Q179049", "Q175208"]
       }
     }
   },
@@ -221,10 +226,11 @@
         "Porto": ["Q44782"],
         "Valico di confine": ["Q55599109"],
         "Galleria": ["Q44377", "Q2354973"],
-        "Strada urbana": ["Q79007"],
-        "Ponte": ["Q12280"],
+        "Strada urbana": ["Q79007", "Q34442"],
+        "Ponte": ["Q12280", "Q537127"],
         "Viadotto": ["Q181348"],
-        "Faro": ["Q39715"]
+        "Faro": ["Q39715"],
+        "Portico": ["Q185600"]
       },
       "Industria e Tecnica": {
         "Edificio industriale": ["Q1662011"],
@@ -234,11 +240,11 @@
         "Lavatoio": ["Q1690211"],
         "Stazione meteorologica": ["Q190107"],
         "Società scientifica": ["Q955824"],
-        "Osservatorio astronomico": ["Q1254933"],
+        "Osservatorio astronomico": ["Q1254933", "Q62832"],
         "Fabbrica": ["Q3973051"]
       },
       "Servizi": {
-        "Sanità": ["Q16917"],
+        "Sanità": ["Q16917", "Q1774898", "Q210999"],
         "Servizio": ["Q13226383"],
         "Impresa sociale": ["Q1071015"],
         "Organizzazione no-profit": ["Q163740"]
@@ -267,7 +273,7 @@
     "color": "#9D4EDD",
     "subgroups": {
       "Monumenti": {
-        "Monumento": ["Q4989906", "Q5003624"],
+        "Monumento": ["Q4989906", "Q5003624", "Q1885014"],
         "Memoriale di guerra": ["Q575759"],
         "Monumento ai caduti": ["Q575759", "Q114124381"],
         "Arco di trionfo": ["Q200688"],

@@ -63,7 +63,7 @@ def fetch_osm_bbox(bbox, retries=3):
             data = response.json()
             if 'elements' in data: return data
         except Exception as e:
-            print(f"      [!] Attempt {attempt+1}/{retries} failed: {e}")
+            print(f"      [!] Failed to Fetch OSM data, attempt {attempt+1}/{retries} failed: {e}")
             time.sleep(5)
     return None
 
@@ -83,10 +83,12 @@ def fetch_osm_area_fallback(area_id, retries=2):
             response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
             response.raise_for_status()
             return response.json()
-        except: time.sleep(5)
+        except:
+            print(f"      [!] Failed to Fetch fallback OSM data, Attempt {attempt+1}/{retries} failed: {e}")
+            time.sleep(5)
     return None
 
-def get_wikidata_clean(qid):
+def get_wikidata_clean(qid, retries=2):
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
        ?item wdt:P131* wd:{qid}; wdt:P625 ?loc .
 
@@ -106,12 +108,16 @@ def get_wikidata_clean(qid):
 
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
-    try:
-        headers = {'User-Agent': 'ItaliaWikidataCheck/10.0', 'Accept': 'text/csv'}
-        r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
-        r.raise_for_status()
-        return r.text
-    except: return None
+    for attempt in range(retries):
+        try:
+            headers = {'User-Agent': 'ItaliaWikidataCheck/10.0', 'Accept': 'text/csv'}
+            r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
+            r.raise_for_status()
+            return r.text
+        except:
+            print(f"      [!] Failed to Fetch Wikidata, Attempt {attempt+1}/{retries} failed: {e}")
+            time.sleep(10)
+    return None
 
 def main():
     parser = argparse.ArgumentParser()

@@ -6,6 +6,7 @@
         "Scuola": ["Q3914"],
         "Scuola dell'infanzia": ["Q126807"],
         "Scuola primaria": ["Q9842"],
+        "Scuola secondaria": ["Q149566", "Q57775518"],
         "Istituto comprensivo": ["Q56177191"],
         "Conservatorio": ["Q184644"],
         "Complesso educativo": ["Q20860083"],
@@ -34,7 +35,7 @@
         "Biblioteca": ["Q7075", "Q124750618"]
       },
       "Musei": {
-        "Museo": ["Q33506", "Q124830213", "Q124830411"],
+        "Museo": ["Q33506", "Q124830213", "Q124830411", "Q614316"],
         "Museo d'arte": ["Q207694", "Q108860593"],
         "Pinacoteca": ["Q740437"],
         "Museo archeologico": ["Q3329412"],
@@ -42,7 +43,7 @@
         "Museo etnografico": ["Q12104174"],
         "Museo pubblico": ["Q124830213", "Q124830411"],
         "Museo didattico": ["Q94701740"],
-        "Ecomuseo": ["Q94701721"],
+        "Ecomuseo": ["Q94701721", "Q1798450"],
         "Casa museo": ["Q2087181"]
       },
       "Archivi": {
@@ -100,6 +101,7 @@
     "color": "#457B9D",
     "subgroups": {
       "Centri": {
+        "Località": ["Q3257686"],
         "Frazione": ["Q1134686"],
         "Insediamento umano": ["Q486972"],
         "Località abitata": ["Q3835961"],
@@ -142,9 +144,9 @@
     "color": "#2A9D8F",
     "subgroups": {
       "Acqua": {
-        "Lago": ["Q23397", "Q4735538"],
-        "Bacino artificiale": ["Q131681"],
-        "Fiume": ["Q4022"],
+        "Lago": ["Q23397", "Q4735538", "Q5926864"],
+        "Bacino artificiale": ["Q131681", "Q3215290"],
+        "Fiume": ["Q4022", "Q63565252", "Q1437299"],
         "Sorgente": ["Q124714"],
         "Cascata": ["Q34038"]
       },
@@ -155,13 +157,15 @@
         "Isola": ["Q23442"]
       },
       "Montagna": {
+        "Collina": ["Q54050"],
         "Montagna": ["Q8502"],
         "Vetta": ["Q207326"],
         "Valle": ["Q39816"],
         "Passo": ["Q2231510", "Q133056"],
         "Sella": ["Q10862618"],
         "Gap": ["Q16887036"],
-        "Grotta": ["Q35509"]
+        "Grotta": ["Q35509"],
+        "Ghiacciaio": ["Q35666"]
       },
       "Verde": {
         "Parco": ["Q22698"],
@@ -169,7 +173,7 @@
         "Giardino": ["Q1107656"],
         "Orto botanico": ["Q167346"],
         "Albero monumentale": ["Q811534"],
-        "Area protetta": ["Q473972", "Q15069452", "Q3936950"]
+        "Area protetta": ["Q473972", "Q15069452", "Q3936950", "Q179049"]
       }
     }
   },
@@ -234,6 +238,7 @@
         "Fabbrica": ["Q3973051"]
       },
       "Servizi": {
+        "Sanità": ["Q16917"],
         "Servizio": ["Q13226383"],
         "Impresa sociale": ["Q1071015"],
         "Organizzazione no-profit": ["Q163740"]
@@ -250,7 +255,7 @@
         "Domus": ["Q782970"],
         "Domus de Janas": ["Q782970"],
         "Tomba dei giganti": ["Q1523627"],
-        "Rovine": ["Q109607"],
+        "Rovine": ["Q109607", "Q17485079"],
         "Città antica": ["Q15661340"],
         "Anfiteatro": ["Q41735"],
         "Teatro romano": ["Q3243464"],
@@ -262,12 +267,12 @@
     "color": "#9D4EDD",
     "subgroups": {
       "Monumenti": {
-        "Monumento": ["Q4989906"],
+        "Monumento": ["Q4989906", "Q5003624"],
         "Memoriale di guerra": ["Q575759"],
         "Monumento ai caduti": ["Q575759", "Q114124381"],
         "Arco di trionfo": ["Q200688"],
         "Targa commemorativa": ["Q721747"],
-        "Statua": ["Q179700"],
+        "Statua": ["Q179700", "Q2293362"],
         "Fontana": ["Q483453"],
         "Elemento architettonico": ["Q391414"]
       }

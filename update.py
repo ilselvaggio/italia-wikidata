@@ -83,7 +83,7 @@ def fetch_osm_area_fallback(area_id, retries=2):
             response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
             response.raise_for_status()
             return response.json()
-        except:
+        except Exception as e:
             print(f"      [!] Failed to Fetch fallback OSM data, Attempt {attempt+1}/{retries} failed: {e}")
             time.sleep(5)
     return None

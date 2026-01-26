@@ -114,7 +114,7 @@ def get_wikidata_clean(qid, retries=2):
             r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
             r.raise_for_status()
             return r.text
-        except:
+        except Exception as e:
             print(f"      [!] Failed to Fetch Wikidata, Attempt {attempt+1}/{retries} failed: {e}")
             time.sleep(10)
     return None

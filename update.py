@@ -110,10 +110,22 @@ def get_wikidata_clean(qid, retries=2):
     }}"""
     for attempt in range(retries):
         try:
-            headers = {'User-Agent': 'ItaliaWikidataCheck/10.0', 'Accept': 'text/csv'}
+            headers = {'User-Agent': 'ItaliaWikidataCheck/10.0 (https://ilselvaggio.github.io/italia-wikidata)', 'Accept-Encoding': 'gzip', 'Accept': 'text/csv'}
             r = requests.get(WIKIDATA_URL, params={'query': query}, headers=headers)
             r.raise_for_status()
             return r.text
+        except requests.HTTPError as http_err:
+            print(f"      [!] HTTP Error: {http_err}, Attempt {attempt+1}/{retries} failed.")
+            if r.status_code in {429, 503}:
+                retry_after = r.headers.get('Retry-After')
+                if retry_after:
+                    wait_time = int(retry_after) if retry_after.isnumeric() else 10
+                    print(f"      [!] Retry-After header indicates to wait {wait_time} seconds.")
+                else:
+                    wait_time = 10
+            else:
+                wait_time = 10
+            time.sleep(wait_time)
         except Exception as e:
             print(f"      [!] Failed to Fetch Wikidata, Attempt {attempt+1}/{retries} failed: {e}")
             time.sleep(10)

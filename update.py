@@ -43,7 +43,8 @@ def get_bbox_from_feature(feature):
     if not all_coords: return None
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
-    pad = 0.02
+    # Increased padding from 0.02 to 0.1 to include islands/coastlines (Issue #4)
+    pad = 0.1
     return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
 
 def fetch_osm_bbox(bbox, retries=3):

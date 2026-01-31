@@ -8,7 +8,7 @@
         "Scuola primaria": ["Q9842"],
         "Scuola secondaria": ["Q149566", "Q57775518", "Q9826", "Q3803834", "Q1981640", "Q3831968", "Q3803808"],
         "Istituto comprensivo": ["Q56177191"],
-        "Conservatorio": ["Q184644"],
+        "Conservatorio": ["Q184644", "Q1021290"],
         "Complesso educativo": ["Q20860083", "Q2385804"],
         "Istituzione accademica": ["Q4671277", "Q162633"]
       },
@@ -74,11 +74,11 @@
         "Basilica minore": ["Q120560"],
         "Cappella": ["Q108325"],
         "Cappella cimiteriale": ["Q1457501"],
-        "Oratorio": ["Q580499"],
+        "Oratorio": ["Q580499", "Q3884394"],
         "Santuario": ["Q697295"],
         "Tempio": ["Q44539"],
         "Capitello votivo": ["Q3395121"],
-        "Via Crucis": ["Q231685"],
+        "Via Crucis": ["Q231685", "Q1399033"],
         "Ex chiesa": ["Q19899465", "Q57644089", "Q96352496", "Q96371632"],
         "Edificio religioso": ["Q24398318"]
       },
@@ -107,7 +107,7 @@
       "Centri": {
         "Località": ["Q3257686"],
         "Frazione": ["Q1134686"],
-        "Villaggio": ["Q532"],
+        "Villaggio": ["Q532", "Q85842219"],
         "Borgata": ["Q5084"],
         "Insediamento umano": ["Q486972"],
         "Località abitata": ["Q3835961"],
@@ -127,7 +127,7 @@
     "color": "#606C38",
     "subgroups": {
       "Fortificazioni": {
-        "Castello": ["Q23413"],
+        "Castello": ["Q23413", "Q1408475"],
         "Castello in rovina": ["Q17715832"],
         "Rocca": ["Q1195705"],
         "Forte": ["Q1785071"],
@@ -201,7 +201,8 @@
         "Guest house": ["Q2460422"],
         "Rifugio di montagna": ["Q182676"],
         "Bivacco alpino": ["Q20743510"],
-        "Bivacco": ["Q20743510"]
+        "Bivacco": ["Q20743510"],
+        "Locanda": ["Q256020"]
       },
       "Strutture Varie": {
         "Edificio": ["Q41176"],
@@ -223,7 +224,7 @@
         "Stazione sotterranea": ["Q22808403"],
         "Fermata tram": ["Q2175765"],
         "Linea ferroviaria": ["Q728937"],
-        "Aeroporto": ["Q1248784"],
+        "Aeroporto": ["Q1248784", "Q695850"],
         "Aerodromo": ["Q94993988"],
         "Porto": ["Q44782"],
         "Valico di confine": ["Q55599109"],

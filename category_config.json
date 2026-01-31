@@ -107,6 +107,8 @@
       "Centri": {
         "Località": ["Q3257686"],
         "Frazione": ["Q1134686"],
+        "Villaggio": ["Q532"],
+        "Borgata": ["Q5084"],
         "Insediamento umano": ["Q486972"],
         "Località abitata": ["Q3835961"],
         "Cittadina": ["Q3957"],

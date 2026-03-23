@@ -206,11 +206,12 @@
         if (window.innerWidth > 700) { document.getElementById('sidebar').classList.remove('open'); }
     });
 
+    var ts = new Date().getTime(); 
     Promise.all([
-        fetch('regions.json').then(r => r.json()),
-        fetch('metadata.json').then(r => r.json()).catch(() => ({})),
-        fetch('regions_boundaries.geojson').then(r => r.json()).catch(() => null),
-        fetch('history.json').then(r => r.json()).catch(() => []) 
+        fetch('regions.json?v=' + ts).then(r => r.json()),
+        fetch('metadata.json?v=' + ts).then(r => r.json()).catch(() => ({})),
+        fetch('regions_boundaries.geojson?v=' + ts).then(r => r.json()).catch(() => null),
+        fetch('history.json?v=' + ts).then(r => r.json()).catch(() => []) 
     ]).then(([regions, metadata, bounds, history]) => {
         regionConfig = regions; metaDataGlobal = metadata; boundariesGeoJSON = bounds;
         historyData = history;
@@ -485,7 +486,7 @@
         document.getElementById('loading').style.display = 'block';
         document.getElementById('btnDownload').style.display = 'none';
         
-        fetch(`data_overpass/data_${key}.geojson`).then(res => res.json()).then(data => {
+        fetch(`data_overpass/data_${key}.geojson?v=` + new Date().getTime()).then(res => res.json()).then(data => {
             currentData = data; 
             renderSidebar();
             renderMarkers(data);

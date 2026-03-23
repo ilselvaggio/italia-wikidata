@@ -1,0 +1,36 @@
+name: Daily Italy Wikidata Update
+
+on:
+  schedule:
+    # 00:00 UTC entspricht 01:00 MEZ (Winterzeit) / 02:00 MESZ (Sommerzeit)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Ermöglicht manuelles Starten über die GitHub-Oberfläche zum Testen
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Update-Skript ausführen
+        run: python update.py
+        
+      - name: Änderungen committen und pushen
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Automatisches Update: OSM & Wikidata Daten"
+          file_pattern: "osm/*.json data_overpass/*.geojson metadata.json history.json"

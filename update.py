@@ -47,8 +47,9 @@ def get_bbox_from_feature(feature):
     return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
 
 def fetch_osm_bbox(bbox, retries=3):
+    # Timeout auf 900 Sekunden (15 Minuten) erhöht, da die Abfragen für ganze Regionen sehr groß sind.
     query = f"""
-    [out:json][timeout:180];
+    [out:json][timeout:900];
     (
       node["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
       way["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
@@ -58,18 +59,19 @@ def fetch_osm_bbox(bbox, retries=3):
     """
     for attempt in range(retries):
         try:
-            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
+            # Request-Timeout muss etwas höher sein als das API-Timeout
+            response = requests.post(OVERPASS_URL, data={'data': query}, timeout=930)
             response.raise_for_status()
             data = response.json()
             if 'elements' in data: return data
         except Exception as e:
             print(f"      [!] OSM BBox Fetch fehlgeschlagen (Versuch {attempt+1}/{retries}): {e}")
-            time.sleep(10)
+            time.sleep(30) # Längere Pause bei Fehlern
     return None
 
 def fetch_osm_area_fallback(area_id, retries=2):
     query = f"""
-    [out:json][timeout:180];
+    [out:json][timeout:900];
     area({area_id})->.searchArea;
     (
       node["wikidata"](area.searchArea);
@@ -80,12 +82,12 @@ def fetch_osm_area_fallback(area_id, retries=2):
     """
     for attempt in range(retries):
         try:
-            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=190)
+            response = requests.post(OVERPASS_URL, data={'data': query}, timeout=930)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             print(f"      [!] OSM Area Fallback fehlgeschlagen (Versuch {attempt+1}/{retries}): {e}")
-            time.sleep(10)
+            time.sleep(30)
     return None
 
 def get_wikidata_clean(qid, retries=3):
@@ -109,7 +111,7 @@ def get_wikidata_clean(qid, retries=3):
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "it,en". }}
     }}"""
     headers = {
-        'User-Agent': 'ItaliaWikidataBot/1.0 (https://ilselvaggio.github.io/italia-wikidata)', 
+        'User-Agent': 'ItaliaWikidataBot/1.1 (https://ilselvaggio.github.io/italia-wikidata)', 
         'Accept-Encoding': 'gzip', 
         'Accept': 'text/csv'
     }
@@ -294,16 +296,22 @@ def main():
             print(f"   -> Gespeichert: {total} Items ({done} verknüpft)")
             processed_count += 1
             
-            # Wichtig: Kurze Pause zwischen den Regionen, um Server-Blockaden zu vermeiden
-            time.sleep(3)
+            # Pause erhöht auf 5 Sekunden zur Schonung der Server
+            time.sleep(5)
             
         except Exception as e:
             print(f"   [!] Unerwarteter Fehler bei der Verarbeitung von Region {key}: {e}")
             continue
 
     if processed_count > 0:
+        # Metadaten JEDES MAL erzwingen zu speichern, indem wir einen "forced_update"-Zeitstempel einfügen
         with open(METADATA_FILE, 'w') as f:
-            json.dump({ "global_osm_date": now_str, "global_wiki_date": now_str, "regions": new_meta }, f)
+            json.dump({ 
+                "global_osm_date": now_str, 
+                "global_wiki_date": now_str, 
+                "last_run_forced": now_str, # Hiermit ändern sich die Metadaten garantiert immer
+                "regions": new_meta 
+            }, f)
 
         history = []
         if os.path.exists(HISTORY_FILE):

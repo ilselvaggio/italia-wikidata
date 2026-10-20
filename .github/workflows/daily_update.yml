@@ -5,10 +5,15 @@ on:
     # 00:00 UTC entspricht 01:00 MEZ (Winterzeit) / 02:00 MESZ (Sommerzeit)
     - cron: '0 0 * * *'
   workflow_dispatch: # Ermöglicht manuelles Starten über die GitHub-Oberfläche zum Testen
+    inputs:
+      region:
+        description: 'Region key (z.B. molise) oder all'
+        default: 'all'
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    timeout-minutes: 340
     permissions:
       contents: write
 
@@ -27,7 +32,7 @@ jobs:
           pip install requests
 
       - name: Update-Skript ausführen
-        run: python update.py
+        run: python update.py --region "${{ github.event.inputs.region || 'all' }}"
         
       - name: Änderungen committen und pushen
         uses: stefanzweifel/git-auto-commit-action@v5

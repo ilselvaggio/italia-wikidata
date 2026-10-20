@@ -9,7 +9,6 @@ import argparse
 
 REGIONS_FILE = "regions.json"
 WIKIDATA_URL = "https://query.wikidata.org/sparql"
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_DIR = "osm"
 DATA_DIR = "data_overpass"
 METADATA_FILE = "metadata.json"
@@ -46,49 +45,85 @@ def get_bbox_from_feature(feature):
     pad = 0.02
     return (min(lats)-pad, min(lons)-pad, max(lats)+pad, max(lons)+pad)
 
-def fetch_osm_bbox(bbox, retries=3):
-    # Timeout auf 900 Sekunden (15 Minuten) erhöht, da die Abfragen für ganze Regionen sehr groß sind.
-    query = f"""
-    [out:json][timeout:900];
-    (
-      node["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-      way["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-      relation["wikidata"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    );
-    out tags qt;
-    """
-    for attempt in range(retries):
-        try:
-            # Request-Timeout muss etwas höher sein als das API-Timeout
-            response = requests.post(OVERPASS_URL, data={'data': query}, timeout=930)
-            response.raise_for_status()
-            data = response.json()
-            if 'elements' in data: return data
-        except Exception as e:
-            print(f"      [!] OSM BBox Fetch fehlgeschlagen (Versuch {attempt+1}/{retries}): {e}")
-            time.sleep(30) # Längere Pause bei Fehlern
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
+OVERPASS_HEADERS = {
+    # overpass-api.de lehnt anonyme/generische User-Agents (python-requests) ab
+    'User-Agent': 'ItaliaWikidataBot/1.2 (https://github.com/ilselvaggio/italia-wikidata)',
+    'Accept-Encoding': 'gzip',
+}
+OSM_FAILURES = []
+
+def warn(msg):
+    # Erscheint als Annotation im GitHub-Actions-Lauf (sichtbar ohne Logs zu öffnen)
+    print(msg)
+    if os.environ.get("GITHUB_ACTIONS"):
+        print(f"::warning::{msg}")
+
+def run_overpass(query, label):
+    """Probiert alle Endpoints nacheinander. Gibt JSON nur zurück, wenn vollständig (kein Timeout-Remark)."""
+    for url in OVERPASS_ENDPOINTS:
+        for attempt in range(2):
+            try:
+                r = requests.post(url, data={'data': query}, headers=OVERPASS_HEADERS, timeout=420)
+                if r.status_code in (429, 504):
+                    print(f"      [!] {url} -> HTTP {r.status_code} ({label}), warte 60s")
+                    time.sleep(60)
+                    continue
+                r.raise_for_status()
+                data = r.json()
+                remark = data.get('remark', '')
+                if 'elements' not in data or 'error' in remark.lower():
+                    print(f"      [!] {url} -> unvollständig ({label}): {remark[:150]}")
+                    break  # gleicher Server wird gleich reagieren -> nächster Endpoint
+                return data
+            except Exception as e:
+                print(f"      [!] {url} fehlgeschlagen ({label}, Versuch {attempt+1}/2): {str(e)[:200]}")
+                time.sleep(15)
     return None
 
-def fetch_osm_area_fallback(area_id, retries=2):
-    query = f"""
-    [out:json][timeout:900];
-    area({area_id})->.searchArea;
+def osm_query(area_filter):
+    return f"""
+    [out:json][timeout:360];
     (
-      node["wikidata"](area.searchArea);
-      way["wikidata"](area.searchArea);
-      relation["wikidata"](area.searchArea);
+      node["wikidata"]{area_filter};
+      way["wikidata"]{area_filter};
+      relation["wikidata"]{area_filter};
     );
     out tags qt;
     """
-    for attempt in range(retries):
-        try:
-            response = requests.post(OVERPASS_URL, data={'data': query}, timeout=930)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"      [!] OSM Area Fallback fehlgeschlagen (Versuch {attempt+1}/{retries}): {e}")
-            time.sleep(30)
-    return None
+
+def fetch_osm_bbox(bbox, depth=0):
+    """Lädt eine BBox; bei Fehlschlag wird sie in 4 Kacheln geteilt (max. 2 Ebenen = 16 Kacheln)."""
+    s, w, n, e = bbox
+    data = run_overpass(osm_query(f"({s},{w},{n},{e})"), f"bbox depth {depth}")
+    if data or depth >= 2:
+        return data
+    print(f"      -> Teile BBox in 4 Kacheln (Ebene {depth+1})")
+    mlat, mlon = (s + n) / 2, (w + e) / 2
+    merged, seen = None, set()
+    for tile in [(s, w, mlat, mlon), (s, mlon, mlat, e), (mlat, w, n, mlon), (mlat, mlon, n, e)]:
+        part = fetch_osm_bbox(tile, depth + 1)
+        if not part:
+            return None  # lieber Cache als unvollständige Daten
+        if merged is None:
+            merged = {k: v for k, v in part.items() if k != 'elements'}
+            merged['elements'] = []
+        for el in part['elements']:
+            k = (el['type'], el['id'])
+            if k not in seen:
+                seen.add(k)
+                merged['elements'].append(el)
+        time.sleep(5)
+    return merged
+
+def fetch_osm_area_fallback(area_id):
+    q = osm_query("(area.searchArea)").replace("(\n", f"area({area_id})->.searchArea;\n    (\n", 1)
+    return run_overpass(q, "area")
 
 def get_wikidata_clean(qid, retries=3):
     query = f"""SELECT DISTINCT ?qid ?lat ?lon ?itemLabel ?type WHERE {{
@@ -218,7 +253,8 @@ def main():
                     json.dump(new_data, f)
                 osm_data = new_data
             else:
-                print("   -> OSM API fehlgeschlagen. Greife auf lokalen Cache zurück.")
+                warn(f"OSM-Download für {config['name']} fehlgeschlagen – nutze Cache vom {old_meta.get(key, {}).get('osm', '?')[:10]}")
+                OSM_FAILURES.append(key)
                 if key in old_meta: 
                     current_osm_date = old_meta[key].get("osm", "Unknown")
                 if os.path.exists(file_osm):
@@ -288,6 +324,10 @@ def main():
 
             done = sum(1 for f in features if f['properties']['status'] == 'done')
             total = len(features)
+            prev_total = old_meta.get(key, {}).get("total", 0)
+            if prev_total and total < prev_total * 0.8:
+                warn(f"Wikidata für {config['name']} lieferte nur {total} statt ~{prev_total} Items (abgeschnitten?) – Region übersprungen")
+                continue
             new_meta[key] = { "osm": current_osm_date, "wiki": now_str, "done": done, "total": total }
 
             with open(os.path.join(DATA_DIR, f"data_{key}.geojson"), 'w', encoding='utf-8') as f:
@@ -331,6 +371,9 @@ def main():
             print(f"\n   -> History erfolgreich aktualisiert für {today_str}")
     else:
         print("\nKeine Regionen wurden erfolgreich verarbeitet. Die alten Daten bleiben bestehen.")
+
+    if OSM_FAILURES:
+        warn(f"OSM fehlgeschlagen für {len(OSM_FAILURES)} Region(en): {', '.join(OSM_FAILURES)}")
 
 if __name__ == "__main__":
     main()
